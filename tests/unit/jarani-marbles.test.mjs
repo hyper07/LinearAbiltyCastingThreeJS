@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MARBLE, pourMarbles, stepMarble, corridorClamp, pourBand, marbleFall, marblesAt, patchBounds, seeded } from '../../src/city/marbles.js';
-import { ITEMS, ITEM_ORDER, itemOdds } from '../../src/city/items.js';
-import { DRINK } from '../../src/city/race.js';
-import { levelFor, levelShows, fitView, ZOOM, COURSE_COLORS, LANDMARKS } from '../../src/city/coursemap.js';
-import { BIKE_COURSES } from '../../src/city/course.js';
+import { MARBLE, pourMarbles, stepMarble, corridorClamp, pourBand, marbleFall, marblesAt, patchBounds, seeded } from '../../games/g_cv2yrhrpv2/marbles.js';
+import { ITEMS, ITEM_ORDER, itemOdds } from '../../games/g_cv2yrhrpv2/items.js';
+import { DRINK } from '../../games/g_cv2yrhrpv2/race.js';
+import { levelFor, levelShows, fitView, ZOOM, COURSE_COLORS, LANDMARKS } from '../../games/g_cv2yrhrpv2/coursemap.js';
+import { BIKE_COURSES } from '../../games/g_cv2yrhrpv2/course.js';
 
 /** A straight street running north (−z) along x = 0, 60 m of it. */
 const street = [[0, 30], [0, 10], [0, -10], [0, -30]];

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { surfaceOf, segY, walkY } from '../../src/city/surface.js';
+import { surfaceOf, segY, walkY } from '../../games/g_cv2yrhrpv2/surface.js';
 
 /**
  * A junction on a hill, laid as SeoulGame's _roadMesh lays it: two roads crossing, each in stretches

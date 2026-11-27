@@ -50,7 +50,7 @@ from the notes.
 - **Free assets, credited** (CC0 first; CC BY with visible credit and
   `docs/third-party.md`). Don't ship three.js `ferrari.glb`. Strip the logos from
   Khronos CarConcept.
-- **Start from what exists:** `src/city/drive.js` (pure handling), `racefx.js`
+- **Start from what exists:** `games/g_cv2yrhrpv2/drive.js` (pure handling), `racefx.js`
   (skid/smoke/sparks/flames), `weather.js`; `src/snowpuff/render/pipeline.js`
   (WebGPU: GTAO, emissive bloom, TRAA, speed blur), its 120 Hz physics and speed
   kit. New games: WebGPURenderer + TSL, three pinned at r0.185.

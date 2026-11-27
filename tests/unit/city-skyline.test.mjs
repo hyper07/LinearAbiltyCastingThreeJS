@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SKYLINE, skylineHaze, towerHalf, landmarkLookUp, landmarkParts, LOOK_MAX, courseBend, LOOK_BEND, hanokRoof } from '../../src/city/skyline.js';
-import { markAt, MARK_RANGE } from '../../src/city/minimap.js';
-import { admiral, admiralFar } from '../../src/city/admiral.js';
-import { jetHeight, jetColor, FOUNTAIN } from '../../src/city/fountain.js';
+import { SKYLINE, skylineHaze, towerHalf, landmarkLookUp, landmarkParts, LOOK_MAX, courseBend, LOOK_BEND, hanokRoof } from '../../games/g_cv2yrhrpv2/skyline.js';
+import { markAt, MARK_RANGE } from '../../games/g_cv2yrhrpv2/minimap.js';
+import { admiral, admiralFar } from '../../games/g_cv2yrhrpv2/admiral.js';
+import { jetHeight, jetColor, FOUNTAIN } from '../../games/g_cv2yrhrpv2/fountain.js';
 import * as THREE from 'three';
 
 test('Admiral Yi in bronze: 6.5 m to the tip of his finial, the sword at his right (−x) from the slab to his shoulder, a sane budget; a light far copy', () => {

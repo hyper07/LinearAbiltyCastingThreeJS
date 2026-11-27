@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildingType, typeSpec, floorsOf, shopUnits, tenants, signNames, rng, TYPES, WORDS } from '../../src/city/buildtypes.js';
+import { buildingType, typeSpec, floorsOf, shopUnits, tenants, signNames, rng, TYPES, WORDS } from '../../games/g_cv2yrhrpv2/buildtypes.js';
 
 test('Seoul buildings: the register\'s use, height and footprint give the six types', () => {
   assert.equal(buildingType({ kind: 1, h: 60 }), 'apartment');

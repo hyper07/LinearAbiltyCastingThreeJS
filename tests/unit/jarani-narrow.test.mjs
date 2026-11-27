@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { isNarrow, narrowPoint, narrowRoad, NARROW } from '../../src/city/alleys.js';
-import { RaceTraffic } from '../../src/city/traffic.js';
+import { isNarrow, narrowPoint, narrowRoad, NARROW } from '../../games/g_cv2yrhrpv2/alleys.js';
+import { RaceTraffic } from '../../games/g_cv2yrhrpv2/traffic.js';
 
 /**
  * Kickrani's narrow streets are people's only: no car, taxi, truck, bus or delivery scooter drives,
@@ -117,7 +117,7 @@ test('narrow: a lane the map gives no width, measured 8 m between the buildings 
 });
 
 test('narrow: in a race the narrow streets the course runs down are where some people go — never a short cut kept clear', async () => {
-  const { StreetLife } = await import('../../src/city/life.js');
+  const { StreetLife } = await import('../../games/g_cv2yrhrpv2/life.js');
   const wide = { pts: [0, 300, 0, -300], cls: 3, width: 11, oneway: false };
   const alley = { pts: [40, 300, 40, -300], cls: 6, width: 4, oneway: false, small: true };
   const cut = { pts: [80, 300, 80, -300], cls: 6, width: 3, oneway: false, small: true };

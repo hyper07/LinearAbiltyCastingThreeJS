@@ -380,7 +380,7 @@ const EXTRA_POLYFORK = [
   // Kithvale: your three looks and the people of Lanternrest.
   'kite-kid-base', 'village-child-bef09e', 'waving-child-dfada0', 'ashigaru-foot-soldier-806707', 'porter-e4e566', 'farmer-363820', 'townswoman-5ca8b5',
   'buddhist-monk-39f498', 'village-gardener-9f7af6', 'shopkeeper-be5547', 'crossing-keeper-e13207', 'daimyo-lord-78364a',
-  // Kickrani: the delivery scooters in its bike race's traffic (src/city/traffic.js).
+  // Kickrani: the delivery scooters in its bike race's traffic (games/g_cv2yrhrpv2/traffic.js).
   'delivery-moped-1aa2ce',
   // Snowpuff Peaks: the props on its mountains (src/snowpuff/assets.js).
   ...Object.values(SNOWPUFF_MODELS).map(([id]) => id)

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CAR, stepCar, follow, pointOn, corners } from '../../src/city/drive.js';
+import { CAR, stepCar, follow, pointOn, corners } from '../../games/g_cv2yrhrpv2/drive.js';
 
 const drive = (car, input, seconds, blocked) => {
   let hit = 0;

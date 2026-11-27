@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 // Kickrani's logo face: Bagel Fat One (OFL 1.1, Latin and Hangul), bundled, no network.
 import '@fontsource/bagel-fat-one/400.css';
-import { PowerKit } from '../shared/powerKit.js';
-import { setChoice } from '../shared/power.js';
-import { HelpPanel } from '../shared/helpPanel.js';
-import { GameMusic, musicMenu, seoulTrack, band, musicCreditHtml } from '../shared/gameMusic.js';
+import { PowerKit } from '../../src/shared/powerKit.js';
+import { setChoice } from '../../src/shared/power.js';
+import { HelpPanel } from '../../src/shared/helpPanel.js';
+import { GameMusic, musicMenu, seoulTrack, band, musicCreditHtml } from '../../src/shared/gameMusic.js';
 import { CONTROLS, modeHint } from './controls.js';
 import { TILE, USES, decodeTile, tileKey, tileOf } from './tiles.js';
 import { Street } from './street.js';
@@ -27,7 +27,7 @@ import { readAlleys, readRoads } from './alleys.js';
 import { StreetTrees } from './trees.js';
 import { NightLights, LAMP_FIELD_GLSL } from './nightlights.js';
 import { Skyline, SKYLINE } from './skyline.js';
-import { confetti } from '../ui/pop.js';
+import { confetti } from '../../src/ui/pop.js';
 import './city.css';
 
 const el = (tag, className, text) => {

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { RaceTraffic, laneAt } from '../../src/city/traffic.js';
+import { RaceTraffic, laneAt } from '../../games/g_cv2yrhrpv2/traffic.js';
 
 /**
  * Kickrani's traffic never drives backwards: on a winding mountain road (hairpins whose points are a few

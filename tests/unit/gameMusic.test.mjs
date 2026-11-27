@@ -6,7 +6,7 @@ import {
   TRACK_TITLES, GAME_TRACKS, musicPack, gameMusicPack, MoodHold, Settle, band,
   gloamreachTrack, kithvaleTrack, lanternwoodTrack, seoulTrack, wyldhuntTrack, duskAt, KICKRANI_COURSE_TRACKS
 } from '../../src/shared/gameMusic.js';
-import { BIKE_COURSES } from '../../src/city/course.js';
+import { BIKE_COURSES } from '../../games/g_cv2yrhrpv2/course.js';
 import { MUSIC_CREDIT } from '../../src/shared/music.js';
 
 const MANIFEST = path.resolve('public/audio/bgm/manifest.json');

@@ -159,7 +159,7 @@
     "racing",
     "osm"
    ],
-   "path": "src/city/course.js"
+   "path": "games/g_cv2yrhrpv2/course.js"
   },
   {
    "id": "own.people.retarget",
@@ -173,7 +173,7 @@
     "mixamo",
     "character"
    ],
-   "path": "src/city/people.js"
+   "path": "games/g_cv2yrhrpv2/people.js"
   },
   {
    "id": "rule.pixel.grid",

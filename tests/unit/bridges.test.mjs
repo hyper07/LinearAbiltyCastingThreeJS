@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { roadPieces, densify, DECK_WATER, DECK_LAND } from '../../src/city/bridges.js';
+import { roadPieces, densify, DECK_WATER, DECK_LAND } from '../../games/g_cv2yrhrpv2/bridges.js';
 
 /** A road from points [[x, z], …]; keys from the rounded points, as the game makes them. */
 const road = (points, bridge = false) => ({

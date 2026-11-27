@@ -540,7 +540,7 @@ This is the most valuable trick in the project.
 
 ### How to do it in our plain three.js
 
-- **Rain and snow:** Gangnam Jarani's `src/city/weather.js` already has
+- **Rain and snow:** Gangnam Jarani's `games/g_cv2yrhrpv2/weather.js` already has
   camera-following, shader-moved rain and snow. What to add from here:
   1. the **height-texture roof mask** (no rain under arcades, overpasses,
      bus shelters or inside a building);
@@ -616,7 +616,7 @@ This is the most valuable trick in the project.
   mesh. Use `BufferGeometryUtils.mergeGeometries` and `RoundedBoxGeometry`
   from `three/addons`, with the `toNonIndexed` + delete-`uv` rule.
 - **Combine with what we have:** `vendor/diorama` has procedural people too.
-  Gangnam Jarani's `src/city/life.js` already draws crowds with one
+  Gangnam Jarani's `games/g_cv2yrhrpv2/life.js` already draws crowds with one
   `InstancedMesh` per body part. For **crowds** keep that. For **a few close
   characters** (a teacher, classmates, shopkeepers) use this richer per-bone
   merge.
@@ -945,7 +945,7 @@ This is the most valuable trick in the project.
 
 ### How to do it in our plain three.js
 
-- **Gangnam Jarani** (`src/city/life.js`, `cars.js`) already has crowds and
+- **Gangnam Jarani** (`games/g_cv2yrhrpv2/life.js`, `cars.js`) already has crowds and
   traffic. The cheap upgrades:
   1. the curvature speed limit with braking look-ahead;
   2. the two-axle pose;
@@ -1383,7 +1383,7 @@ This is the most valuable trick in the project.
 
 | Game | Folder | What fits | Sections |
 | --- | --- | --- | --- |
-| **Gangnam Jarani** | `src/city` | **Weather:** roof/arcade mask for rain, distance-scaled streaks, three-flicker lightning with delayed thunder, eased wetness and snow cover. **Traffic:** curvature speed limit, two-axle pose, following, crosswalk and walker yield, spawn gaps by hour and rain. **Street:** dog walkers with a sagging lead, headlight fans as additive planes. **Sound:** ambient rain, wind and city hum. | 6, 11, 16 |
+| **Gangnam Jarani** | `games/g_cv2yrhrpv2` | **Weather:** roof/arcade mask for rain, distance-scaled streaks, three-flicker lightning with delayed thunder, eased wetness and snow cover. **Traffic:** curvature speed limit, two-axle pose, following, crosswalk and walker yield, spawn gaps by hour and rain. **Street:** dog walkers with a sagging lead, headlight fans as additive planes. **Sound:** ambient rain, wind and city hum. | 6, 11, 16 |
 | **Lanternwood** | `src/hd2d` | **Interiors** (tavern, shop, tower): wall runs with door and window cuts, the camera-facing wall cutaway, room lights so many lanterns and candles glow per room without real lights, door-shaped spill into the next room. **Stairs and floors:** a height function and stacked floor groups. **Night glows:** windows and fires. **Creatures:** a camp pet, and the gait table for beasts. **Sound:** synthesized fire, crickets and an owl at night. | 1–4, 10, 16 |
 | **AI Arcademia** | `src/arcademia` (being built by another agent; not touched here) | **School:** classrooms and corridors from a 2D plan, a dollhouse cutaway for a top-down school, several floors with stairwells, room lights per classroom. **People:** procedural students and teachers with sit / type / read / raise-hand poses (gated sines), daily life by timetable (the weighted-spot table, keyed by lesson instead of hour), A\* plus door auto-open for walking between rooms. **Building:** furniture catalog from primitives (desks, chairs, whiteboard, projector "film"), placement ghost for building a classroom, catalog thumbnails. **Camera:** flight between rooms or floors. | 1–5, 7–9, 12–15 |
 | **Work Life** | `src/work` | It is drawn in SVG, not 3D. The *logic* transfers: the activity planner (spot weights by hour, re-plan every few minutes), the gated-sine gestures for the drawn figures, and synthesized office sound (typing, TV speech, a radio sequencer). A 3D office view later would take the catalog and room lights. | 8, 16 |

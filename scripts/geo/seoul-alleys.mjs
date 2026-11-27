@@ -20,7 +20,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'no
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { toGrid, toLonLat } from './tm.mjs';
-import { BIKE_COURSES } from '../../src/city/course.js';
+import { BIKE_COURSES } from '../../games/g_cv2yrhrpv2/course.js';
 
 /** Where the game's world begins (SeoulGame ORIGIN): City Hall, in the grid. */
 const ORIGIN = { x: 198050, y: 551860 };

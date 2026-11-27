@@ -3,7 +3,7 @@ import { CREW, CREW_ORDER, rider } from './crew.js';
 import { SCOOTERS, SCOOTER_ORDER, STAT_NAMES, scooterStats, cleanScooter } from './scoot.js';
 import { SCOOTER_LOOKS } from './scooter.js';
 import { TIME_PICKS, WEATHER_PICKS, WEATHERS } from './weather.js';
-import { faceSvg } from '../snowpuff/riders.js';
+import { faceSvg } from '../../src/shared/plushKit.js';
 import { CourseMap, COURSE_COLORS, chillies } from './coursemap.js';
 import { loadProgress, unlocked, medalOf, UNLOCK } from './progress.js';
 

@@ -14,7 +14,7 @@
  *   JARANI_TRY='{"id":"x","x":0,"z":0,"r":350,"level":"hard"}' node scripts/geo/jarani-courses.mjs x
  */
 import { readFileSync } from 'node:fs';
-import { BIKE_COURSES, planCourse, finishCourse, courseStats } from '../../src/city/course.js';
+import { BIKE_COURSES, planCourse, finishCourse, courseStats } from '../../games/g_cv2yrhrpv2/course.js';
 import { seoulData, roadsNear, wallsNear, seoulTerrain } from '../../tests/unit/seoulData.mjs';
 
 const data = seoulData();

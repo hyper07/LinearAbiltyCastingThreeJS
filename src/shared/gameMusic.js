@@ -197,7 +197,7 @@ export function lanternwoodTrack({ realm = 'lanternwood', area = null }) {
 }
 
 /**
- * Kickrani's race music by course (src/city/course.js ids): a small, bright chamber orchestra, fast
+ * Kickrani's race music by course (games/g_cv2yrhrpv2/course.js ids): a small, bright chamber orchestra, fast
  * and light, each place its own colour — the palace lanes gayageum and daegeum over the strings, the
  * markets bustling pizzicato and woodwinds, the boulevards sweeping strings, the river flowing
  * strings and harp, the hills galloping strings and horns, the Namsan downhill soaring brass (the

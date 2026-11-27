@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SMOKE, cloudShape, smokeAt, smokePuffs, puffAt, keepInStreet } from '../../src/city/smoke.js';
-import { ITEMS, ITEM_ORDER, itemOdds, rollItem } from '../../src/city/items.js';
+import { SMOKE, cloudShape, smokeAt, smokePuffs, puffAt, keepInStreet } from '../../games/g_cv2yrhrpv2/smoke.js';
+import { ITEMS, ITEM_ORDER, itemOdds, rollItem } from '../../games/g_cv2yrhrpv2/items.js';
 
 test('smoke: an item, more often for the leaders (dropped behind, it defends a lead); every place\'s odds still add up to 1', () => {
   assert.ok(ITEM_ORDER.includes('smoke') && ITEMS.smoke.name && ITEMS.smoke.text && ITEMS.smoke.ko && ITEMS.smoke.pop === 'SMOKE!');

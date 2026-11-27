@@ -1668,7 +1668,7 @@
    "id": "tech.race-fx",
    "kind": "technique",
    "title": "Racing effects: tyre smoke, rally dust, ruts, skid marks, sparks, exhaust pops, spray, brake glow (racing-study §5)",
-   "summary": "Numbers per effect: lit smoke puffs 0.4->2.5 m 1.5-3 s; warm dust 2 car widths; persistent ruts on gravel; sparks 20-40 streaks; exhaust pop <=0.3 m 2-4 frames + point light; rooster-tail spray on wet; start from src/city/racefx.js.",
+   "summary": "Numbers per effect: lit smoke puffs 0.4->2.5 m 1.5-3 s; warm dust 2 car widths; persistent ruts on gravel; sparks 20-40 streaks; exhaust pop <=0.3 m 2-4 frames + point light; rooster-tail spray on wet; start from games/g_cv2yrhrpv2/racefx.js.",
    "tags": [
     "smoke",
     "dust",
@@ -1707,7 +1707,7 @@
    "id": "tech.arcade-handling",
    "kind": "technique",
    "title": "Arcade raycast vehicle handling: springs, grip curve, drift assist, 120 Hz (racing-study §7)",
-   "summary": "Four wheel rays, spring-damper at 0.3-0.5 critical, lateral grip curve peaking 6-8 deg slip falling to 70%, drift cuts rear grip and assists counter-steer, speed-sensitive steering, downforce v^2, fixed 120 Hz step; keep pure and tested like src/city/drive.js. Libraries: Rapier vehicle controller first (Apache-2.0), Jolt for motorcycles.",
+   "summary": "Four wheel rays, spring-damper at 0.3-0.5 critical, lateral grip curve peaking 6-8 deg slip falling to 70%, drift cuts rear grip and assists counter-steer, speed-sensitive steering, downforce v^2, fixed 120 Hz step; keep pure and tested like games/g_cv2yrhrpv2/drive.js. Libraries: Rapier vehicle controller first (Apache-2.0), Jolt for motorcycles.",
    "tags": [
     "handling",
     "physics",

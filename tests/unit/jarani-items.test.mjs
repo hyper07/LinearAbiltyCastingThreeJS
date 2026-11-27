@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ITEMS, ITEM_ORDER, rollItem, itemOdds, ATTACK_ITEMS, SUPPORT_ITEMS } from '../../src/city/items.js';
-import { THROW, throwPlan, flightAt, branchTarget } from '../../src/city/branch.js';
-import { RING, DOME } from '../../src/city/bell.js';
-import { speedFeel } from '../../src/city/speedfx.js';
-import { cornerZones } from '../../src/city/golmok.js';
-import { policeTarget, POLICE } from '../../src/city/police.js';
+import { ITEMS, ITEM_ORDER, rollItem, itemOdds, ATTACK_ITEMS, SUPPORT_ITEMS } from '../../games/g_cv2yrhrpv2/items.js';
+import { THROW, throwPlan, flightAt, branchTarget } from '../../games/g_cv2yrhrpv2/branch.js';
+import { RING, DOME } from '../../games/g_cv2yrhrpv2/bell.js';
+import { speedFeel } from '../../games/g_cv2yrhrpv2/speedfx.js';
+import { cornerZones } from '../../games/g_cv2yrhrpv2/golmok.js';
+import { policeTarget, POLICE } from '../../games/g_cv2yrhrpv2/police.js';
 
 test('items: the branch is one of them, and riders further back get more branches; no tailwind — the drink is the only boost', () => {
   assert.ok(ITEM_ORDER.includes('branch') && ITEMS.branch.name && ITEMS.branch.text);

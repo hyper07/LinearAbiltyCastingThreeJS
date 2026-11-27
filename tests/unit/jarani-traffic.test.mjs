@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { MAX_STEER, PARK_RESIT, RaceTraffic, SIGHT, STUCK, brakesFor, giveWay, laneAt, onScreen, overlapDepth, overlaps } from '../../src/city/traffic.js';
-import { fleetKindFor, LOD } from '../../src/city/fleet.js';
-import { pointOn } from '../../src/city/drive.js';
+import { MAX_STEER, PARK_RESIT, RaceTraffic, SIGHT, STUCK, brakesFor, giveWay, laneAt, onScreen, overlapDepth, overlaps } from '../../games/g_cv2yrhrpv2/traffic.js';
+import { fleetKindFor, LOD } from '../../games/g_cv2yrhrpv2/fleet.js';
+import { pointOn } from '../../games/g_cv2yrhrpv2/drive.js';
 
 /**
  * Kickrani's traffic without a browser: a straight two-way road running north (−z) through the

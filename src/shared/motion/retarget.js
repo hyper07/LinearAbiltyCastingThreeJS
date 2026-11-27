@@ -57,7 +57,7 @@ export const PLUSH_FROM_CMU_DAZ = {
 };
 /**
  * Where each plush limb ends at rest, from its bone (sculpt units): the mitten
- * paw and the round foot of plushBody() in src/city/plushRider.js.
+ * paw and the round foot of plushBody() in games/g_cv2yrhrpv2/plushRider.js.
  */
 export const PLUSH_TIPS = { armL: [-0.13, -0.125, 0.04], armR: [0.13, -0.125, 0.04], legL: [-0.01, -0.12, 0.04], legR: [0.01, -0.12, 0.04] };
 

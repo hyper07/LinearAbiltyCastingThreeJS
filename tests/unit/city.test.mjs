@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TILE, USES, encodeTile, decodeTile, simplify, area2, heightOf, useOf, tileOf, tileKey } from '../../src/city/tiles.js';
+import { TILE, USES, encodeTile, decodeTile, simplify, area2, heightOf, useOf, tileOf, tileKey } from '../../games/g_cv2yrhrpv2/tiles.js';
 
 test('Seoul tiles: a building survives being written and read back', () => {
   const [tx, ty] = tileOf(198050, 551860);

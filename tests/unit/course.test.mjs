@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BIKE_COURSES, LEVELS, planCourse, finishCourse, locate, buildGraph, isSmall, sharpTurns, courseStats, turnCost, isLocal, ZIG_MIN_WIDTH, OPEN_LEAD, OPEN_RUNOUT } from '../../src/city/course.js';
-import { behindStart } from '../../src/city/pack.js';
-import { coasterTrack, coasterSpeed } from '../../src/city/fairground.js';
-import { woodSpots } from '../../src/city/hillwood.js';
+import { BIKE_COURSES, LEVELS, planCourse, finishCourse, locate, buildGraph, isSmall, sharpTurns, courseStats, turnCost, isLocal, ZIG_MIN_WIDTH, OPEN_LEAD, OPEN_RUNOUT } from '../../games/g_cv2yrhrpv2/course.js';
+import { behindStart } from '../../games/g_cv2yrhrpv2/pack.js';
+import { coasterTrack, coasterSpeed } from '../../games/g_cv2yrhrpv2/fairground.js';
+import { woodSpots } from '../../games/g_cv2yrhrpv2/hillwood.js';
 import { seoulData, roadsNear, wallsNear, seoulTerrain } from './seoulData.mjs';
-import { readAlleys, SMALL_WIDTH } from '../../src/city/alleys.js';
+import { readAlleys, SMALL_WIDTH } from '../../games/g_cv2yrhrpv2/alleys.js';
 import { encodeAlleys, keepWay } from '../../scripts/geo/seoul-alleys.mjs';
 import { toLonLat } from '../../scripts/geo/tm.mjs';
 

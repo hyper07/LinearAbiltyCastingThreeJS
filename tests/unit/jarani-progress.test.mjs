@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadProgress, saveProgress, recordRun, unlocked, medalOf, PROGRESS_KEY } from '../../src/city/progress.js';
-import { BIKE_COURSES, LEVELS, LEVEL_ORDER, coursesOf } from '../../src/city/course.js';
+import { loadProgress, saveProgress, recordRun, unlocked, medalOf, PROGRESS_KEY } from '../../games/g_cv2yrhrpv2/progress.js';
+import { BIKE_COURSES, LEVELS, LEVEL_ORDER, coursesOf } from '../../games/g_cv2yrhrpv2/course.js';
 
 /** A stand-in for the browser's localStorage. */
 function memory() {

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { JC, JL, JR, endKey, inJunction, lineRules, paintRuns } from '../../src/city/markings.js';
+import { JC, JL, JR, endKey, inJunction, lineRules, paintRuns } from '../../games/g_cv2yrhrpv2/markings.js';
 
 /**
  * Seoul's road paint (markings.js): a road's lines stop inside another road crossing it, not on the far

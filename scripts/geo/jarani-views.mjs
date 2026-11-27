@@ -18,10 +18,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { BIKE_COURSES, planCourse, finishCourse } from '../../src/city/course.js';
-import { SKYLINE, landmarkParts, landmarkLookUp, courseBend, LOOK_BEND } from '../../src/city/skyline.js';
-import { CHASE } from '../../src/city/race.js';
-import { decodeTile, tileKey, tileOf, TILE } from '../../src/city/tiles.js';
+import { BIKE_COURSES, planCourse, finishCourse } from '../../games/g_cv2yrhrpv2/course.js';
+import { SKYLINE, landmarkParts, landmarkLookUp, courseBend, LOOK_BEND } from '../../games/g_cv2yrhrpv2/skyline.js';
+import { CHASE } from '../../games/g_cv2yrhrpv2/race.js';
+import { decodeTile, tileKey, tileOf, TILE } from '../../games/g_cv2yrhrpv2/tiles.js';
 import { seoulData, roadsNear, wallsNear, seoulTerrain, ORIGIN } from '../../tests/unit/seoulData.mjs';
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '../../data/geo/seoul/tiles');

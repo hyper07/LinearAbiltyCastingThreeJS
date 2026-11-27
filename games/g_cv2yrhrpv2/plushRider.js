@@ -1,12 +1,11 @@
 import * as THREE from 'three';
-import { compile, sculpt, trace, gradient } from '../arcademia/world/creatures/sculpt.js';
-import { SPECIES } from '../snowpuff/riders.js';
+import { compile, sculpt, trace, gradient, SPECIES } from '../../src/shared/plushKit.js';
 import { plushMaterial, furShells, setFurLod, vinylMaterial, knitMaterial } from './plush.js';
 import { Scooter } from './scooter.js';
 import { blobTexture } from './items.js';
 import { goldHelmet } from './helmet.js';
-import { applyPlushPose, lerpPose, smoothstep } from '../shared/motion/dance.js';
-import { podiumDance } from '../shared/motion/signatures.js';
+import { applyPlushPose, lerpPose, smoothstep } from '../../src/shared/motion/dance.js';
+import { podiumDance } from '../../src/shared/motion/signatures.js';
 
 /**
  * Kickrani's riders: Snowpuff Peaks' plush animals, come to Seoul on

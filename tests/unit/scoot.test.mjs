@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SCOOT, GRIP, JOINTS, KERB, GLANCE, DRIFT, newScoot, stepScoot, maxCurvature, cornerSpeed, kerbHop } from '../../src/city/scoot.js';
-import { CREW, CREW_ORDER, rider, botRiders } from '../../src/city/crew.js';
+import { SCOOT, GRIP, JOINTS, KERB, GLANCE, DRIFT, newScoot, stepScoot, maxCurvature, cornerSpeed, kerbHop } from '../../games/g_cv2yrhrpv2/scoot.js';
+import { CREW, CREW_ORDER, rider, botRiders } from '../../games/g_cv2yrhrpv2/crew.js';
 
 const ride = (s, input, secs, dt = 1 / 60, blocked) => {
   let last = null;

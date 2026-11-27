@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SIGNATURES, SIGNATURE_IDS, signatureSteps, podiumDance, flourish, CYCLE, VARIANTS, RATE } from '../../src/shared/motion/signatures.js';
 import { routine, beatAt, clampPlushPose, JOINTS, SCALARS, PLUSH_LIMITS, MOVES } from '../../src/shared/motion/dance.js';
-import { CREW } from '../../src/city/crew.js';
+import { CREW } from '../../games/g_cv2yrhrpv2/crew.js';
 
 const BPM = 143.6;
 const beatsOf = (seconds, fps = 60) => Array.from({ length: Math.round(seconds * fps) }, (_, f) => ((f / fps) * BPM) / 60);

@@ -10,7 +10,7 @@ import { CONTROLS as LW } from '../../src/hd2d/controls.js';
 import { CONTROLS as KW } from '../../src/kindlewatch/controls.js';
 import { CONTROLS as SP } from '../../src/snowpuff/controls.js';
 import { CONTROLS as SB } from '../../src/stoneball/controls.js';
-import { CONTROLS as SE } from '../../src/city/controls.js';
+import { CONTROLS as SE } from '../../games/g_cv2yrhrpv2/controls.js';
 
 const TABLES = { gloamreach: GR, wyldhunt: WH, kithvale: KV, lanternwood: LW, kindlewatch: KW, snowpuff: SP, stoneball: SB, seoul: SE };
 const ITEM_ROWS = /^(hpPotion|mpPotion|potion|items|treats|eat)$/;

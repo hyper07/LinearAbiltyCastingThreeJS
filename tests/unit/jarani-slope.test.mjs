@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { RaceTraffic, laneAt, sitOn } from '../../src/city/traffic.js';
-import { scooterOn, STEEPEST } from '../../src/city/plushRider.js';
+import { RaceTraffic, laneAt, sitOn } from '../../games/g_cv2yrhrpv2/traffic.js';
+import { scooterOn, STEEPEST } from '../../games/g_cv2yrhrpv2/plushRider.js';
 
 /**
  * Kickrani on a hill (Bukak Skyway drops 143 m and climbs 77, up to ~24 %): vehicles and scooters sit

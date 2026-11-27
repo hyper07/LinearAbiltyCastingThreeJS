@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { Session } from '../net/Session.js';
+import { Session } from '../../src/net/Session.js';
 import { BIKE_COURSES, LEVELS, planCourse, finishCourse, locate, isSmall, courseStats } from './course.js';
 import { Walls, tileRings, RIDER_RADIUS, segDist } from './walls.js';
 import { TILE, decodeTile, tileKey, tileOf } from './tiles.js';
@@ -9,11 +9,11 @@ import { SCOOT, GRIP, SCOOTER_ORDER, newScoot, stepScoot, cornerSpeed, specFor, 
 import { Lobby } from './lobby.js';
 import { JaraniStage } from './stage.js';
 import { SpeedFx, speedFeel, windNoise } from './speedfx.js';
-import { music } from '../shared/music.js';
+import { music } from '../../src/shared/music.js';
 import { ringBell } from './bell.js';
 import { THROW, branchModel, branchTarget, throwPlan, flightAt, snapSound, leafBurst, stepLeaves } from './branch.js';
 import { CREW, CREW_ORDER, rider, botRiders } from './crew.js';
-import { faceSvg } from '../snowpuff/riders.js';
+import { faceSvg } from '../../src/shared/plushKit.js';
 import { PlushRider, sculptSpecies, scooterOn } from './plushRider.js';
 import { Podium, PODIUM_SECONDS } from './podium.js';
 import { PoliceStops, POLICE, policeTarget } from './police.js';

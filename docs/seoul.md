@@ -44,7 +44,7 @@ including commercially, **with attribution** — the game credits it in its Cred
   are lifted onto a deck: the bridges. Roads are as wide as their lanes (OpenStreetMap's lane count, 3.25 m a lane), with
   Korean markings — a double yellow in the middle of a two-way road, on the median side of a one-way carriageway —
   worn wheel tracks, zebra crossings and stop lines at junctions, granite kerbs, the slab's edge, and on bridges a
-  deep girder and a concrete parapet. **The lines stop where roads cross** (`src/city/markings.js`): along each
+  deep girder and a concrete parapet. **The lines stop where roads cross** (`games/g_cv2yrhrpv2/markings.js`): along each
   road, where its middle and each edge line lie inside another road (one going on through there — not the far
   side of a T, where the road running on keeps its centre line and far edge) or under a wider road lying along
   it (a slip road, a street mapped twice), its paint is left out; a junction's middle is one plain asphalt
@@ -55,7 +55,7 @@ including commercially, **with attribution** — the game credits it in its Cred
   across the road it meets and its pavements, then climbing), and
   where a bridge comes in several pieces (as Yanghwa and Dongjak do) they meet level, so every Han
   crossing drives straight through. Smaller streets are simply the gaps between buildings.
-  **Every street lies level from side to side** (`src/city/roadLevel.js`, run once as the map loads, for
+  **Every street lies level from side to side** (`games/g_cv2yrhrpv2/roadLevel.js`, run once as the map loads, for
   the roads and the small streets together). Laid on the hillside edge by edge, a hill road tipped up to
   37–43 % across its width on Bukak, Inwangsan and Namsan (the rider, the scooter and the view all leaning
   with it — it made riders feel sick). Now each point every 10 m has one level for the whole width and its
@@ -74,11 +74,11 @@ including commercially, **with attribution** — the game credits it in its Cred
   (Namsan 19 → 13, Inwangsan 27 → 15, Bukak 27.5 → 19, Haebangchon 20 → 22 at a plate's edge), the street
   typically 2–4 m over the land at its middle (up to 8–13 m at the foot of a long climb). A pavement is cut
   where it meets another road, so it never lies across a crossing and a junction's corners aren't left as
-  holes. The surface the riders stand on is `src/city/surface.js` (`surfaceOf`, tested in
+  holes. The surface the riders stand on is `games/g_cv2yrhrpv2/surface.js` (`surfaceOf`, tested in
   `tests/unit/city-surface.test.mjs`); the levels, `tests/unit/city-roadlevel.test.mjs`. Anything measured
   from "the ground" under a street (a rider's or a car's height, a walker's, the hill's grade) is measured
   from its level instead (SeoulGame `levelAt`, `baseAt`).
-- **The landmarks** (`src/city/skyline.js`, `SKYLINE`), drawn by hand, low-poly, at their real place and
+- **The landmarks** (`games/g_cv2yrhrpv2/skyline.js`, `SKYLINE`), drawn by hand, low-poly, at their real place and
   height (world metres from the register's own points and blocks, or converted from their longitude and
   latitude), so riders know where they are. No company name, logo or lighting on any of them.
   - **Namsan Tower** (남산타워) on Namsan's summit, 236.7 m — the register has it only as a point: a
@@ -103,8 +103,8 @@ including commercially, **with attribution** — the game credits it in its Cred
   - **Admiral Yi Sun-sin** (이순신 장군 동상) on Gwanghwamun Square, west of Sejong-daero's
     carriageways: the sculpture the project's owner supplied (`Yi_Sun-sin_fixed.stl`, 83,842 triangles,
     packed by `scripts/models/statue-pack.mjs` into `public/models/landmarks/yi-sun-sin.bin`, 1.3 MB,
-    loaded by `src/city/yiStatue.js`), gilded — polished gold (physical material, metalness 0.92,
-    roughness 0.3), glowing softly from below after dark. (Before it, `src/city/admiral.js`'s hand-built
+    loaded by `games/g_cv2yrhrpv2/yiStatue.js`), gilded — polished gold (physical material, metalness 0.92,
+    roughness 0.3), glowing softly from below after dark. (Before it, `games/g_cv2yrhrpv2/admiral.js`'s hand-built
     figure, described here:) feet together on a dark bronze
     slab, his right hand holding the long sheathed sword upright at his side (tip on the slab, the round
     guard and hilt at his shoulder, a cord hanging), the left hand on his hip, a rounded helmet with a
@@ -114,7 +114,7 @@ including commercially, **with attribution** — the game credits it in its Cred
     (physical material, metalness 0.6, roughness 0.45, a soft sheen), lit softly from below after dark;
     6.5 m on his pale granite plinth (17 m in all) with the inscription down its face (忠武公李舜臣將軍像)
     and a bronze turtle ship on a low base before it; King Sejong seated, gilded, behind him. In front,
-    down the square's middle, **the fountain** (`src/city/fountain.js`, our own take): a 42 m shallow
+    down the square's middle, **the fountain** (`games/g_cv2yrhrpv2/fountain.js`, our own take): a 42 m shallow
     pool, a field of thin jets and a taller row along each edge rising and falling in waves; after dark
     lit from below in slowly shifting cyan, blue and teal (one edge row pink), the wet stone glowing, a
     strip of small green, red and white lights set in the paving along both sides (bloomed); by day
@@ -198,13 +198,13 @@ For a newer register file, repeat both steps. On a deployed server the tiles go 
 **🚲 Race** (the button; the game opens on it) is an electric-scooter race for four riders through
 Seoul's real streets — and the streets stay open.
 
-- **Before the race** (`src/city/lobby.js` over `src/city/stage.js`, the way Snowpuff Peaks' menus
+- **Before the race** (`games/g_cv2yrhrpv2/lobby.js` over `games/g_cv2yrhrpv2/stage.js`, the way Snowpuff Peaks' menus
   work — its files only read): a little 3D stage, a round plaza on a rooftop with the city behind
   it, and four steps, with **Back** at every one. **Rider**: the seven riders on their scooters on a
   turntable that turns the one you choose to the front, where it waves, wiggles its ears or hops;
   its name, Korean name, nickname and a big **READY**. **Scooter**: the six scooters on plinths behind
   your rider, the chosen one lifted and turning and your rider hopping onto it, with five animated
-  bars. **Course**: a real map of Seoul (`src/city/coursemap.js`), drawn from the game's own data
+  bars. **Course**: a real map of Seoul (`games/g_cv2yrhrpv2/coursemap.js`), drawn from the game's own data
   with nothing downloaded for it — the Han, streams and lakes and the wooded hills from the land
   (`terrain.bin`, with a hill shade), every road from `roads.bin` (motorways and trunk roads bold,
   tertiary roads thin, bridges dark-edged over the river), and close up the small streets
@@ -215,7 +215,7 @@ Seoul's real streets — and the streets stay open.
   Easy, Medium, Hard, with one to three chillies (↑ ↓ too): picking one lists its courses below,
   leaves only its courses bright on the map (the others faint, their pins gone) and flies to fit
   them. Medium opens once an Easy race has been finished, Hard once a Medium one has (kept in this
-  browser, `src/city/progress.js`); a course still shut says so on its card, and its **Try anyway**
+  browser, `games/g_cv2yrhrpv2/progress.js`); a course still shut says so on its card, and its **Try anyway**
   races it all the same. Each course's card and chip show its best time here and a medal (gold,
   silver, bronze) for its best place. A course picked or pointed at draws itself in along its streets
   and flows the way it is raced; pointing at a landmark says what it is. Drag to pan, the wheel or a pinch (or + −) to zoom, ⌂ for all of Seoul; pointing at a pin
@@ -232,7 +232,7 @@ Seoul's real streets — and the streets stay open.
   (on the last step ← → the time, ↑ ↓ the weather), **Enter** for the next step, **Esc** or
   **Backspace** to go back; click (or tap) a rider or a scooter on the stage, swipe it to browse.
   The results' **Race again** starts the same race at once; **Courses** goes back to the map.
-- **The finish and the podium** (`_finishCheck`, `_ceremony` in `src/city/race.js`, `src/city/podium.js`):
+- **The finish and the podium** (`_finishCheck`, `_ceremony` in `games/g_cv2yrhrpv2/race.js`, `games/g_cv2yrhrpv2/podium.js`):
   once the first rider is over the line the race stays open **30 seconds** for the others
   (`FINISH_WINDOW`) — it ends when everyone is home or the window closes, never early because the
   people are done; whoever is still out is DNF, placed by how far they got. Home, your scooter cools
@@ -288,7 +288,7 @@ Seoul's real streets — and the streets stay open.
   The species, the place and the song's beat decide every pose (no randomness), so the browsers in a
   room dance alike with no animation traffic. All seven side by side: `/motion-lab.html?view=crew`
   (dev only, with a place picker). Tests: `tests/unit/motion-signatures.test.mjs`.
-- **Courses, by level** (`LEVELS` in `src/city/course.js`; chillies on the map and the cards — one,
+- **Courses, by level** (`LEVELS` in `games/g_cv2yrhrpv2/course.js`; chillies on the map and the cards — one,
   two or three):
   - **Easy** — eight loops of 2–3 km (two to three minutes a lap) on Seoul's boulevards and avenues:
     Gwanghwamun Avenues, Dongdaemun Market, Namsan Hill Road, Hongdae Boulevards, Yeouido Riverside,
@@ -297,7 +297,7 @@ Seoul's real streets — and the streets stay open.
     climb, a short cut or two, more traffic: Seochon Palace Lanes (under Inwangsan, two golmok short
     cuts), Seongsu Brick Works (the red-brick factory grid), and the **Jamsil Fairground** — round
     Seokchon Lake under the Jamsil Sky Tower, past the "Starlight Fun Fair · 별빛 놀이공원", a fair of our
-    own (`src/city/fairground.js`, every ride our own design, no real park's castle, mascot or name):
+    own (`games/g_cv2yrhrpv2/fairground.js`, every ride our own design, no real park's castle, mascot or name):
     a wooden roller coaster on timber bents with a train of four cars (slow up the chain, fast down
     the drops), a 52 m drop tower whose ring of seats climbs, hangs and drops, a big wheel with sixteen
     gondolas kept level, a carousel with horses rising and falling, a pirate ship swinging higher and
@@ -309,7 +309,7 @@ Seoul's real streets — and the streets stay open.
     Mullae Ironworks, Haebangchon Hill Lanes (90 m up and down), and the **Namsan Tower Downhill** — a
     point-to-point run: a race gantry with start lights on the plaza under N Seoul Tower, then down
     Namsan's park road (two lanes, a double yellow line, steel guard rails either side — solid — and a
-    wood of pines and November-coloured broadleaf trees, `src/city/hillwood.js`) and Sowol-ro to a
+    wood of pines and November-coloured broadleaf trees, `games/g_cv2yrhrpv2/hillwood.js`) and Sowol-ro to a
     finish gantry in the city below, about 145 m lower; speed builds downhill, so the braking points
     matter. One run, no laps; past the finish line a run-out to stop in.
   - **The zig-zags** (`zigzag` in `BIKE_COURSES`) — five more, round Seoul's best-known places, on the
@@ -435,7 +435,7 @@ Seoul's real streets — and the streets stay open.
   way and going yours (Easy busier but fair, Medium busy, Hard packed), how many cars are parked at
   the kerb and buses at their stops, and the item odds (a little more of the back-markers'
   branches and police calls on the harder ones — still two attacks to one drink or helmet). Each course is planned on the spot from the
-  real road network and between the real buildings (`src/city/course.js`, `src/city/walls.js`):
+  real road network and between the real buildings (`games/g_cv2yrhrpv2/course.js`, `games/g_cv2yrhrpv2/walls.js`):
   three or four points round the place, each on the nearest road with two or more lanes each way,
   joined by the best way for a racer — a search over the streets' directed edges where wide roads
   are cheap, every turn at a junction costs (a straight run through a crossroads nothing, a 90°
@@ -503,12 +503,12 @@ Seoul's real streets — and the streets stay open.
 - **Riders**: Snowpuff Peaks' plush animals on electric hire scooters — Mallow the bunny, Pip the
   fox, Mochi the cat, Toffee the bear, Peaches the pig, Pickle the frog and Pebble the penguin
   (girls and boys both; the bots always mix them). The same sculpted toys as Snowpuff's
-  (`src/city/plushRider.js`: the recipes copied, Snowpuff's files never edited), dressed for
-  WebGL2 (`src/city/plush.js`): sheen, fibre noise, a fresnel rim that dims at night, shell fur in
+  (`games/g_cv2yrhrpv2/plushRider.js`: the recipes copied, Snowpuff's files never edited), dressed for
+  WebGL2 (`games/g_cv2yrhrpv2/plush.js`): sheen, fibre noise, a fresnel rim that dims at night, shell fur in
   one instanced draw with fewer shells further off. Knees bent on the deck, leaning into turns,
   crouching for a boost, ears and tails on springs, arms up at the finish, a tumble with dizzy stars
   and back up. Each has a nickname ("The Bounce", "Corner Queen"…) and a feel of their own that
-  rides on any scooter. **Scooters**: six models of our own brand, "SSAENG 쌩쌩" (`src/city/scooter.js`,
+  rides on any scooter. **Scooters**: six models of our own brand, "SSAENG 쌩쌩" (`games/g_cv2yrhrpv2/scooter.js`,
   each its own shape, in the rider's colours; handling in `scoot.js` SCOOTERS): the **S1 Commuter**
   (the hire scooter: balanced), the **R7 Comet** (low and long, small hard wheels, a raked stem, a
   tail fin: the fastest, a handful in the corners and on rough ground), the **X4 Mudlark** (fat
@@ -522,9 +522,9 @@ Seoul's real streets — and the streets stay open.
   Grand 72), so the fastest scooter can't simply ride away: corners, traffic, items and short cuts decide it. All of them: grip tape,
   folding stem, throttle and brake levers, a live display (the speed and a bar of it, lime and glowing through a drink's boost), LED head and brake
   lights, a kickstand. Bots ride a mix of them; in a room everyone's pick goes to the others. Riders bump and wobble off each other and never
-  pass through (`src/city/pack.js`); bots keep their own lines on the road side of the street,
+  pass through (`games/g_cv2yrhrpv2/pack.js`); bots keep their own lines on the road side of the street,
   overtake round the middle, and start from a staggered grid.
-- **Riding** (`src/city/scoot.js`, pure and tested): **W** throttle — a racing motor, 70 km/h in
+- **Riding** (`games/g_cv2yrhrpv2/scoot.js`, pure and tested): **W** throttle — a racing motor, 70 km/h in
   about four and a half seconds — **S** brake (about 20 m from 70 on a dry road, longer in the wet,
   and braking hard in a lean on a wet road, or leaning hard fast, slides the back out), **A D** lean
   (quick to lean in — a left-right flick weaves through traffic — and steady at 70; turn radius at
@@ -534,7 +534,7 @@ Seoul's real streets — and the streets stay open.
   scrubbed off — round a 90° junction at speed in about 12 m instead of 35; let go to straighten;
   tyre squeal, rubber scuffs on the road, the rider hanging out; bots drift the tight corners too),
   no boost key and no boost gauge — the energy drink is the only boost — **Space** the bell (a
-  synthesised two-strike "ring-ring", `src/city/bell.js`; **B** too: people ahead step aside, slower
+  synthesised two-strike "ring-ring", `games/g_cv2yrhrpv2/bell.js`; **B** too: people ahead step aside, slower
   riders and scooters give you room, and you hear the bots' bells where they are), **R** back on the
   course (and after a few seconds lost well off it, you are put back). Small wheels feel every
   paving joint, and the roads have steel road plates, manhole covers and, on the narrower ones,
@@ -543,8 +543,8 @@ Seoul's real streets — and the streets stay open.
   wobbles you. How much of it reaches you is the scooter's suspension: on the stiff R7 a plate
   shakes the camera and the rider, costs speed and knocks your line; on the X4 you hardly notice. Speed
   shows: the FOV opens (58° → ~71°, more on a boost), a fine buzz in the camera, wind lines in the air
-  and at the screen's edge, the wind's roar (`src/city/speedfx.js`). **On a hill both tyres stay on
-  the road** (`scooterOn` in `src/city/plushRider.js`, `_place` in `race.js`): the surface is sampled
+  and at the screen's edge, the wind's roar (`games/g_cv2yrhrpv2/speedfx.js`). **On a hill both tyres stay on
+  the road** (`scooterOn` in `games/g_cv2yrhrpv2/plushRider.js`, `_place` in `race.js`): the surface is sampled
   under each tyre (the scooter's own wheelbase, 0.82–1.2 m), the deck pitched to the line between
   them and its middle on it; the rider stands up straight against the hill (four fifths of the deck's
   pitch undone at the feet), the lean stays the rider's; fallen over, the scooter lies on the road's
@@ -554,9 +554,9 @@ Seoul's real streets — and the streets stay open.
   the road and sank 12 cm into it going up. On Bukak (150 s, autopilot): a tyre more than 4 cm off the
   road in 2.5 % of samples, at the road's very edge (before: 52 %, a level deck). The police patrol
   rides on the road beside you, nose with the hill. People in the street stand on what is under their
-  feet near the camera (the pavement's surface, every frame, `src/city/life.js`); before, a guess from
+  feet near the camera (the pavement's surface, every frame, `games/g_cv2yrhrpv2/life.js`); before, a guess from
   the land left 98 % of them sunk into Bukak's pavements, up to half a metre (now under 1 %).
-- **Traffic** (`src/city/traffic.js`, `src/city/fleet.js`): real models (Sketchfab, CC BY 4.0, from
+- **Traffic** (`games/g_cv2yrhrpv2/traffic.js`, `games/g_cv2yrhrpv2/fleet.js`): real models (Sketchfab, CC BY 4.0, from
   the Objaverse mirror) — everyday saloons, hatchbacks, people carriers, small SUVs, compacts and
   estates in Seoul's whites, silvers, greys and blacks, taxis with our own roof sign, one-tonne box
   trucks, city buses in route blue and green and the smaller green town buses (마을버스, the same model
@@ -658,20 +658,20 @@ Seoul's real streets — and the streets stay open.
   before a corner nor just after it; buses stand at their stops on the wider roads (about one a kilometre; "BUS STOPPED" warns
   you — a warning comes up only once a thing has been in your line a quarter of a second, and stays at
   least a second and a half on the side it was first seen: never a box blinking on and off), blinking to pull out. At night
-  every headlight and tail light glows, near and far (one draw for all of them). Everyone on the street is real (`src/city/folk.js`: Microsoft
+  every headlight and tail light glows, near and far (one draw for all of them). Everyone on the street is real (`games/g_cv2yrhrpv2/folk.js`: Microsoft
   Rocketbox avatars, MIT) — walking, waiting in groups at the crossings, at shop doors, texting,
   looking about, cheering at the start — and nobody faceless is drawn: further off the pavement is
-  simply quieter (`src/city/life.js`). In a race people gather ahead of the riders, and in the small
+  simply quieter (`games/g_cv2yrhrpv2/life.js`). In a race people gather ahead of the riders, and in the small
   streets they keep to the edges.
   **Narrow streets are people's only** (the user's ask: "in narrow alleys, only people"). Narrow is
-  one rule, `isNarrow` in `src/city/alleys.js` (unit-tested in `tests/unit/jarani-narrow.test.mjs`):
+  one rule, `isNarrow` in `games/g_cv2yrhrpv2/alleys.js` (unit-tested in `tests/unit/jarani-narrow.test.mjs`):
   every golmok, alley, service lane, living street, market lane and footway (OSM class 6 and up,
   however wide); a residential or unclassified lane — no lane markings — under 7 m (the map's 6.2 m
   when it doesn't say: a car and a rider can't pass side by side — down a zig-zag course, the room
   the buildings leave it as `measureRoom` found it, so its 8 m lanes keep their traffic); a main road
   with under 3 m a direction (a two-way road under 6 m). No car, taxi, truck, bus, town bus or delivery scooter drives
   down one, turns into one, is put down in one, parks or stands at a stop in one — the race's
-  traffic (`src/city/traffic.js`: round the riders, coming down the course, sent up it, parked, at
+  traffic (`games/g_cv2yrhrpv2/traffic.js`: round the riders, coming down the course, sent up it, parked, at
   the stops, Hard's parked scooters, every respawn) and the city's own (`street.js`) alike, and the
   alleys' parked-scooter props (`golmok.js`) are left out there too. Where a course runs down a narrow
   street (Hard's Euljiro, Mullae and the others' 6 m lanes) it simply has no traffic: people, props
@@ -684,10 +684,10 @@ Seoul's real streets — and the streets stay open.
   narrow street 2 of 7 → 0 of 5; vehicles round you 112 → 60 on average; people down the course's
   narrow streets within 80 m 12 → 12.5 on average; nobody in a short cut, before or after; you got
   544 → 684–823 m along in the time (fewer jams). A delivery scooter near you has a real rider sat on it; far off,
-  none is drawn. In the rain (`src/city/wetfx.js`) every light is smeared
+  none is drawn. In the rain (`games/g_cv2yrhrpv2/wetfx.js`) every light is smeared
   down the wet road, puddles mirror the sky, the rain glints where it crosses a light and wheels
   throw spray.
-  Buildings and the alleys' garden walls are solid (`src/city/walls.js`): each rider is a circle
+  Buildings and the alleys' garden walls are solid (`games/g_cv2yrhrpv2/walls.js`): each rider is a circle
   swept against every wall near the course, in 1/120 s steps, so nothing is ridden through at any
   speed or frame rate; a rider somehow found inside one (a spawn, a friend's position over the
   network) is put out the nearest way, and the chase camera is swept out from the rider against the
@@ -711,13 +711,13 @@ Seoul's real streets — and the streets stay open.
   a walking pace, with a quick dip to dark and no message; a bot the same, without the dip. The land or a
   retaining wall more than 1.5 m up beside a street is a wall: you are held off it, slowed, never ridden
   up it or left stuck on its face.
-- **Items** (`src/city/items.js`): ride through the bouncing "?" boxes (rows across the street every
+- **Items** (`games/g_cv2yrhrpv2/items.js`): ride through the bouncing "?" boxes (rows across the street every
   ~220 m) to fill three slots; use them with **1 2 3**. **Energy drink** — the only boost
   there is (no boost key, no gauge, no tailwind): a can crack and two gulps, your rider drinks, and
   four seconds of boost at once at the scooter's boost speed and pull (70 → 86 km/h on the S1, the FOV
   kicking out, speed lines, the wind, a green glow trail behind the scooter — about fifteen metres
   gained, worth having, not a win), "GULP! +BOOST" and DRINK BOOST under the speed. The commonest
-  single item at every place (22 % of the boxes leading, 25 % last). **Call the police · 경찰 호출** (`src/city/police.js`,
+  single item at every place (22 % of the boxes leading, 25 % last). **Call the police · 경찰 호출** (`games/g_cv2yrhrpv2/police.js`,
   the air horn's place): a patrol officer of our own design — a white police scooter with a blue
   stripe and "POLICE 경찰" on its side, a red-and-blue light bar, a hi-vis vest and a peaked cap, no
   real force's crest — rides up beside the nearest rider ahead of you (if you lead, the one behind),
@@ -728,14 +728,14 @@ Seoul's real streets — and the streets stay open.
   doesn't help (it takes crashes, and this isn't one), and a rider down a short cut can still be
   caught. Bots call it on whoever is ahead — at a person only half the time, as with the branch, and
   never at a rider already pulled over (the patrol is with them: it would be wasted).
-  Commoner further back (7 % of boxes leading, 19 % last). **Gold helmet** (`src/city/helmet.js`): a shiny gold helmet on your rider's
+  Commoner further back (7 % of boxes leading, 19 % last). **Gold helmet** (`games/g_cv2yrhrpv2/helmet.js`): a shiny gold helmet on your rider's
   head, fitted to each species' head (the ears poke out) — a rounded cycling helmet,
   longer to the back, with vent slots, a darker band and rim, a foam liner, a short peak and a chin
   strap (just the helmet: no glow round the rider) — and a badge on the HUD; the next crash (a car, a
   wall, a branch, a fall on marbles)
   bounces off — "BLOCKED!" and "PING!", a ding, and the helmet flies off, spinning. Everyone's
   helmets show, bots' and friends' too.
-  **Marbles** (`src/city/marbles.js`): poured out behind you, 48 glass marbles with coloured swirls
+  **Marbles** (`games/g_cv2yrhrpv2/marbles.js`): poured out behind you, 48 glass marbles with coloured swirls
   bounce, scatter and roll, then lie in a patch for about 13 s — always inside the street they were
   poured in (never onto a pavement or through a wall; in a golmok narrower than 5.5 m only across
   the half you were riding, so a short cut is never shut). A rider whose wheels cross them slips:
@@ -746,7 +746,7 @@ Seoul's real streets — and the streets stay open.
   leading, 11 % last). Bots pour them when someone is right
   behind, and steer round the patches they see (the sharper ones see more) or brake to a crawl
   across them. In a room the pourer's browser sends the pour's seed and everyone rolls the same
-  patch. **Smoke · 연막** (`src/city/smoke.js`): a little grey canister dropped 3 m behind you pops
+  patch. **Smoke · 연막** (`games/g_cv2yrhrpv2/smoke.js`): a little grey canister dropped 3 m behind you pops
   and hisses (synthesised) into a thick cloud — 30 soft puffs billowing out over about 1.3 s to some
   10 m across and 3.5 m tall, heaped in the middle, drifting with the weather's wind and kept inside
   the street it was dropped in; it thins away slowly and is gone after 7 s. The puffs are lit
@@ -760,7 +760,7 @@ Seoul's real streets — and the streets stay open.
   15 % of boxes leading, 7 % last (dropped behind you, it defends a lead). In a room the dropper's
   browser sends the plan (place, street, seed) and everyone draws the same cloud; each browser
   works out who of its own riders is in it. The map shows each cloud as a soft grey round.
-  **Oil slick · 기름** (`src/city/oil.js`): a glossy black slick spilled on the road behind
+  **Oil slick · 기름** (`games/g_cv2yrhrpv2/oil.js`): a glossy black slick spilled on the road behind
   you — an irregular puddle about 3.6 m across and 4.5 m along with a few splashes round it (kept in
   the street as marbles are: in a narrow golmok only across your half), spreading out in half a
   second. It is one mesh laid on the road's surface (a grid following the ground, pulled forward
@@ -777,7 +777,7 @@ Seoul's real streets — and the streets stay open.
   room the spiller's browser sends the plan (seed and street) and each crossing, so every browser
   lays the same slick and counts the same three riders. Commoner up front (18 % leading, 9 %
   last: spilled behind you, it defends a lead). The map shows each slick as a black round ringed in violet.
-  And the branch (`src/city/branch.js`: a leafy
+  And the branch (`games/g_cv2yrhrpv2/branch.js`: a leafy
   plane-tree branch grown in code — thrown into the wheel of the rider right ahead of you, and only
   them: the nearest ahead round the course by race distance (a rider down a short cut alongside
   counts), up to 150 m on. After a wind-up it flies in an arc and homes in on their front wheel all
@@ -800,7 +800,7 @@ Seoul's real streets — and the streets stay open.
   Bots use them too — up to three held, an attack fired only every 3–5 s (never everything at once on
   whoever is near), the drink and the helmet whenever they help; in a room
   throws, pours and smoke are sent to everyone and whoever's browser rides the rider caught decides the catch.
-- **The alleys** (`src/city/golmok.js`): along the course and down its short cuts, built as you come
+- **The alleys** (`games/g_cv2yrhrpv2/golmok.js`): along the course and down its short cuts, built as you come
   near: the small streets' concrete and asphalt at road level, joined to the road where they meet
   one — the road's pavement is a dropped kerb across the alley's mouth (flush with the road, ramping
   up either side), the alley's surface starts at the pavement's edge at its height, round a bend the
@@ -839,12 +839,12 @@ Seoul's real streets — and the streets stay open.
   0.4 m) → 0/32; course arrows 256/1620 → 44/1653 (one junction). The start gantry's posts
   are painted steel (they read as a black hole as mirror metal), and road paint is 0.74 of white with
   the asphalt's grain (a 0.95 flat white edge line by the kerb read as a glowing tube in the sun).
-- **Buildings beside the course** (`src/city/facades.js` and the city shader): window frames and
+- **Buildings beside the course** (`games/g_cv2yrhrpv2/facades.js` and the city shader): window frames and
   sills on the shader's own grid, balconies and rails on flats and villas, shopfronts and striped
   awnings, downpipes, roof tanks and units; close up the walls are brick, tile or render, glass has
   rooms behind it (interior mapping: ceilings, lights, partitions — lit or dark at night), and
   half the glass towers have white aluminium fins.
-- **Fog** (`src/city/weather.js` `FOG_BANK`, `src/city/mist.js`): a real fog bank — the street, the
+- **Fog** (`games/g_cv2yrhrpv2/weather.js` `FOG_BANK`, `games/g_cv2yrhrpv2/mist.js`): a real fog bank — the street, the
   buildings, the traffic and the people mostly gone by 10–20 m (the scene's fog from 2 m to 24 m,
   whatever the view distance; before, the haze factor only scaled the far plane, and 0.22 of 2.4 km
   left 500 m of clear air, so Fog looked like Clear), grey-white by day; after dark a dark blue-grey
@@ -882,13 +882,13 @@ Seoul's real streets — and the streets stay open.
   (a calm 100 BPM loop) plays on the race menus; the course's track plays from the grid through the
   race and crossfades into *Confetti Fanfare* (a fanfare dance) at the ceremony (after the victory
   fanfare); a drive at night plays *Lamplit Avenue* (a calm, twinkling evening orchestra at 94 BPM — strings, pizzicato bass, clarinet and flute, soft horn, harp, celesta and glockenspiel), which replaced the old synthwave *Neon Overpass* there, and is also the fallback for a course without a track of its own. The Music switch and volume in the Graphics panel control all of it.
-- **On screen**: the map at the top left (`src/city/minimap.js`) — the real streets round you, every
+- **On screen**: the map at the top left (`games/g_cv2yrhrpv2/minimap.js`) — the real streets round you, every
   small street, the buildings faintly, the river where it is near, the course ahead bright, short
   cuts dotted, item boxes, marble patches, oil slicks, smoke clouds and branches in the road, the traffic, and every rider as
   a dot in their colour (ringed gold in a helmet) — turns smoothly with you, or keeps north up: click
   it (remembered). It is drawn once per race and laid out about twelve times a second. When a rival
   comes up behind you or draws level to pass, a small manga-style square slides in on the left
-  (`src/city/rivalPanel.js`, Snowpuff's rival panel, `src/snowpuff/sideMirror.js`, only read): one
+  (`games/g_cv2yrhrpv2/rivalPanel.js`, Snowpuff's rival panel, `src/snowpuff/sideMirror.js`, only read): one
   still picture of them, snapped from just in front looking back at their face, in a tilted ink frame
   with speed lines and a halftone edge — no name, no distance, no text. One small render when the
   rider changes, at most once a second, read back to a 2D canvas; all its motion is CSS; it is
@@ -905,27 +905,27 @@ Seoul's real streets — and the streets stay open.
   only slides in with a good picture, stays at least 1.8 s, rests 2.5 s before coming back, and not
   in the first 4 s of a race. WRONG WAY, a box at the same place, is judged by the way you are going
   against the course a few points ahead, held 1.5 s, never while drifting, tumbling or just put back
-  (`wrongWay` in `src/city/ride.js`), and shown steadily, not flashed frame by frame. A rival put back
+  (`wrongWay` in `games/g_cv2yrhrpv2/ride.js`), and shown steadily, not flashed frame by frame. A rival put back
   on the course right by the camera is faded from where the camera is that frame, so it never pops in
   whole for one frame. The end-to-end run watches the middle of the screen while riding.
 - **The dark slab** (a black rectangle behind a slipping rider's dust, round a "WHOA!"): the race's
   comic sprites now never draw their clear texels at all (`alphaTest`), and the ambient occlusion
-  pass (`src/city/aopass.js`) leaves sprites and see-through, depth-less meshes (puffs, glows, painted
+  pass (`games/g_cv2yrhrpv2/aopass.js`) leaves sprites and see-through, depth-less meshes (puffs, glows, painted
   arrows) out of the normals it shades by, so none can shade the road as a solid card; the end-to-end
   run reads a frame back round a cloud of dust and a word burst with AO on and finds no dark card.
-- `src/city/race.js` runs the race; `src/city/course.js` plans the courses (tested in
-  `tests/unit/course.test.mjs`); `src/city/lobby.js` and `src/city/stage.js` are the menus and their
+- `games/g_cv2yrhrpv2/race.js` runs the race; `games/g_cv2yrhrpv2/course.js` plans the courses (tested in
+  `tests/unit/course.test.mjs`); `games/g_cv2yrhrpv2/lobby.js` and `games/g_cv2yrhrpv2/stage.js` are the menus and their
   stage (drawn instead of the city while they are up, so they stay smooth); the room goes over the
   party server (`/ws`).
 
 ## On the street: how it is built
 
-- `src/city/street.js` — walking, getting in and out, driving, traffic, people walking, the map
+- `games/g_cv2yrhrpv2/street.js` — walking, getting in and out, driving, traffic, people walking, the map
   in the corner and the engine's sound; `SeoulGame` hands over walking and driving and asks it for
   the camera.
-- `src/city/drive.js` — the car's handling (engine, brakes, steering that tightens at low speed,
+- `games/g_cv2yrhrpv2/drive.js` — the car's handling (engine, brakes, steering that tightens at low speed,
   skids) and going along a road, as plain numbers; tested in `tests/unit/drive.test.mjs`.
-- `src/city/cars.js` — the Car Concept model in many paints, its glass made plain, its logos left
+- `games/g_cv2yrhrpv2/cars.js` — the Car Concept model in many paints, its glass made plain, its logos left
   out, our own number plates, wheels that steer and roll, lights at night, far away the same car without its small parts (never boxes).
 - `SeoulGame.js` — the city itself: asphalt roads with lane lines (dashed between lanes, double
   yellow down the middle), raised pavements of grey block paving with street trees (`trees.js`:
@@ -935,7 +935,7 @@ Seoul's real streets — and the streets stay open.
   (each its own tint) for offices, white blocks with window bands and balcony rails for apartments,
   shopfronts at street level with a row of shop signs above (pharmacy, convenience store, café,
   hair salon…) that glow at night.
-- `src/city/people.js` — Mina and Jun. Neither file has a walk, so they borrow the soldier's
+- `games/g_cv2yrhrpv2/people.js` — Mina and Jun. Neither file has a walk, so they borrow the soldier's
   (idle, walk, run): each bone's turn from rest is copied across, in each skeleton's own frame.
 
 The models come from the asset library (`extras`, fetched by `npm run dev` and `npm run build`);
@@ -947,9 +947,9 @@ see [third-party](third-party.md) for their licences.
   keeps each building's largest ring, thins its points (to within 0.4 m), works out a height and a
   broad use, and files it under the 500 m tile its centre is in. It also writes the districts'
   centres and the tallest named buildings.
-- **A tile** (`src/city/tiles.js`) is a small binary file: per building a footprint in decimetres
+- **A tile** (`games/g_cv2yrhrpv2/tiles.js`) is a small binary file: per building a footprint in decimetres
   from the tile's corner, a height and a use, then the names. The same code writes and reads it.
-- **The game** (`src/city/SeoulGame.js`) loads the tiles around you nearest first, builds one mesh
+- **The game** (`games/g_cv2yrhrpv2/SeoulGame.js`) loads the tiles around you nearest first, builds one mesh
   per tile (walls, flat roofs, a colour by use), and drops tiles you leave behind. Windows are drawn
   by the shader from each wall's length and height, so no textures are downloaded.
 - **The land** (`scripts/geo/seoul-extras.mjs`): the elevation tiles are read with a small reader of

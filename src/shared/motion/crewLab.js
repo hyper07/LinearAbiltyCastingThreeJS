@@ -6,8 +6,8 @@
  * URL: ?view=crew&t=3.1&pause=1&place=1 — for screenshots; window.__crewLab.setTime(t) freezes at t s.
  */
 import * as THREE from 'three';
-import { PlushRider } from '../../city/plushRider.js';
-import { CREW, CREW_ORDER, rider } from '../../city/crew.js';
+import { PlushRider } from '../../../games/g_cv2yrhrpv2/plushRider.js';
+import { CREW, CREW_ORDER, rider } from '../../../games/g_cv2yrhrpv2/crew.js';
 import { SIGNATURES } from './signatures.js';
 
 const BPM = 143.6;

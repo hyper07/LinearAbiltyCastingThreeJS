@@ -161,7 +161,7 @@ Chase camera, measured from the clips (car ~4.5 m long):
 | Water spray (wet) | rooster tail from the rear tyres + low mist sheet | scales with speed; hides the car behind |
 | Brake glow | orange emissive on discs | after ≥1 s of hard braking, cools over 3 s |
 
-`src/city/racefx.js` already does skid marks, smoke, sparks and turbo flames in
+`games/g_cv2yrhrpv2/racefx.js` already does skid marks, smoke, sparks and turbo flames in
 three draws per car: start from it.
 
 ## 6. Wet roads and night
@@ -193,7 +193,7 @@ Arcade raycast vehicle, the model every good web racer uses:
   car mid-air.
 - **Fixed step** at 120 Hz with an accumulator; render interpolated (Snowpuff
   board physics does this).
-- **Keep it pure and tested**, like `src/city/drive.js` (`stepCar`): a car in a
+- **Keep it pure and tested**, like `games/g_cv2yrhrpv2/drive.js` (`stepCar`): a car in a
   plain object, no rendering, so tests can drive it into walls.
 
 ## 8. Racing HUD, measured
@@ -294,7 +294,7 @@ starting one.
 
 ## 12. What the repo already has, and the gaps
 
-- `src/city/` (Seoul): Khronos Car Concept body in many paints, a garage of
+- `games/g_cv2yrhrpv2/` (Seoul): Khronos Car Concept body in many paints, a garage of
   five handling specs, `drive.js` pure handling, `racefx.js` skid marks / smoke /
   sparks / flames, weather with wet roads. From 2026-11-24 its race is being
   turned into a bicycle race; the cars stay as traffic.

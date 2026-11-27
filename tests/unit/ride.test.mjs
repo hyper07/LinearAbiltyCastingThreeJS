@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BIKE, GRIP, newBike, stepBike, maxCurvature, boxGap, bikeGap, closeCall, slipstream } from '../../src/city/ride.js';
+import { BIKE, GRIP, newBike, stepBike, maxCurvature, boxGap, bikeGap, closeCall, slipstream } from '../../games/g_cv2yrhrpv2/ride.js';
 
 const ride = (b, input, seconds, blocked) => {
   let hit = 0;

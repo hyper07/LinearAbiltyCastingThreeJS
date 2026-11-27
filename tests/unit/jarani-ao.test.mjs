@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { aoSkips } from '../../src/city/aopass.js';
+import { aoSkips } from '../../games/g_cv2yrhrpv2/aopass.js';
 
 test('ambient occlusion sees only solid things: no dark card behind a puff, a word burst or a glow', () => {
   const plane = new THREE.PlaneGeometry(1, 1);

@@ -147,7 +147,7 @@ each record.
 | `retargetClip(target, source, clip, map)` in `src/library/characters.js` | humanoid → humanoid with the same joints (Mesh2Motion/UAL → Mixamo, VRM, KayKit) | each target bone first aligned to point where the source bone points at rest (cancels A- vs T-pose), then follows the source's world-space change from rest; hips scaled by leg length. Maps: `BONE_MAPS.mixamo`, `.kaykit`; the lab adds CMU-Daz → Mixamo and → Mesh2Motion |
 | `aimRetarget(target, source, clip, map, o)` in `src/shared/motion/retarget.js` | humanoid → plush/chibi with one-bone limbs | limbs aim along source chains; spine/head copy turns; facing frames; side pairing; clamps (§5). Maps: `PLUSH_FROM_UNREAL`, `PLUSH_FROM_MIXAMO`, `PLUSH_FROM_CMU_DAZ` |
 | `SkeletonUtils.retargetClip(target, source, clip, options)` (three addon) | quick tests | gotchas: `options.names` maps **target → source** names; the hip is `options.hip` (default `'hip'`); it compares *bind matrices*, so A-pose vs T-pose bodies twist unless you pass `localOffsets`; `preserveBoneMatrix`/`useFirstFramePosition` interplay; `fps` defaults to the densest track; hips position is copied in source units unless `scale` is set. Ours handles rest-pose differences and leg-length scaling for us; use ours |
-| `own.people.retarget` (`src/city/people.js`) | Kickrani's walkers | turn-from-rest copied bone by bone in each skeleton's own frame |
+| `own.people.retarget` (`games/g_cv2yrhrpv2/people.js`) | Kickrani's walkers | turn-from-rest copied bone by bone in each skeleton's own frame |
 
 Both of ours **bake**: they sample the source with a mixer at 30 fps and write
 new quaternion tracks for the target, so playback costs nothing extra. Bake once
@@ -210,7 +210,7 @@ mixer. Bake when the motion must mix with clips or ship as a file; stay live
 
 ## 5. Retargeting onto chibi and plush bodies: the rules
 
-The plush riders (`src/city/plushRider.js`, `src/snowpuff/render/riderModel.js`)
+The plush riders (`games/g_cv2yrhrpv2/plushRider.js`, `src/snowpuff/render/riderModel.js`)
 share one rig: `root → hips → chest → head (earL, earR) / armL, armR`, `hips →
 legL, legR, tail(, tail2)`, every limb **one bone**; the head is ~0.68 wide on a
 0.42-wide body; shoulders sit at the head's lower edge (y 0.38 vs head centre 0.67,

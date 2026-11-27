@@ -2,7 +2,7 @@
  * Kickrani's realistic street: people from the Microsoft Rocketbox
  * Avatar Library (MIT, GitHub) and everyday vehicles from Sketchfab (CC BY
  * 4.0) through the Objaverse dataset's public mirror — the lists are in
- * src/city/streetAssets.js. Fetched with the rest of the library (`extras`),
+ * games/g_cv2yrhrpv2/streetAssets.js. Fetched with the rest of the library (`extras`),
  * resumable, never committed.
  *
  *   library/rocketbox/<Avatar>/<Avatar>.fbx      the rigged mesh (FBX, as published)
@@ -17,7 +17,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { LIBRARY, download, exists, log, rel } from './lib.mjs';
 import { readTga, shrink, encodePng } from './imagepack.mjs';
-import { ROCKETBOX, PEOPLE, CLIPS, VEHICLES, OBJAVERSE, sketchfabPage } from '../../src/city/streetAssets.js';
+import { ROCKETBOX, PEOPLE, CLIPS, VEHICLES, OBJAVERSE, sketchfabPage } from '../../games/g_cv2yrhrpv2/streetAssets.js';
 
 const SRC = 'extras';
 

@@ -19,7 +19,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'no
 import { join, resolve } from 'node:path';
 import { openDem } from './tiff.mjs';
 import { toGrid, toLonLat } from './tm.mjs';
-import { TILE } from '../../src/city/tiles.js';
+import { TILE } from '../../games/g_cv2yrhrpv2/tiles.js';
 
 export const CELL = 25;
 const DEM = ['Copernicus_DSM_COG_10_N37_00_E126_00_DEM', 'Copernicus_DSM_COG_10_N37_00_E127_00_DEM'];

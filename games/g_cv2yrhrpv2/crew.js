@@ -1,4 +1,4 @@
-import { SPECIES } from '../snowpuff/riders.js';
+import { SPECIES } from '../../src/shared/plushKit.js';
 
 /**
  * Kickrani's riders: Snowpuff Peaks' plush animals (their names,

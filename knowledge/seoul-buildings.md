@@ -9,7 +9,7 @@ lit floors), `ref.img2-0316`, `ref.img2-0314`.
 Real textured 3D Seoul data is not an option: V-World's 3D buildings are
 classified "restricted" (공개제한) and its 3D API was closed in 2019; Seoul's
 S-Map has no public download. Buildings are generated from the footprint +
-height + use register we already have (`src/city/tiles.js`), so realism has to
+height + use register we already have (`games/g_cv2yrhrpv2/tiles.js`), so realism has to
 come from the rules below.
 
 ## 1. Why the first pass looked fake

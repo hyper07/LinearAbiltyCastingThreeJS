@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { podiumSlots, BLOCKS, BLOCK_W } from '../../src/city/podium.js';
-import { wrongWay, WRONG_WAY } from '../../src/city/ride.js';
-import { fogRange, FOG_BANK, WEATHERS, WEATHER_PICKS, raceSky } from '../../src/city/weather.js';
-import { stillIsGood } from '../../src/city/rivalPanel.js';
+import { podiumSlots, BLOCKS, BLOCK_W } from '../../games/g_cv2yrhrpv2/podium.js';
+import { wrongWay, WRONG_WAY } from '../../games/g_cv2yrhrpv2/ride.js';
+import { fogRange, FOG_BANK, WEATHERS, WEATHER_PICKS, raceSky } from '../../games/g_cv2yrhrpv2/weather.js';
+import { stillIsGood } from '../../games/g_cv2yrhrpv2/rivalPanel.js';
 
 // Kickrani's heading convention: 0 is north (−z); the podium's riders face `heading`.
 

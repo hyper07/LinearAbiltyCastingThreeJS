@@ -1,5 +1,5 @@
 /**
- * Packs a binary STL into the small mesh file the game loads (src/city/yiStatue.js):
+ * Packs a binary STL into the small mesh file the game loads (games/g_cv2yrhrpv2/yiStatue.js):
  * the corners welded, positions quantised to 16 bits on the model's box, indices 32-bit.
  *
  *   node scripts/models/statue-pack.mjs Yi_Sun-sin_fixed.stl public/models/landmarks/yi-sun-sin.bin

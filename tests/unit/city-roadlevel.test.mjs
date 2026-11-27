@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { joinEnds, levelNetwork, BAND } from '../../src/city/roadLevel.js';
-import { densify, roadPieces } from '../../src/city/bridges.js';
+import { joinEnds, levelNetwork, BAND } from '../../games/g_cv2yrhrpv2/roadLevel.js';
+import { densify, roadPieces } from '../../games/g_cv2yrhrpv2/bridges.js';
 
 /** A street from points [[x, z], …] (keys at its points, as roads.bin's), `half` wide each side. */
 const street = (points, half = 4, reach = half + 3, pave = 3) => {

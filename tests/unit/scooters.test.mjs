@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SCOOT, SCOOTERS, SCOOTER_ORDER, STAT_NAMES, newScoot, stepScoot, cornerSpeed, scooterStats, specFor } from '../../src/city/scoot.js';
+import { SCOOT, SCOOTERS, SCOOTER_ORDER, STAT_NAMES, newScoot, stepScoot, cornerSpeed, scooterStats, specFor } from '../../games/g_cv2yrhrpv2/scoot.js';
 
 /** Cornering at a held speed: the steady radius at full lean, the time to turn 45° from straight, and a flick (full left to 80% of full right's yaw). */
 export function cornering(kmh, spec = SCOOT) {

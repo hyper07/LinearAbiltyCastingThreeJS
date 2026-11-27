@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Walls, sweepSegment, RIDER_RADIUS } from '../../src/city/walls.js';
-import { newScoot, stepScoot, GLANCE, SCOOT } from '../../src/city/scoot.js';
-import { BIKE_COURSES, planCourse, finishCourse, centreLine } from '../../src/city/course.js';
+import { Walls, sweepSegment, RIDER_RADIUS } from '../../games/g_cv2yrhrpv2/walls.js';
+import { newScoot, stepScoot, GLANCE, SCOOT } from '../../games/g_cv2yrhrpv2/scoot.js';
+import { BIKE_COURSES, planCourse, finishCourse, centreLine } from '../../games/g_cv2yrhrpv2/course.js';
 import { seoulData, roadsNear, wallsNear } from './seoulData.mjs';
-import { MOUTH, wallRuns } from '../../src/city/golmok.js';
+import { MOUTH, wallRuns } from '../../games/g_cv2yrhrpv2/golmok.js';
 
 /** A square building, `size` m across, its middle at (x, z). */
 function block(walls, x, z, size = 20) {

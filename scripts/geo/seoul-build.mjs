@@ -7,7 +7,7 @@
  * In:  국토교통부 GIS건물통합정보, 서울특별시 (AL_D010_11_<date>.shp/.dbf/.prj),
  *      KOGL type 1 (free to use with attribution). Looked for in
  *      library/Seoul_Map.zip/, library/, data/geo/seoul/ unless a folder is given.
- * Out: data/geo/seoul/tiles/<tx>_<ty>.bin (src/city/tiles.js) and index.json:
+ * Out: data/geo/seoul/tiles/<tx>_<ty>.bin (games/g_cv2yrhrpv2/tiles.js) and index.json:
  *      the tiles there are, the districts and where they are, the tallest
  *      named buildings. Git-ignored; nothing from the register is committed.
  *
@@ -18,7 +18,7 @@
  */
 import { openSync, readSync, closeSync, readdirSync, existsSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { TILE, tileKey, tileOf, encodeTile, simplify, area2, heightOf, useOf } from '../../src/city/tiles.js';
+import { TILE, tileKey, tileOf, encodeTile, simplify, area2, heightOf, useOf } from '../../games/g_cv2yrhrpv2/tiles.js';
 import { buildExtras } from './seoul-extras.mjs';
 import { buildAlleys, ALLEY_CREDIT } from './seoul-alleys.mjs';
 

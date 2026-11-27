@@ -7,9 +7,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readAlleys, readRoads } from '../../src/city/alleys.js';
-import { decodeTile, tileKey, tileOf, TILE } from '../../src/city/tiles.js';
-import { Walls, tileRings } from '../../src/city/walls.js';
+import { readAlleys, readRoads } from '../../games/g_cv2yrhrpv2/alleys.js';
+import { decodeTile, tileKey, tileOf, TILE } from '../../games/g_cv2yrhrpv2/tiles.js';
+import { Walls, tileRings } from '../../games/g_cv2yrhrpv2/walls.js';
 
 export const ORIGIN = { x: 198050, y: 551860 };
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '../../data/geo/seoul/tiles');

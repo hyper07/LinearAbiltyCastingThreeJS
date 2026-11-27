@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { laneBand, laneShares, gridSlots, behindStart, lateralOf, bikeContact, resolveBump, BIKE_RADIUS } from '../../src/city/pack.js';
+import { laneBand, laneShares, gridSlots, behindStart, lateralOf, bikeContact, resolveBump, BIKE_RADIUS } from '../../games/g_cv2yrhrpv2/pack.js';
 
 const rider = (x, z, heading = 0, v = 0) => ({ x, z, heading, travel: heading, v });
 

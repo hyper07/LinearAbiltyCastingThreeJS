@@ -43,7 +43,7 @@ export { RATE };
 const mod = (a, n) => ((a % n) + n) % n;
 
 /**
- * By species: who it is (Kickrani's crew, src/city/crew.js), what the dance is, how floppy the ears
+ * By species: who it is (Kickrani's crew, games/g_cv2yrhrpv2/crew.js), what the dance is, how floppy the ears
  * and the tail are (`ears`, `tail`: spring gains), and its phrases — `(r, v) => [[steps]…]`, four
  * 12-count phrases (two bars of the song each); `r` a seeded random, `v` the variant (0: as written). The first phrase's opening
  * step and the last phrase's button never vary, so cycles join without a jump.

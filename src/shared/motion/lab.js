@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { BVHLoader } from 'three/addons/loaders/BVHLoader.js';
 import { characterLoader, retargetClip, BONE_MAPS } from '../../library/characters.js';
-import { PlushRider } from '../../city/plushRider.js';
+import { PlushRider } from '../../../games/g_cv2yrhrpv2/plushRider.js';
 import { beatClock, routine, makeCombo, movePose, applyPlushPose, secondary, detectOnsets, fitBeatOffset, spring } from './dance.js';
 import { aimRetarget, compressClip, PLUSH_FROM_UNREAL, PLUSH_FROM_CMU_DAZ, PLUSH_TIPS } from './retarget.js';
 

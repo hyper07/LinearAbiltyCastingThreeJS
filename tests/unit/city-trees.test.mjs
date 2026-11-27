@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { growTree, woodGeometry, leafGeometry, leafTint, seoulSeason, LOD_RANGE } from '../../src/city/trees.js';
-import { nearFade, NEAR_FADE } from '../../src/city/race.js';
+import { growTree, woodGeometry, leafGeometry, leafTint, seoulSeason, LOD_RANGE } from '../../games/g_cv2yrhrpv2/trees.js';
+import { nearFade, NEAR_FADE } from '../../games/g_cv2yrhrpv2/race.js';
 
 test('Seoul street trees: a ginkgo is a tall narrow cone, a plane tree a broad dome on a short trunk', () => {
   const g = growTree('ginkgo', 1.3);
@@ -65,7 +65,7 @@ test('Jarani camera: a rival by the camera or between it and you fades; one alon
 });
 
 test('Jarani credits: every source with a link and a licence; the truck credited without its maker', async () => {
-  const { seoulCredits } = await import('../../src/city/credits.js');
+  const { seoulCredits } = await import('../../games/g_cv2yrhrpv2/credits.js');
   const list = seoulCredits();
   for (const c of list) {
     assert.match(c.site, /^https:\/\//, c.name);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { OIL, planSlick, oilAt, onSlick, slickGrow, spinAngle, spinSpeed } from '../../src/city/oil.js';
-import { ITEMS, ITEM_ORDER, itemOdds } from '../../src/city/items.js';
+import { OIL, planSlick, oilAt, onSlick, slickGrow, spinAngle, spinSpeed } from '../../games/g_cv2yrhrpv2/oil.js';
+import { ITEMS, ITEM_ORDER, itemOdds } from '../../games/g_cv2yrhrpv2/items.js';
 
 /** A straight street running north (−z) along x = 0. */
 const street = [[0, 30], [0, 10], [0, -10], [0, -30]];

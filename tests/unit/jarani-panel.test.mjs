@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mirrorTarget, PANEL_RANGE } from '../../src/city/rivalPanel.js';
+import { mirrorTarget, PANEL_RANGE } from '../../games/g_cv2yrhrpv2/rivalPanel.js';
 
 // Kickrani's heading convention: 0 is north (−z), so going north fx 0, fz −1: ahead is −z, behind +z,
 // my right is +x, my left −x.

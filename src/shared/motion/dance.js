@@ -7,7 +7,7 @@
  *   const pose = show.sample(clock(t));                  // every frame
  *   applyPlushPose(rider, pose);                         // a PlushRider (or anything with .bones)
  *
- * A pose is joint angles in the plush rigs' convention (src/city/plushRider.js,
+ * A pose is joint angles in the plush rigs' convention (games/g_cv2yrhrpv2/plushRider.js,
  * src/snowpuff/render/riderModel.js; the sculpt faces +z):
  *   hips, chest, head, armL, armR, legL, legR: [x, y, z] Euler radians added to rest;
  *   arms: y swings forward, z raises (armL sits at −x and raises with −z);

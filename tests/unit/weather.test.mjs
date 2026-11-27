@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nextWeather, WEATHERS, raceSky, TIME_PICKS } from '../../src/city/weather.js';
+import { nextWeather, WEATHERS, raceSky, TIME_PICKS } from '../../games/g_cv2yrhrpv2/weather.js';
 
 test('a race sky: what was picked, or a random time of day and weather (no snow in summer)', () => {
   const night = raceSky('night', 'rain');
