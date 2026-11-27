@@ -2206,12 +2206,17 @@ export class Race {
    */
   _edge(r, px, pz) {
     const s = r.s;
-    const under = this.g.surfaceAt(s.x, s.z, r.y + 0.3);
-    if (under < r.y - DROP.fall) {
+    // (measured from the street where it was — its own height, unless that is far off the street there:
+    // a rider set down somewhere new (a put-back, a reset, a test) whose height has not caught up yet was
+    // taken for one riding off a drop or into a wall: thrown down, or held back to a third of its speed)
+    const was = this.g.surfaceAt(px, pz, r.y + 0.3);
+    const y = Math.abs(was - r.y) > DROP.fall ? was : r.y;
+    const under = this.g.surfaceAt(s.x, s.z, y + 0.3);
+    if (under < y - DROP.fall) {
       this._fall(r);
       return true;
     }
-    if (under > r.y + DROP.wall) {
+    if (under > y + DROP.wall) {
       s.x = px;
       s.z = pz;
       s.v *= 0.35;
