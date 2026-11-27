@@ -1,0 +1,50 @@
+{
+  "format": 1,
+  "code": "g_cv2yrhrpv2",
+  "id": "official:seoul",
+  "slug": "kickrani",
+  "title": "Kickrani",
+  "version": "1.0.0",
+  "api": 1,
+  "date": "2026-11-27T21:22:07.507Z",
+  "deployedBy": "kibaek (cli)",
+  "notes": "First production release: Kickrani as at 3a17b88 (the gilded Admiral Yi). Level roads (41ac6b3) not included.",
+  "previous": null,
+  "source": {
+    "mode": "pick",
+    "base": "47b2d66bad3c004bfb4c79c90e60ba3632a509f3",
+    "picks": [
+      "e60dfba38b0f2abc45ac0b9f2e16c3326b1a6cbc"
+    ],
+    "head": "cb518a037ae11da5311df342d47c8808cb182712"
+  },
+  "added": [],
+  "entry": "game.js",
+  "css": [
+    "game.css"
+  ],
+  "files": [
+    {
+      "path": "game.css",
+      "bytes": 2345290,
+      "sha256": "f7327f926155d289f3b8ab147165b9f0d4e43caad47508152769a87f03442717"
+    },
+    {
+      "path": "game.js",
+      "bytes": 1925409,
+      "sha256": "e70abdb8adec6377424cacfcf79da29beb7cbdbc15d4fe6b97a73839a7460638"
+    }
+  ],
+  "builtWith": {
+    "node": "v26.7.0",
+    "vite": "8.1.5"
+  },
+  "checks": {
+    "tests": {
+      "ok": true,
+      "files": 31
+    },
+    "smoke": null,
+    "forced": false
+  }
+}
