@@ -820,6 +820,8 @@ export class App {
   _handleAction(action, slot) {
     // The editor reads the keyboard itself; nothing here may fire while it is open.
     if (this.phase === 'editor') return;
+    // A game open over the home page (Arcademia, Snowpuff…) stops the platform's loop: its keys are that game's.
+    if (!this._loop) return;
     if (this.phase === 'menu' && action !== 'toggleWeapons' && action !== 'cancel') return;
 
     switch (action) {
