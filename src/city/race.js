@@ -3408,10 +3408,11 @@ export class Race {
       if (bend > 0.9) {
         corner = Math.max(corner, driftV);
         // close to it and too quick to lean round: drift (the way it turns)
-        if (j <= 2 && v > corner * 0.8 && !driftNow && Math.min(w, P(0)?.[2] ?? 8) >= 7) driftNow = Math.sign(turn(Math.atan2(a[0] - p0[0], a[1] - p0[1]), Math.atan2(b[0] - a[0], b[1] - a[1]))) || 0;
-        // (a square corner between two lanes one car wide, buildings to the kerb: no room to drift or swing
-        // wide — round it at a walk-and-a-bit, about 25 km/h, a little quicker for the sharper riders)
-        if (bend > 1.1 && tight && w < 7.5) corner = Math.min(corner, 5.2 + w * 0.25 + (r.skill - 0.86) * 6);
+        // (not into or out of a lane between houses: a slide there runs wide into the corner's building)
+        if (j <= 2 && v > corner * 0.8 && !driftNow && !tight && Math.min(w, P(0)?.[2] ?? 8) >= 7) driftNow = Math.sign(turn(Math.atan2(a[0] - p0[0], a[1] - p0[1]), Math.atan2(b[0] - a[0], b[1] - a[1]))) || 0;
+        // (a square corner into or out of a lane between houses, buildings to the kerb: no room to drift or
+        // swing wide — round it at 25–30 km/h, a little quicker for the sharper riders and the wider lanes)
+        if (bend > 1.1 && tight && w < 10) corner = Math.min(corner, 5.2 + w * 0.3 + (r.skill - 0.86) * 6);
       }
       target = Math.min(target, Math.sqrt(corner * corner + 2 * decel * Math.max(0, j * 6 - 5)));
     }

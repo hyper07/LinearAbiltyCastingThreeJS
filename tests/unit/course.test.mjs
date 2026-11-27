@@ -221,7 +221,7 @@ test('the bike courses on Seoul\'s real streets, by level: boulevards (Easy), av
 });
 
 test('a zig-zag through a grid of local streets: one lane each way, corner after corner, left and right in turn — never down the golmok, the arterial only to cross', () => {
-  // residential streets (6.2 m) every 100 m, golmok (3.6 m) between them, an eight-lane boulevard through the middle
+  // residential streets (8.5 m) every 100 m, golmok (3.6 m) between them, an eight-lane boulevard through the middle
   const roads = [];
   for (let k = -800; k <= 800; k += 50) {
     const along = [];
@@ -231,7 +231,7 @@ test('a zig-zag through a grid of local streets: one lane each way, corner after
       across.push(k, t);
     }
     const lane = k % 100 === 0;
-    roads.push({ pts: Float32Array.from(along), width: lane ? 6.2 : 3.6, cls: lane ? 5 : 6, small: true }, { pts: Float32Array.from(across), width: lane ? 6.2 : 3.6, cls: lane ? 5 : 6, small: true });
+    roads.push({ pts: Float32Array.from(along), width: lane ? 8.5 : 3.6, cls: lane ? 5 : 6, small: true }, { pts: Float32Array.from(across), width: lane ? 8.5 : 3.6, cls: lane ? 5 : 6, small: true });
   }
   const boulevard = [];
   for (let t = -900; t <= 900; t += 25) boulevard.push(t, 0);
@@ -245,7 +245,7 @@ test('a zig-zag through a grid of local streets: one lane each way, corner after
   assert.ok(st.sharp >= 6, `${st.sharp} sharp corners`);
   assert.equal(c.points.filter((p) => p[2] < ZIG_MIN_WIDTH).length, 0, 'no golmok on the main line');
   assert.ok(st.local > 0.9, `${Math.round(st.local * 100)}% local`);
-  assert.ok(isLocal([0, 0, 6.2, 5, 0]) && !isLocal([0, 0, 27, 2, 0]) && !isLocal([0, 0, 3.6, 6, 0]));
+  assert.ok(isLocal([0, 0, 8.5, 5, 0]) && !isLocal([0, 0, 27, 2, 0]) && !isLocal([0, 0, 3.6, 6, 0]));
   // its traffic: lighter than its level's on the avenues, kept off the level tabs
   assert.ok(LEVELS['medium-local'].oncoming < LEVELS.medium.oncoming && LEVELS['hard-local'].parked < LEVELS.hard.parked);
   assert.deepEqual(Object.keys(LEVELS), ['easy', 'medium', 'hard']);

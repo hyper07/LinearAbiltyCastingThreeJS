@@ -60,7 +60,8 @@ export const BIKE_COURSES = [
     id: 'heritage', level: 'medium', name: 'Gwanghwamun Heritage Run', ko: '광화문 역사 코스', x: -200, z: -350, r: 400, kind: 'Palace', zigzag: true,
     text: 'Round the heart of old Seoul: down Sejong-daero past the square, the Sejong Center and Cheonggye Plaza to Seoul Plaza, along Deoksugung\'s stone-wall road and up through Jeongdong, back by Saemunan-ro and round in front of the Gwanghwamun gate.',
     // (drawn along the big roads where the run goes; with the traffic: down the square's west side, up its east)
-    roads: 'avenues', beside: 0.5, max: 4000, startAt: [-77, -880],
+    // (its stone-wall road is narrower than a zig-zag's lanes, and kept for being what it is: `minRoad`)
+    roads: 'avenues', beside: 0.5, max: 4000, startAt: [-77, -880], minRoad: 4,
     via: [[-60, -850], [-77, -700], [-77, -150], [-210, 157], [-395, 0], [-330, -260], [-310, -400], [-200, -428], [-60, -600]]
   },
   {
@@ -72,7 +73,7 @@ export const BIKE_COURSES = [
     id: 'olympic', level: 'medium', name: 'Olympic Park Lanes', ko: '올림픽공원 방이동', x: 11850, z: 5600, r: 400, kind: 'Park', zigzag: true,
     text: 'Along the edge of Olympic Park, the World Peace Gate up the road, and into the grid of Bangi-dong: left, right, left — a slalom of square corners and short straights.',
     beside: 0.12,
-    via: [[11686, 5512], [12030, 5439], [11913, 5677], [11740, 5824], [11600, 5720]]
+    via: [[11866, 5979], [12171, 5825], [12173, 5601], [12030, 5439], [11901, 5408], [11563, 5544], [11528, 5624], [11525, 5889]]
   },
   {
     id: 'yeouido63', level: 'medium', name: 'Yeouido 63 Lanes', ko: '여의도 63', x: -3950, z: 4950, r: 400, kind: 'Towers', zigzag: true,
@@ -88,17 +89,22 @@ export const BIKE_COURSES = [
   {
     id: 'itaewon', level: 'hard', name: 'Itaewon Zig-zag', ko: '이태원 지그재그', x: 1320, z: 3480, r: 400, kind: 'Hill', zigzag: true,
     text: 'Up and down the side streets either side of Itaewon-ro — restaurants from every country, steps and hills, Namsan Tower above — corner after corner.',
-    via: [[1562, 3520], [1540, 3326], [1309, 3224], [1081, 3418], [1286, 3756]]
+    // (its hillside lanes: down to 6.5 m between the buildings, `minRoad`)
+    minRoad: 6.5,
+    via: [[1059, 3557], [1321, 3590], [1562, 3520], [1427, 3255], [1230, 3328]]
   },
   {
     id: 'sinchon', level: 'hard', name: 'Hongdae–Sinchon Slalom', ko: '홍대–신촌', x: -4100, z: 1100, r: 450, kind: 'Campus', zigzag: true,
     text: 'From Hongik University to Sinchon station through the streets of the student quarter: buskers, cafés and clubs, a left and a right at every block.',
+    // (the student quarter's lanes are narrow: down to 5.5 m between the buildings, `minRoad`)
+    minRoad: 5.5,
     via: [[-4115, 956], [-4379, 821], [-4308, 1270], [-4020, 1387], [-3752, 1118]]
   },
   {
     id: 'skytower', level: 'hard', name: 'Jamsil Sky Tower', ko: '잠실 타워', x: 11380, z: 6500, r: 400, kind: 'Towers', zigzag: true,
     text: 'The lanes of Songpa south of Seokchon Lake, the 555 m Sky Tower filling the sky to the north: tight corners, one after another.',
-    via: [[11230, 6573], [11153, 6377], [11472, 6290], [11675, 6460], [11587, 6644]]
+    minRoad: 7,
+    via: [[11555, 6608], [11298, 6674], [11157, 6470], [11153, 6377], [11333, 6196], [11603, 6241], [11714, 6492]]
   }
 ];
 /** The courses of a level, in order. */
@@ -177,7 +183,7 @@ const HARD_COST = Object.assign([Infinity, 6, 2.2, 1.4, 1.0, 1.0, 9, 12], { narr
  */
 const ZIG_COST = Object.assign([Infinity, 8, 3.5, 1.15, 1.0, 1.0, 9, 12], { narrow: 0, against: 60, wide: 2, bridge: 2, link: 1.5 });
 /** The narrowest street a zig-zag's main line takes (m): narrower is a golmok, for the short cuts. */
-export const ZIG_MIN_WIDTH = 5.5;
+export const ZIG_MIN_WIDTH = 8;
 
 /** Corners (a sum over the turns, `per` each and `sharp` more per radian past 60°), and `each` for every one out of [lo, hi]. */
 const cornerScore = (st, per, sharp, [lo, hi], each = 140) => st.turns.reduce((t, x) => t + (x.angle > Math.PI / 3 ? per + (x.angle - Math.PI / 3) * sharp : x.angle > 0.7 ? per * 0.25 : 0), 0) + each * Math.max(0, lo - st.sharp, st.sharp - hi);
@@ -250,7 +256,8 @@ export function measureRoom(nodes, walls) {
         const z = a.z + (b.z - a.z) * t + rz * (e.shift ?? 0);
         room = Math.min(room, walls.ray(x, z, rx, rz, 6) + walls.ray(x, z, -rx, -rz, 6));
       }
-      e.width = Math.min(e.width, room);
+      // (a lane the map gives no width — SMALL_WIDTH's 6.2 m — is as wide as its buildings leave it, up to 9 m)
+      e.width = e.width === 6.2 ? Math.min(9, room) : Math.min(e.width, room);
       e.roomed = true;
       const back = b.adj.find((f) => f.to === ai && f.cls === e.cls);
       if (back && !back.roomed) {
