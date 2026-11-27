@@ -99,6 +99,50 @@ export function onScreen(cam, height, x, z, hl, heading, y = 0) {
   return Math.max(L * seen(along), W * seen(across), H * seen(up)) * k;
 }
 
+/** Vehicles sat on the road: under each tyre within `near` m of the camera, past that the two ends' middles every `every` frames. */
+export const SIT = { near: 90, every: 4 };
+
+/**
+ * How a vehicle at (x, z) heading `heading` sits on the surface (`surfaceAt(x, z, from)`), its tyres at
+ * `axles` ({ front, rear: z of the axles, nose to −z; track: half the track, 0 for a two-wheeler}):
+ * { y (its origin's height), pitch (+ nose up), roll (+ right side up) } — the plane through the
+ * tyres' heights, lifted until no tyre is below the surface (on a twisted bit of road the lowest
+ * one touches, the others on it). With `four` false only the axles' middles are sampled (no roll).
+ */
+export function sitOn(surfaceAt, x, z, heading, { front, rear, track }, from = Infinity, four = true) {
+  const fx = -Math.sin(heading);
+  const fz = -Math.cos(heading);
+  // right of the nose: (−fz, fx)
+  const at = (along, side) => surfaceAt(x - fx * along - fz * side, z - fz * along + fx * side, from);
+  const base = rear - front || 1;
+  let fl, fr, rl, rr;
+  if (four && track > 0) {
+    fl = at(front, -track);
+    fr = at(front, track);
+    rl = at(rear, -track);
+    rr = at(rear, track);
+  } else {
+    fl = fr = at(front, 0);
+    rl = rr = at(rear, 0);
+  }
+  const yf = (fl + fr) / 2;
+  const yr = (rl + rr) / 2;
+  const pitch = Math.atan2(yf - yr, base);
+  const roll = track > 0 ? Math.atan2((fr + rr - fl - rl) / 2, 2 * track) : 0;
+  // the plane's height at the origin (between the axles)
+  let y = yr + ((yf - yr) * rear) / base;
+  const sp = Math.tan(pitch);
+  const sr = Math.tan(roll);
+  // (each tyre's height on the plane: its origin's, plus the rise to it; lifted to the highest one under it)
+  const on = (along, side) => y - along * sp + side * sr;
+  let lift = 0;
+  if (track > 0 && four) {
+    lift = Math.max(fl - on(front, -track), fr - on(front, track), rl - on(rear, -track), rr - on(rear, track), 0);
+  }
+  y += lift;
+  return { y, pitch, roll };
+}
+
 /** How far either side of a road's corner a lane rounds it (metres, at most: under half of each stretch). */
 export const ROUND = 4.5;
 
@@ -1335,13 +1379,54 @@ export class RaceTraffic {
     v.missed.clear();
   }
 
+  /**
+   * Stand a vehicle on the road under its own wheels (`sitOn`): nose up or down the hill and tipped
+   * across a cambered road, its lowest tyre on the surface and none sunk into it — the four tyres
+   * sampled near the camera (SIT.near m), the two ends' middles further off (every few frames), a
+   * parked one once. Smoothed only in what a step adds over the hill (a seam, a kerb): up a hill the
+   * wheels never lag above or below the road.
+   */
   _place(v, dt) {
     const b = v.box;
-    const y = this.g.surfaceAt(b.x, b.z, v.y + 1);
-    v.y = dt ? v.y + (y - v.y) * Math.min(1, dt * 10) : y;
-    v.group.position.set(b.x, v.y, b.z);
+    v.group.position.x = b.x;
+    v.group.position.z = b.z;
+    v.group.rotation.order = 'YXZ';
     v.group.rotation.y = b.heading;
     if (v.view) v.view.wheels((v.speed * dt) / (v.view.size.wheel || 0.33));
+    if (v.parked && v.sat) return;
+    const cam = this._cam ?? this.g.camera?.position;
+    const d = cam ? Math.hypot(b.x - cam.x, b.z - cam.z) : 0;
+    const near = d < SIT.near;
+    const ground = this.g.groundAt?.(b.x, b.z) ?? 0;
+    // (far off, every SIT.every frames: it can't be seen to the centimetre there — between, at the same
+    // height over the land, which the road follows)
+    v.sitT = (v.sitT ?? 0) + 1;
+    if (dt && !near && v.sat && v.sitT < SIT.every) {
+      v.y = ground + v.over;
+      v.group.position.y = v.y;
+      return;
+    }
+    const ax = v.axles ?? (v.axles = v.view?.axles ?? { front: -b.halfLength * 0.66, rear: b.halfLength * 0.66, track: v.kind === 'scooter' ? 0 : b.halfWidth * 0.8 });
+    const at = sitOn((x, z, from) => this.g.surfaceAt(x, z, from), b.x, b.z, b.heading, ax, v.sat ? v.y + 1 : Infinity, near && ax.track > 0);
+    const step = dt * Math.max(1, v.sitT);
+    v.sitT = 0;
+    if (!v.sat || !dt) {
+      v.over = at.y - ground;
+      v.pitch = at.pitch;
+      v.bank = at.roll;
+    } else {
+      // the height over the ground (a road's own rise is the ground's: followed exactly; a seam, a kerb, eased)
+      const dy = at.y - ground - v.over;
+      v.over += Math.abs(dy) > 0.6 ? dy : dy * (1 - Math.exp(-step * (dy > 0 ? 30 : 14)));
+      const k = 1 - Math.exp(-step * 14);
+      v.pitch += (at.pitch - v.pitch) * k;
+      v.bank += (at.roll - v.bank) * k;
+    }
+    v.sat = true;
+    v.y = ground + v.over;
+    v.group.position.y = v.y;
+    v.group.rotation.x = v.pitch;
+    v.group.rotation.z = v.bank;
   }
 
   /** Everything within `r` metres of a point. */

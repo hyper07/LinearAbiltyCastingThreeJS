@@ -28,6 +28,7 @@ import { VEHICLES, MOPED } from './streetAssets.js';
  *   await loadFleet();                       // every model, before the race starts
  *   const v = makeFleetVehicle('sedan');     // null only if no model at all loaded
  *   v.lights(night, braking); v.indicate('left' | 'right' | 'both' | null, on); v.wheels(roll); v.near(on);
+ *   v.axles                                  // { front, rear, track }: where its tyres meet the road (traffic.js sits it there)
  *   const m = makeFleetMoped();              // a delivery moped's body (no rider)
  */
 
@@ -321,6 +322,11 @@ function prepare(scene, k, kind) {
   const W = dims.max.x - dims.min.x;
   const H = dims.max.y - dims.min.y;
   const P = { kind, k, parts, wheels, size: { length: L, width: W, height: H, wheel: wheels[0]?.radius || 0.33 }, front: dims.min.z, back: dims.max.z, mats: new Map() };
+  // Where its tyres touch the road, in its own frame (nose to −z): the front and rear axles' z (a bus's
+  // or truck's longer, wider wheelbase its own) and half the track — what traffic.js stands it on.
+  P.axles = wheels.length >= 2
+    ? { front: Math.min(...wheels.map((w) => w.at.z)), rear: Math.max(...wheels.map((w) => w.at.z)), track: Math.max(0.3, ...wheels.map((w) => Math.abs(w.at.x))) }
+    : { front: P.front * 0.62, rear: P.back * 0.62, track: W * 0.4 };
   // The far copy is made from the parts as they are; then each list is merged by material (fewer draws).
   P.far = farCopy(P);
   for (const key of ['paint', 'glass', 'other']) parts[key] = merged(parts[key]);
@@ -803,6 +809,7 @@ export function makeFleetVehicle(kind, color = null) {
     kind,
     model: kind,
     size: { length: L, width: W, height: H, wheel: P.size.wheel },
+    axles: P.axles,
     wheels(roll) {
       spun = (spun + roll) % (Math.PI * 2);
       for (const w of wheels) w.rotation.x = -spun;
