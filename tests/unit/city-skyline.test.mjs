@@ -1,6 +1,107 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SKYLINE, skylineHaze, towerHalf } from '../../src/city/skyline.js';
+import { SKYLINE, skylineHaze, towerHalf, landmarkLookUp, landmarkParts, LOOK_MAX, courseBend, LOOK_BEND, hanokRoof } from '../../src/city/skyline.js';
+import { markAt, MARK_RANGE } from '../../src/city/minimap.js';
+import { admiral, admiralFar } from '../../src/city/admiral.js';
+import { jetHeight, jetColor, FOUNTAIN } from '../../src/city/fountain.js';
+import * as THREE from 'three';
+
+test('Admiral Yi in bronze: 6.5 m to the tip of his finial, the sword at his right (−x) from the slab to his shoulder, a sane budget; a light far copy', () => {
+  const near = admiral({ scales: { map: null, bump: null } });
+  const box = new THREE.Box3().setFromObject(near);
+  assert.ok(Math.abs(box.max.y - 6.5) < 0.35, `${box.max.y.toFixed(2)} m tall`);
+  assert.ok(box.min.x < -1.1 && box.max.x > 1.1, 'the sword out at his right, the elbow out at his left');
+  let tris = 0;
+  near.traverse((o) => {
+    if (o.isMesh) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+  });
+  assert.ok(tris > 3000 && tris < 60000, `${tris} triangles`);
+  let far = 0;
+  admiralFar().traverse((o) => {
+    if (o.isMesh) far += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+  });
+  assert.ok(far < tris / 5, `far copy ${far} triangles`);
+});
+
+test('the fountain: jets rise and fall in waves (the edge rows taller), cyan to blue after dark, one edge row pink', () => {
+  const hs = Array.from({ length: 40 }, (_, k) => jetHeight(3, 2, k * 0.25));
+  assert.ok(Math.min(...hs) >= 0.5 && Math.max(...hs) <= 3.3 && Math.max(...hs) - Math.min(...hs) > 1.5, 'the middle field rises and falls');
+  assert.ok(jetHeight(0, 0, 0, { edge: true }) >= 2.6);
+  const c = jetColor(2, 1, 10);
+  const hsl = c.getHSL({});
+  assert.ok(hsl.h > 0.38 && hsl.h < 0.62, `cyan–blue (${hsl.h.toFixed(2)})`);
+  assert.ok(jetColor(2, 9, 10, { edge: 1 }).getHSL({}).h > 0.8, 'pink');
+  assert.ok(FOUNTAIN.length > 30 && FOUNTAIN.width < 12);
+});
+
+test('the landmarks near the courses: Namsan Tower on the summit, Gyeongbokgung\'s gate and throne hall, Cheong Wa Dae under Bugaksan, the admiral on Gwanghwamun Square', () => {
+  const by = Object.fromEntries(SKYLINE.map((l) => [l.id, l]));
+  // Namsan Tower where the register has its point, 236.7 m
+  assert.ok(Math.hypot(by.namsantower.x - 897, by.namsantower.z - 1682) < 20 && Math.abs(by.namsantower.height - 237) < 1);
+  // the palace on its axis: the gate south of the throne hall, both where the register has their low blocks (skipped there)
+  const p = by.gyeongbokgung;
+  assert.ok(p.gate.z > p.hall.z + 200 && Math.abs(p.gate.x - p.hall.x) < 10, 'the gate south of the hall, on one axis');
+  assert.equal(p.skipAt.length, 2);
+  // Cheong Wa Dae north of the palace, the statues south of the gate on the square, King Sejong behind the admiral
+  assert.ok(by.cheongwadae.z < p.hall.z - 600 && Math.abs(by.cheongwadae.x - p.hall.x) < 300);
+  assert.ok(by.yisunsin.z > p.gate.z + 400 && by.yisunsin.sejong.z < by.yisunsin.z && by.yisunsin.height > 15);
+  // the tall ones seen from across the city, the low ones from round about
+  for (const id of ['skytower', 'yeouido63', 'namsantower']) assert.ok(by[id].range >= 9000, id);
+  for (const id of ['gyeongbokgung', 'cheongwadae', 'yisunsin']) assert.ok(by[id].range >= 1500 && by[id].range <= 3000, id);
+  // real names, no company's
+  for (const l of SKYLINE) assert.ok(!/lotte|롯데|hanwha|한화|n ?seoul|n서울|cj/i.test(`${l.name} ${l.ko}`), l.name);
+  // eight points up each part the race camera looks for
+  assert.equal(landmarkParts(p).length, 16);
+});
+
+test('the race camera looks up toward a tall landmark ahead over the top of its view, never more than LOOK_MAX, and not at one behind or far off', () => {
+  const tower = SKYLINE.find((l) => l.id === 'namsantower');
+  const ground = () => 30;
+  // 800 m south of the tower, facing it (north is −z: yaw 0 faces −z)
+  const cam = { x: tower.x, y: 33, z: tower.z + 800 };
+  const up = landmarkLookUp(cam, 0, { groundAt: ground });
+  assert.ok(up > 0.05 && up <= LOOK_MAX, `looks up ${up.toFixed(2)}`);
+  assert.equal(landmarkLookUp(cam, Math.PI, { groundAt: ground }), 0, 'facing away');
+  // 6 km off it is low over the horizon, in the picture already
+  assert.equal(landmarkLookUp({ x: tower.x, y: 33, z: tower.z + 6000 }, 0, { groundAt: ground, landmarks: [tower] }), 0);
+  // a low landmark (the palace) never tilts it
+  assert.equal(landmarkLookUp({ x: -87, y: 33, z: -700 }, 0, { groundAt: ground, landmarks: SKYLINE.filter((l) => l.height < 100) }), 0);
+});
+
+test('only on a straight: the course\'s turn over the next 50 m', () => {
+  const straight = Array.from({ length: 40 }, (_, i) => [0, -i * 6]);
+  assert.ok(courseBend(straight, 0) < 0.01);
+  const corner = [...Array.from({ length: 6 }, (_, i) => [0, -i * 6]), ...Array.from({ length: 30 }, (_, i) => [(i + 1) * 6, -30])];
+  assert.ok(courseBend(corner, 0) > LOOK_BEND);
+});
+
+test('a hanok roof: its corners swept up over the middle of its eaves, its ridge at the top', () => {
+  const g = hanokRoof(20, 10, 5, { lift: 1.5 });
+  const p = g.attributes.position;
+  let corner = -Infinity;
+  let mid = Infinity;
+  let top = -Infinity;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i);
+    const y = p.getY(i);
+    const z = p.getZ(i);
+    if (Math.abs(Math.abs(x) - 10) < 1e-6 && Math.abs(Math.abs(z) - 5) < 1e-6) corner = Math.max(corner, y);
+    if (Math.abs(x) < 1e-6 && Math.abs(Math.abs(z) - 5) < 1e-6) mid = Math.min(mid, y);
+    top = Math.max(top, y);
+  }
+  assert.ok(corner > mid + 1.4, 'corners up');
+  assert.ok(Math.abs(top - 5) < 1e-6);
+});
+
+test('the minimap marks a landmark where it stands, or on its rim the way it lies', () => {
+  const me = { x: 0, z: 0 };
+  const opts = { R: 100, cy: 100, rot: 0, S: 0.5 };
+  const near = markAt({ x: 40, z: 0 }, me, opts);
+  assert.ok(!near.rim && Math.abs(near.x - 120) < 1e-6 && Math.abs(near.y - 100) < 1e-6);
+  const far = markAt({ x: 0, z: -5000 }, me, opts);
+  assert.ok(far.rim && Math.abs(far.x - 100) < 1e-6 && far.y < 100, 'north, on the rim at the top');
+  assert.ok(MARK_RANGE.tower > MARK_RANGE.statue);
+});
 
 test('the skyline landmarks: the Jamsil Sky Tower (555 m, by Seokchon Lake) and the 63 Building — no company names', () => {
   const tower = SKYLINE.find((l) => l.id === 'skytower');

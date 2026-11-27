@@ -12,7 +12,91 @@
  * turned, and the few moving things on top.
  */
 
+import { SKYLINE } from './skyline.js';
+
 const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+
+/** How far off a landmark is still marked on the map (m): the tall towers from across the city, the rest from round about. */
+export const MARK_RANGE = { tower: 9000, gold: 9000, palace: 2600, bluehouse: 2600, statue: 1600 };
+
+/**
+ * Where a landmark goes on the round map (pixels, from the map's middle at `R`, `cy`): at its place if it
+ * is on the map, else on the rim the way it lies — { x, y, rim }. `rot` is the map's turn, `S` pixels a metre.
+ */
+export function markAt(l, me, { R, cy, rot, S, inset = 20 }) {
+  const dx = (l.x - me.x) * S;
+  const dz = (l.z - me.z) * S;
+  let x = dx * Math.cos(rot) - dz * Math.sin(rot);
+  let y = dx * Math.sin(rot) + dz * Math.cos(rot);
+  const max = R - inset;
+  // (from the map's middle, not from you — you sit a little below it when the map turns with you)
+  const ox = x;
+  const oy = y + (cy - R);
+  const d = Math.hypot(ox, oy);
+  if (d <= max) return { x: R + ox, y: R + oy, rim: false };
+  return { x: R + (ox / d) * max, y: R + (oy / d) * max, rim: true };
+}
+
+/** A landmark's little sign on the map, `s` pixels across, centred at (x, y): no words. */
+export function drawMark(g, kind, x, y, s = 22, rim = false) {
+  g.save();
+  g.translate(x, y);
+  g.globalAlpha = rim ? 0.92 : 1;
+  g.fillStyle = 'rgba(255, 255, 255, 0.92)';
+  g.strokeStyle = 'rgba(24, 21, 38, 0.85)';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.arc(0, 0, s / 2, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+  const k = s / 22;
+  g.scale(k, k);
+  g.lineJoin = 'round';
+  if (kind === 'tower' || kind === 'gold') {
+    if (kind === 'gold') {
+      g.fillStyle = '#d4a03a';
+      g.fillRect(-3.5, -8, 7, 16);
+      g.fillStyle = '#ffe7a6';
+      g.fillRect(-1.5, -6, 1.5, 12);
+    } else {
+      g.fillStyle = '#5b6b80';
+      g.beginPath();
+      g.moveTo(0, -10);
+      g.lineTo(2.4, 8);
+      g.lineTo(-2.4, 8);
+      g.closePath();
+      g.fill();
+      g.fillStyle = '#e84a3c';
+      g.beginPath();
+      g.ellipse(0, -1, 4.6, 2.2, 0, 0, Math.PI * 2);
+      g.fill();
+    }
+  } else if (kind === 'palace' || kind === 'bluehouse') {
+    // a hanok roof, its corners swept up, over a hall
+    g.fillStyle = kind === 'bluehouse' ? '#2f67b4' : '#3b404a';
+    g.beginPath();
+    g.moveTo(-9, -1);
+    g.quadraticCurveTo(-5, 1, -4, -5);
+    g.lineTo(4, -5);
+    g.quadraticCurveTo(5, 1, 9, -1);
+    g.lineTo(7, 2);
+    g.lineTo(-7, 2);
+    g.closePath();
+    g.fill();
+    g.fillStyle = kind === 'bluehouse' ? '#dfe6ee' : '#b3412e';
+    g.fillRect(-5, 2, 10, 5);
+  } else if (kind === 'statue') {
+    g.fillStyle = '#8f8a80';
+    g.fillRect(-4, 2, 8, 7);
+    g.fillStyle = '#4b4a3c';
+    g.beginPath();
+    g.arc(0, -7, 2.4, 0, Math.PI * 2);
+    g.fill();
+    g.fillRect(-2.6, -4.6, 5.2, 6.8);
+    g.fillRect(3.2, -9, 1, 10);
+  }
+  g.restore();
+}
 /** Pixels a metre on the map (about 170 m from you to its edge). */
 export const MAP_SCALE = 1.3;
 
@@ -284,6 +368,16 @@ export class RaceMinimap {
       g.stroke();
     }
     g.restore();
+    // the landmarks: a little sign each where it stands, or on the rim the way it lies (the towers from
+    // across the city, the palace, Cheong Wa Dae and the statues from round about)
+    this.marks = [];
+    for (const l of SKYLINE) {
+      const kind = l.icon ?? 'tower';
+      if (Math.hypot(l.x - me.s.x, l.z - me.s.z) > Math.min(l.range ?? 9000, MARK_RANGE[kind] ?? 9000)) continue;
+      const m = markAt(l, { x: me.s.x, z: me.s.z }, { R, cy, rot: this.rot, S });
+      drawMark(g, kind, m.x, m.y, m.rim ? 20 : 24, m.rim);
+      this.marks.push(l.id);
+    }
     // you: an arrow the way you go
     g.save();
     g.translate(R, cy);

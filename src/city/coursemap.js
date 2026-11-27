@@ -13,7 +13,7 @@ import { tileRings } from './walls.js';
  *     tertiary roads thin), the small streets from alleys.bin faintly when
  *     close, bridges dark-edged over the river;
  *   building footprints from the map tiles when close;
- *   the 25 districts' names, the hills, and landmarks (N Seoul Tower,
+ *   the 25 districts' names, the hills, and landmarks (Namsan Tower,
  *     Gyeongbokgung, the Jamsil Sky Tower, the 63 Building …);
  *   every course at its true size on its real streets, each in its colour —
  *     and the one picked (or pointed at in the list) with its route: the start
@@ -36,7 +36,8 @@ export const COURSE_COLORS = {
   seochon: '#f08c00', seongsu: '#e8a400', jamsilpark: '#ff7a1a',
   euljiro: '#e5383b', mullae: '#c2185b', haebangchon: '#ff4d6d', namsandown: '#b5179e',
   heritage: '#ffb703', banpo: '#d98e04', yeouido63: '#ffcf33',
-  bukak: '#9d0208', skytower: '#a4133c',
+  bukak: '#9d0208', skytower: '#a4133c', songpa: '#ef233c',
+  gyeongbok8: '#ffd166', noryangjin: '#f4a261',
   inwangsan: '#d62828', samcheong: '#c9184a', arirang: '#6a040f'
 };
 
@@ -46,10 +47,12 @@ export const chillies = (level, size = 14) => `<span class="chillies" title="${L
 
 /** Places named on the map (world metres: x east, z south of City Hall). `big`: named from further out. */
 export const LANDMARKS = [
-  { name: 'N Seoul Tower', ko: 'N서울타워', x: 907, z: 1673, icon: 'tower', big: true, text: 'On top of Namsan, 237 m: the Namsan Tower Downhill starts at its plaza.' },
-  { name: 'Gyeongbokgung', ko: '경복궁', x: -82, z: -1479, icon: 'palace', big: true, text: 'The great palace of the Joseon kings, under Bugaksan.' },
+  { name: 'Namsan Tower', ko: '남산타워', x: 897, z: 1682, icon: 'tower', big: true, text: 'On top of Namsan, 237 m: the Namsan Tower Downhill starts at its plaza, and it stands over most of the courses in the middle of the city.' },
+  { name: 'Gyeongbokgung', ko: '경복궁', x: -82, z: -1479, icon: 'palace', big: true, text: 'The great palace of the Joseon kings, under Bugaksan: the Gyeongbokgung Figure Eight goes round its walls and crosses in front of its gate.' },
+  { name: 'Cheong Wa Dae', ko: '청와대', x: -268, z: -2250, icon: 'palace', text: 'The blue-roofed hall at the foot of Bugaksan, north of the palace: along its front on the Figure Eight.' },
+  { name: 'Admiral Yi Sun-sin', ko: '이순신 장군 동상', x: -92, z: -517, icon: 'hall', text: 'The admiral in bronze on his tall plinth on Gwanghwamun Square, King Sejong seated behind him: ahead up Sejong-daero on the Figure Eight.' },
   { name: 'Jamsil Sky Tower', ko: '잠실 타워', x: 11012, z: 5953, icon: 'tower', big: true, text: 'Korea\'s tallest tower, 555 m, by Seokchon Lake: the Jamsil Sky Tower course runs in its shadow.' },
-  { name: '63 Building', ko: '63빌딩', x: -3367, z: 5170, icon: 'tower', big: true, text: 'The golden tower on Yeouido, by the Han.' },
+  { name: '63 Building', ko: '63빌딩', x: -3367, z: 5170, icon: 'tower', big: true, text: 'The golden tower on Yeouido, by the Han: straight ahead up the hill road on Noryangjin 63 View.' },
   { name: 'City Hall', ko: '서울시청', x: 6, z: -25, icon: 'hall', text: 'The middle of the map: every course is measured from here.' },
   { name: 'Changdeokgung', ko: '창덕궁', x: 1155, z: -1457, icon: 'palace', text: 'A palace and its secret garden, by the hanok lanes of Bukchon.' },
   { name: 'Seoul Station', ko: '서울역', x: -639, z: 1284, icon: 'station', text: 'The trains to Busan leave from here.' },

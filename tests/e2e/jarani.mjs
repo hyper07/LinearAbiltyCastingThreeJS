@@ -1034,6 +1034,29 @@ export async function run(browser) {
     }, null, 15000), await page.evaluate(() => JSON.stringify({ dist: Math.round(window.seoul.race.me.dist), L: Math.round(window.seoul.race.course.length), done: window.seoul.race.me.done })));
     t.check('…and past it, you roll to a stop in the run-out', await until(page, () => window.seoul.race.me.s.v < 1.5, null, 12000));
     await page.evaluate(() => window.seoul.race.quit());
+    // The landmarks: on the Gyeongbokgung Figure Eight (its two loops sharing Yulgok-ro in front of the gate), the palace, Cheong Wa Dae and the admiral's statue drawn near, Namsan Tower and
+    // the Sky Tower on the skyline; each marked on the race map (where it stands, or on the rim the way it lies); the view tilts
+    // up toward a tall one ahead on a straight, never more than LOOK_MAX.
+    await page.evaluate(() => {
+      const r = window.seoul.race;
+      Object.assign(r, { courseId: 'gyeongbok8', time: 'day', weatherPick: 'clear', laps: 1 });
+      r.startSolo();
+    });
+    await until(page, () => window.seoul.race.course?.id === 'gyeongbok8' && window.seoul.race.phase === 'racing', null, 120000);
+    await page.evaluate(() => (window.seoul.race.autopilot = true));
+    t.check('the Gyeongbokgung Figure Eight: the palace, Cheong Wa Dae and the statues drawn by the course, the tall towers on the skyline', await until(page, () => {
+      const items = window.seoul.skyline?.items ?? [];
+      const shown = (id) => items.some((it) => it.l.id === id && it.holder.visible && !it.m.hill);
+      return ['gyeongbokgung', 'cheongwadae', 'yisunsin', 'namsantower', 'skytower', 'yeouido63'].every(shown) && items.some((it) => it.m.hill && it.holder.visible);
+    }, null, 10000), await page.evaluate(() => JSON.stringify((window.seoul.skyline?.items ?? []).map((it) => `${it.l.id}${it.m.hill ? ':hill' : ''}:${it.holder.visible}`))));
+    t.check('…marked on the race map: the palace and Cheong Wa Dae where they stand, Namsan Tower on the rim', await until(page, () => {
+      const m = window.seoul.race.minimap?.marks ?? window.seoul.race.map?.marks ?? [];
+      return ['gyeongbokgung', 'cheongwadae', 'namsantower'].every((id) => m.includes(id));
+    }, null, 8000));
+    await page.waitForTimeout(6000);
+    t.check('…and the view tilts up only a little, if at all (a tall landmark ahead on a straight)', await page.evaluate(() => (window.seoul.race.lookUp ?? 0) >= 0 && (window.seoul.race.lookUp ?? 0) <= 0.2 + 1e-6));
+    await shot('palace-loop');
+    await page.evaluate(() => window.seoul.race.quit());
     // Haebangchon's steep hill lanes: the traffic on the road (none sunk into it, parked or moving), never one
     // car in another, nothing left standing in the road for good; the alleys' walls broken at the side
     // streets' mouths; the lane lines stopped where roads cross.

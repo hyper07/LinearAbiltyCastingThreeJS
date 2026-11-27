@@ -193,6 +193,14 @@ test('the bike courses on Seoul\'s real streets, by level: boulevards (Easy), av
       if (def.roads !== 'avenues' && !def.mountain) assert.ok(st.sharp + st.switches >= 10, `${def.id}: ${st.sharp} sharp turns, ${st.switches} switches`);
       // never down a golmok narrower than ZIG_MIN_WIDTH (but for a course drawn along one on purpose)
       if (!def.minRoad) assert.equal(c.points.filter((p) => isSmall(p[3]) && (p[2] ?? 6) < ZIG_MIN_WIDTH - 0.01).length, 0, `${def.id}: down a golmok`);
+    } else if (def.ring) {
+      // a landmark run: a loop round a place, laid out for its view (skyline.js) more than for its level's shape — a
+      // raceable length, few residential lanes, a long run from the start
+      // (a figure eight is two loops: up to 5.2 km)
+      assert.ok(c.length > 1800 && c.length < (def.eight ? 5200 : 3300), `${def.id}: ${Math.round(c.length)} m`);
+      assert.ok(st.small <= 0.4, `${def.id}: ${Math.round(st.small * 100)}% residential lanes`);
+      assert.ok(st.firstCorner >= 250, `${def.id}: ${Math.round(st.firstCorner)} m to the first corner`);
+      if (def.level === 'easy') assert.ok(st.sharp <= 4 && st.small === 0 && st.wide >= 0.72, `${def.id}: an Easy loop (${st.sharp} sharp, ${Math.round(st.wide * 100)}% wide)`);
     } else if (def.level === 'easy') {
       assert.ok(c.length > 1800 && c.length < 3300, `${def.id}: ${Math.round(c.length)} m`);
       assert.equal(st.small, 0, `${def.id}: no residential lanes on the main loop`);
@@ -219,7 +227,7 @@ test('the bike courses on Seoul\'s real streets, by level: boulevards (Easy), av
   }
   for (const k of ['River', 'Avenue', 'Market', 'Hill', 'Towers', 'Fairground', 'Downhill']) assert.ok(kinds.has(k), k);
   for (const [level, ids] of Object.entries(byLevel)) assert.ok(ids.length >= 3, `${level}: ${ids.join(', ')}`);
-  assert.ok(BIKE_COURSES.length >= 12 && BIKE_COURSES.length <= 24);
+  assert.ok(BIKE_COURSES.length >= 12 && BIKE_COURSES.length <= 30);
 });
 
 test('the hill roads (Hard, one way like the Bukak Skyway): roads cars use, on real slopes, linked bends, a run of about three minutes', { skip: !seoul && 'no Seoul map converted here' }, () => {
@@ -338,4 +346,17 @@ test('the woods on a hill keep off the road', () => {
   assert.ok(trees.length > 100, `${trees.length} trees`);
   for (const t of trees) assert.ok(Math.abs(t.z) > 3.5 + 1.5, `a tree ${t.z.toFixed(1)} m from the middle of a 7 m road`);
   assert.equal(woodSpots(points, new Uint8Array(100)).length, 0, 'none where the course is not out on the hill');
+});
+
+test('the landmark runs: each laid out so its landmark stands ahead down its straights, seen from the race camera over a good share of the lap', { skip: !seoul && 'no Seoul map converted here' }, async () => {
+  const { landmarkViews } = await import('../../scripts/geo/jarani-views.mjs');
+  const ground = seoulTerrain();
+  // (the course, its landmark, the least share of the lap it is in view — measured Nov 2026: 32 %, 32 %, 13 %)
+  for (const [id, landmark, least] of [['gyeongbok8', 'gyeongbokgung', 0.2], ['gyeongbok8', 'cheongwadae', 0.15], ['noryangjin', 'yeouido63', 0.2], ['songpa', 'skytower', 0.08]]) {
+    const def = BIKE_COURSES.find((c) => c.id === id);
+    const walls = wallsNear(def.x, def.z, def.r * 4);
+    const c = finishCourse(planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls }), { walls });
+    const v = landmarkViews(def, c, { ground })[landmark];
+    assert.ok(v && v.seen >= least, `${id}: ${landmark} in view ${Math.round((v?.seen ?? 0) * 100)}% of the lap`);
+  }
 });

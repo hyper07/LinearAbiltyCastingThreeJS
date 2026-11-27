@@ -99,5 +99,5 @@ test('course map: zoom levels, what each shows, fitting a box, every course colo
   assert.ok(Math.abs(v.cx - 1000) < 1e-9 && Math.abs(v.cz - 500) < 1e-9 && Math.abs(v.s - 0.4) < 1e-9);
   assert.ok(fitView(0, 0, 1e7, 1e7, 800, 500).s === ZOOM.min);
   for (const c of BIKE_COURSES) assert.match(COURSE_COLORS[c.id], /^#[0-9a-f]{6}$/i);
-  assert.ok(['N Seoul Tower', 'Gyeongbokgung', 'Jamsil Sky Tower', '63 Building'].every((n) => LANDMARKS.some((l) => l.name === n && l.big)));
+  assert.ok(['Namsan Tower', 'Gyeongbokgung', 'Jamsil Sky Tower', '63 Building'].every((n) => LANDMARKS.some((l) => l.name === n && l.big)));
 });

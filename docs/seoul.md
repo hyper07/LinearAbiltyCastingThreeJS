@@ -61,20 +61,74 @@ including commercially, **with attribution** — the game credits it in its Cred
   1.8 m on Haebangchon's). A pavement is cut where it meets another road, so it never lies across a
   crossing and a junction's corners aren't left as holes. The surface the riders stand on is
   `src/city/surface.js` (`surfaceOf`, tested in `tests/unit/city-surface.test.mjs`).
-- **N Seoul Tower** is in the register as a single point, so the game draws its own plain tower
-  there, to the real height. Two more landmarks are drawn by hand (`src/city/skyline.js`): the
-  **Jamsil Sky Tower** (our name for the 555 m tower by Seokchon Lake, which the register leaves out — a
-  square tapering and curving in to a split crown, silver-white glass) and the **63 Building** (in the
-  register as one 250 m slab over its whole plot: drawn instead as its gold glass tower stepping in at
-  both ends, on a low podium). No company name or logo. Both are always on the skyline: past the camera's
-  far plane each is drawn as a smaller copy on the same line of sight, so they stand over the city from
-  across the river and from the other courses; ordinary haze greys them to a pale silhouette (never
-  gone), a fog bank hides them like everything else, and after dark their windows light and the tower's
-  crown glows. From the race camera they are mostly out of sight (measured Nov 2026, a minute on the
-  autopilot each, a ray from the camera to six points up the landmark): the 63 Building in view 2 s in 60 on
-  the 63 Lanes, the Sky Tower 8 s in 60 round the Jamsil Tower Loop, never from the Sky Tower's own lanes
-  or Yeouido Riverside — the chase view's top edge is 10–15° over the horizon and the street's first
-  buildings rise above that; lifting the camera 5° toward them changed little, so it was left as it is.
+- **The landmarks** (`src/city/skyline.js`, `SKYLINE`), drawn by hand, low-poly, at their real place and
+  height (world metres from the register's own points and blocks, or converted from their longitude and
+  latitude), so riders know where they are. No company name, logo or lighting on any of them.
+  - **Namsan Tower** (남산타워) on Namsan's summit, 236.7 m — the register has it only as a point: a
+    white shaft from its round plaza building, the glass observation drum (lit after dark), its roof,
+    the mast banded red and white with a red light at the tip.
+  - The **Jamsil Sky Tower** (our name for the 555 m tower by Seokchon Lake, which the register leaves
+    out — a square tapering and curving in to a split crown, silver-white glass) and the **63 Building**
+    (in the register as one 250 m slab over its whole plot: drawn instead as its gold glass tower stepping
+    in at both ends, on a low podium; the slab left out of its tile, `SKYLINE_SKIP`).
+  - **Gyeongbokgung** (경복궁): the Gwanghwamun gate (its granite base with three arches, the
+    two-storey pavilion on top) and Geunjeongjeon, the throne hall, on its two-tier stone terrace, up the
+    palace's axis — hanok roofs of grey tiles (a texture of round-backed tile rows) on a concave slope,
+    their corners swept up (`hanokRoof`), the eaves' undersides painted green, red, blue and gold
+    (dancheong: the same surface's back faces), white mortar under a dark ridge with upturned ends; round
+    red columns, lattice doors, painted beams; the gate's coursed granite base with three arched gateways
+    in lighter frames and a parapet; the hall's two-tier terrace with stone balustrades and steps; where
+    the register has only their 4–20 m blocks (left out of their tiles by place, `skipAt`). **Cheong Wa
+    Dae** (청와대), not in the register: its main hall — two storeys of white walls and tall windows behind
+    pale pillars on a granite terrace — under the great roof of blue tiles, half its height, a lower wing
+    either side joined by a short corridor, at the foot of Bugaksan. The palace, Cheong Wa Dae and the
+    statues cast and take the sun's shadows, and are lit warm after dark.
+  - **Admiral Yi Sun-sin** (이순신 장군 동상) on Gwanghwamun Square, west of Sejong-daero's
+    carriageways (`src/city/admiral.js`, sculpted in three.js from lathes, tubes and shells to the user's
+    reference photo, ~9k triangles, a few-hundred-triangle copy far off): feet together on a dark bronze
+    slab, his right hand holding the long sheathed sword upright at his side (tip on the slab, the round
+    guard and hilt at his shoulder, a cord hanging), the left hand on his hip, a rounded helmet with a
+    small trident finial and a long neck guard to the shoulders, moustache and beard, layered shoulder
+    guards, a breastplate with a round emblem, a wide belt and buckle plate, the long coat and its apron
+    panels in fish-scale lamellar (a texture and its bump) with banded edges; dark greenish-brown bronze
+    (physical material, metalness 0.6, roughness 0.45, a soft sheen), lit softly from below after dark;
+    6.5 m on his pale granite plinth (17 m in all) with the inscription down its face (忠武公李舜臣將軍像)
+    and a bronze turtle ship on a low base before it; King Sejong seated, gilded, behind him. In front,
+    down the square's middle, **the fountain** (`src/city/fountain.js`, our own take): a 42 m shallow
+    pool, a field of thin jets and a taller row along each edge rising and falling in waves; after dark
+    lit from below in slowly shifting cyan, blue and teal (one edge row pink), the wet stone glowing, a
+    strip of small green, red and white lights set in the paving along both sides (bloomed); by day
+    plain water. Cheap: every jet an instance of a thin open cone drawn additively by a small shader,
+    heights and colours set 20 times a second and only within 900 m. (An image-to-3D generation of the
+    statue with TRELLIS.2 was tried on the Mac Studio: its decoder gave an empty mesh there twice, so the
+    sculpt stands.)
+  - **The hills under them**: Namsan, and Bugaksan behind the palace, drawn from the land's own heights
+    (every 40 m, sunk 4 m under the real land, which wins wherever its tiles are loaded) — so from
+    beyond the draw distance the tower stands on its hill, not in the air, and Bugaksan rises behind
+    the gate from Gwanghwamun Square.
+
+  The tall three (and their hills) are always on the skyline, from 12–16 km: past the camera's far plane
+  each is drawn as a smaller copy on the same line of sight; ordinary haze greys them to a pale
+  silhouette (never gone), a fog bank hides them like everything else, after dark their windows light
+  and the tips glow. The palace, Cheong Wa Dae and the statues are seen from the streets round them
+  (within 1.6–2.6 km), in the scene's own fog like their neighbours, warm-lit after dark.
+  **From the race camera**: the chase view's top edge is only 10–15° over the horizon, so a tall
+  landmark a kilometre off was over the top of the picture, and the buildings along a street hide
+  anything not near its line. So on a straight (the course turning less than 0.3 rad in the next 50 m,
+  not on a short cut) the view **tilts up** toward a tall landmark ahead — up to 0.2 rad, just enough to
+  bring its upper part inside the top of the frame (`landmarkLookUp`), eased in over a second or two and
+  back down before a corner; the camera itself doesn't move (no zoom, the same wall handling) — and the
+  new **landmark runs** below are laid out down the streets that point at one.
+  `node scripts/geo/jarani-views.mjs` measures it per course (the course ridden every 8 m with the chase
+  camera and its tilt, eight points up each landmark, the register's buildings at their heights and the
+  land within the draw distance in the way): measured Nov 2026, the share of a lap a landmark is in
+  view — Gyeongbokgung Figure Eight: the palace 28 %, Cheong Wa Dae 23 %, Namsan Tower 18 %, the admiral 10 %;
+  Noryangjin 63 View: the 63 Building 32 %; Songpa Sky Lanes: the Sky Tower 13 % (3 % from the Sky
+  Tower's own lanes, 11 % round the Fairground); Gwanghwamun Heritage Run: the admiral 26 %, the palace
+  20 %; Inwangsan and Samcheong: Namsan Tower 58–59 %; Haebangchon: Namsan Tower 17 % (3 % before the tilt).
+  **On the race map** (`minimap.js`): a small sign for each — a tower, the gold 63, a hanok roof (blue for
+  Cheong Wa Dae), a statue — where it stands, or on the map's rim the way it lies (the tall ones from
+  9 km, the rest from 1.6–2.6 km). No words, no pop-ups.
 - Heights only shape the ground: **no elevation figure and no coordinate is ever shown.** Parks,
   subway lines and small streets are not in the map yet.
 - All three credits, with every model, texture and the music, are in the Credits panel (kept off
@@ -322,6 +376,40 @@ Seoul's real streets — and the streets stay open.
     (Horam-ro is a divided four-lane arterial; the park and campus roads aren't on the map); and a
     Waryong Park and city-wall run (3.3 km of climbing on the Embassy Pass's roads, its wall-gate
     tunnel missing from the map).
+  - **The landmark runs** (`ring` loops and a zig-zag, laid out so a landmark stands ahead down their
+    straights — the share of a lap it is in view from the race camera measured with
+    `scripts/geo/jarani-views.mjs`, and kept by `tests/unit/course.test.mjs`):
+    - **Gyeongbokgung Figure Eight** (경복궁 8자 코스, Medium; the user's own drawing) — a figure eight
+      crossed in front of the Gwanghwamun gate: up Sejong-daero past Admiral Yi and King Sejong straight
+      at the gate with Bugaksan behind it, east along Yulgok-ro and up Samcheong-ro, along the front of
+      Cheong Wa Dae, down Hyoja-ro, back across the gate's junction on Sajik-ro and Yulgok-ro, then east
+      to Ujeongguk-ro, down past Jogyesa and back along Jongno. 4.9 km; the palace in view 28 % of the
+      lap, Cheong Wa Dae 23 %, Namsan Tower 18 %, the admiral 10 %. Its two loops meet on Yulgok-ro in
+      front of the gate (the junction there is a T, the gate standing on its north side): the 200 m from
+      the gate's junction to Samcheong-ro is ridden twice, the same way — the first time turning up round
+      the palace, the second on along Yulgok-ro; `eight` lets the plan use it twice, a rider's place on
+      the course is only ever looked for just round where it was (so nobody jumps a pass, and the lap
+      counts right), and the way is the same both times (no wrong-way). Its lower loop runs the
+      Gwanghwamun Avenues' streets, its upper one the palace walls, as one lap. A left turn the map leaves
+      out (Hyoja-ro's foot onto Sajik-ro eastbound) is a `link`.
+    - **Noryangjin 63 View** (노량진 63 전망, Medium) across the Han from Yeouido — 700 m north down
+      Jangseungbaegi-ro straight at the 63 Building over the river (in view 32 % of the lap), along
+      Noryangjin-ro, then the winding hill streets of Noryangjin-dong.
+    - **Songpa Sky Lanes** (송파 스카이 골목, Hard zig-zag) — Songpa's lanes south of the Sky Tower, square
+      corner after square corner, left and right in turn, the tower ahead over the rooftops on the runs
+      north (13 %, against 3 % from the Sky Tower's own lanes nearer it).
+
+    A `ring` loop's points snap to the carriageway going its way (as a zig-zag's do), and it gets its
+    level's lighter local traffic (`-local`). Raced on the autopilot with three bots (day, clear, Nov 2026,
+    one lap): the Figure Eight 295–333 s, put back 0–1 a rider (its crashes mostly the items' branches);
+    Noryangjin 187–201 s, put back 1 (you) and 2–4 a bot (in the hill streets' tight corners); Songpa
+    181–197 s, put back 0–3.
+    Tried and not built: a palace loop on its own (the Figure Eight's upper loop, 2.7 km, Easy — kept
+    inside the Figure Eight instead), a palace loop jinking through Bukchon (4.5 km: its lanes between
+    Samcheong-ro and Bukchon-ro are under 8 m), a Namsan Tower climb (the Downhill's roads the other
+    way: its park road is one way), a Yeouido-west zig-zag toward the 63 (its streets are wide or
+    one-way), a Pil-dong loop under Namsan's north side (no loop of local streets there), and a first
+    Songpa layout across Songpa-daero (riders went round in circles at its junction, 230–255 s laps).
 
   The level sets more than the streets: the bots' skill, how many cars are about, coming the other
   way and going yours (Easy busier but fair, Medium busy, Hard packed), how many cars are parked at
@@ -364,6 +452,9 @@ Seoul's real streets — and the streets stay open.
 | Hard (hill road) | Inwangsan Skyway (A→B) | 2.59 | 0% | 1 / 0 (12 bends 30–74°) | 324 m | 0 | 160 m down, 88 up | 0 / 0 |
 | Hard (hill road) | Samcheong–Bukchon Downhill (A→B) | 2.65 | 0% | 4 / 2 (13 bends, park hairpins) | 78 m | 0 | 141 m down, 41 up | 1 / 0 |
 | Hard (hill road) | Arirang Pass Downhill (A→B) | 2.75 | 0% | 1 / 0 (16 bends, two hairpins) | 114 m | 0 | 139 m down, 27 up | 0 / 0.3 |
+| Medium (landmark) | Gyeongbokgung Figure Eight | 4.91 | 72% | 5 / 2 (2) | 520 m | 0 | 48 m | 1–2 / 1–5 |
+| Medium (landmark) | Noryangjin 63 View | 2.26 | 47% | 4 / 4 (2) | 286 m | 0 | 27 m | 0 / 0–1 |
+| Hard (zig-zag) | Songpa Sky Lanes | 2.15 | 18% | 11 / 9 (6) | 270 m | 1 | 6 m | 0 / 0–3 |
 
   (The zig-zags, one lap on the autopilot with three bots, day, clear, Nov 2026. Before the cornering
   work: the bots' laps 178–198 s on the Heritage Run, 139–141 s at Banpo, 184–199 s on the 63 Lanes,

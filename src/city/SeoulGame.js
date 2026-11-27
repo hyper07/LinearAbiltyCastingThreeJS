@@ -277,6 +277,8 @@ const ORIGIN = { x: 198050, y: 551860 };
 /** Wall colours by what a building is for (see tiles.js USES), light to read windows on. */
 /** Buildings in the register drawn by hand instead (skyline.js: the 63 Building's gold tower), by name. */
 const SKYLINE_SKIP = new Set(SKYLINE.map((l) => l.skip).filter(Boolean));
+/** …and by place, where the register's blocks have no name (the palace's gate and throne hall): their middles. */
+const SKYLINE_SKIP_AT = SKYLINE.flatMap((l) => l.skipAt ?? []);
 const PALETTE = { house: '#d8c9b4', apartment: '#e4e2dc', shop: '#d9cfc0', office: '#9fb0c0', public: '#d2c4b2', industry: '#b9b3a6', other: '#cfc8bc' };
 /** Quiet runs the city at 45 frames a second. */
 const POWER_PROFILE = { quietFps: 45 };
@@ -440,7 +442,6 @@ export class SeoulGame {
         this.ground.visible = false;
         this.pos.y += this.groundAt(this.pos.x, this.pos.z);
       }
-      for (const l of this.index.landmarks) if (l.tower) this._tower(l);
       this.skyline = new Skyline(this);
       // The credits (map, models, textures, music) are behind the Credits button: on the menus, the pause screen and in the city.
       this.creditOpts = { alleys: Boolean(this.alleyCount), terrain: Boolean(this.terrain) };
@@ -1075,6 +1076,7 @@ export class SeoulGame {
         minz = Math.min(minz, zs[i]);
         maxz = Math.max(maxz, zs[i]);
       }
+      if (SKYLINE_SKIP_AT.some(([sx, sz]) => Math.abs((minx + maxx) / 2 - sx) < 10 && Math.abs((minz + maxz) / 2 - sz) < 10 && maxx - minx < 60)) continue;
       // It stands on the land: its top is its height above the ground at its middle; its walls reach down to the lowest corner.
       let low = Infinity;
       for (let i = 0; i < n; i++) low = Math.min(low, this.groundAt(xs[i], zs[i]));
@@ -1724,31 +1726,6 @@ export class SeoulGame {
     const cz = Math.floor(z / ROAD_CELL);
     for (let i = cx - 1; i <= cx + 1; i++) for (let j = cz - 1; j <= cz + 1; j++) for (const s of this.walkHash?.get(`${i}_${j}`) ?? []) if (this._onWalk(s, x, z) != null) return true;
     return false;
-  }
-
-  /** A broadcast tower the register lists only as a point: our own plain shape, to its real height. */
-  _tower(l) {
-    const g = new THREE.Group();
-    const base = this.groundAt(l.wx, l.wz);
-    const white = new THREE.MeshLambertMaterial({ color: '#e9ecef' });
-    const dark = new THREE.MeshLambertMaterial({ color: '#5a6170' });
-    const red = new THREE.MeshLambertMaterial({ color: '#d8483f' });
-    const H = l.height;
-    const part = (geo, mat, y) => {
-      const m = new THREE.Mesh(geo, mat);
-      m.position.y = y;
-      g.add(m);
-    };
-    part(new THREE.CylinderGeometry(9, 13, H * 0.1, 20), white, H * 0.05); // the foot
-    part(new THREE.CylinderGeometry(4.5, 7, H * 0.48, 20), white, H * 0.34); // the shaft
-    part(new THREE.CylinderGeometry(13, 9, H * 0.035, 24), dark, H * 0.5975); // under the deck
-    part(new THREE.CylinderGeometry(14, 13, H * 0.06, 24), white, H * 0.645); // the observation deck
-    part(new THREE.CylinderGeometry(7, 13, H * 0.04, 24), dark, H * 0.695);
-    part(new THREE.CylinderGeometry(1.6, 3.2, H * 0.17, 12), red, H * 0.8); // the mast, banded
-    part(new THREE.CylinderGeometry(0.8, 1.6, H * 0.115, 10), white, H * 0.9425);
-    g.position.set(l.wx, base, l.wz);
-    this.scene.add(g);
-    l.base = base;
   }
 
   /**

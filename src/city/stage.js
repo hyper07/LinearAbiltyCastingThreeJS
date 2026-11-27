@@ -9,7 +9,7 @@ import { SCOOTER_ORDER } from './scoot.js';
  * Kickrani's pre-race stage: a little round plaza on a Seoul rooftop
  * — a roundabout of asphalt with its double yellow ring and a granite kerb,
  * zebra stripes leading in, two street lamps — and the city behind it: towers
- * with lit windows, N Seoul Tower on its hill, the tallest tower far off.
+ * with lit windows, Namsan Tower on its hill, the tallest tower far off.
  * The plush riders stand round the turntable on their scooters; it turns the
  * one you choose to the front, and they wave, wiggle their ears and hop. On
  * the scooter step the six scooters stand on plinths behind, the chosen one
@@ -137,7 +137,7 @@ export class JaraniStage {
       s.add(g);
       this.lamps.push(light);
     }
-    // The city behind: towers with windows, N Seoul Tower on Namsan, the Jamsil Sky Tower far off.
+    // The city behind: towers with windows, Namsan Tower on Namsan, the Jamsil Sky Tower far off.
     const lit = windowTexture(true);
     const face = windowTexture(false);
     // (three kinds of tower: cream render, blue-grey glass, brick — a skyline, not a grey wall)

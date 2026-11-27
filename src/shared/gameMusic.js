@@ -226,7 +226,10 @@ export const KICKRANI_COURSE_TRACKS = Object.freeze({
   skytower: 'kick-boulevard',
   inwangsan: 'kick-downhill',
   samcheong: 'kick-palace',
-  arirang: 'kick-hill'
+  arirang: 'kick-hill',
+  gyeongbok8: 'kick-palace',
+  noryangjin: 'kick-hill',
+  songpa: 'kick-boulevard'
 });
 
 /**

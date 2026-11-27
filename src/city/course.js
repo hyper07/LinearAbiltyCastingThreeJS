@@ -17,7 +17,7 @@
  * residential lanes, 6–10 hard corners, a hill, a short cut or two. Hard: tight two-lane streets
  * and residential lanes, square corners to drift, hills, golmok short cuts. Each with a character
  * of its own: an island in the river, palace avenues, a market, a hill road with a view, the
- * towers of Gangnam, print shops, ironworks, a fairground, the run down from N Seoul Tower. The
+ * towers of Gangnam, print shops, ironworks, a fairground, the run down from Namsan Tower. The
  * golmok (alleys.bin, scripts/geo/seoul-alleys.mjs) are the short cuts. Centres are world metres
  * from City Hall; `r` is how far out the loop is drawn; `kind` is what the map picker calls it.
  * A course with `via` goes through those points in order (planViaCourse); with `open` it runs from
@@ -46,7 +46,7 @@ export const BIKE_COURSES = [
   { id: 'haebangchon', level: 'hard', name: 'Haebangchon Hill Lanes', ko: '해방촌', x: 801, z: 2417, r: 320, kind: 'Hill', text: 'Steep lanes under Namsan: up and over the hill, tight corners at the top, and down again.' },
   {
     id: 'namsandown', level: 'hard', name: 'Namsan Tower Downhill', ko: '남산 다운힐', x: 600, z: 1500, r: 400, kind: 'Downhill',
-    text: 'From the plaza under N Seoul Tower down Namsan\'s winding park road and Sowol-ro to the city below — one way, all downhill: brake before the bends.',
+    text: 'From the plaza under Namsan Tower down Namsan\'s winding park road and Sowol-ro to the city below — one way, all downhill: brake before the bends.',
     via: [[1150, 1689], [894, 1787], [762, 1950], [592, 1709], [371, 1554], [169, 1332], [269, 1237], [-85, 1146]],
     // (the park road meets Sowol-ro a few metres short of it, and Sowol-ro's northbound carriageway has a gap in the map)
     links: [[[370.8, 1553.9], [359.1, 1561.0]], [[168.6, 1332.3], [207.6, 1296.0]]],
@@ -105,6 +105,31 @@ export const BIKE_COURSES = [
     text: 'The Bukak Skyway\'s eastern half: along the ridge east of Palgakjeong, across the Seongbuk-dong pass, then down through the pines in long linked bends and two hairpins toward Arirang-gogae, the north-east of the city spread out below. One way.',
     via: [[1290, -4143], [1477, -4084], [1711, -3974], [2015, -3922], [2173, -3579], [2475, -3239], [2464, -3417], [2567, -3669], [2789, -3776], [2940, -3874]],
     open: true, mountain: true, max: 4200
+  },
+  // The landmark runs: laid out so a landmark (skyline.js) stands ahead down their straights. `ring`: a
+  // loop round a place rather than a level's shape — its points snap to the carriageway going its way,
+  // as a zig-zag's do.
+  {
+    // (a figure eight: its two loops meet on Yulgok-ro in front of the Gwanghwamun gate — the 200 m from the gate's
+    // junction to Samcheong-ro ridden twice, the same way: first turning up round the palace, then on along Yulgok-ro
+    // — `eight` lets the plan use it twice; a rider's place is looked for just round where it was, race.js, so it stays on the pass it is on)
+    id: 'gyeongbok8', level: 'medium', name: 'Gyeongbokgung Figure Eight', ko: '경복궁 8자 코스', x: 0, z: -1150, r: 590, kind: 'Palace', ring: true, eight: true,
+    text: 'A figure eight crossed in front of the Gwanghwamun gate: up Sejong-daero past Admiral Yi and King Sejong to the gate, round Gyeongbokgung\'s walls — up Samcheong-ro, along the front of Cheong Wa Dae under Bugaksan, down Hyoja-ro — back across the gate\'s junction, then east along Yulgok-ro, down Ujeongguk-ro past Jogyesa and back along Jongno.',
+    roads: 'avenues', beside: 0.2, max: 5200, startAt: [-56, -470],
+    // (Hyoja-ro's foot to Sajik-ro's eastbound carriageway: the left turn the map leaves out)
+    links: [[[-322.5, -1058.1], [-321, -1043.2]]],
+    via: [[-56, -560], [20, -1035], [160, -1200], [200, -1600], [140, -1900], [-100, -1940], [-300, -1930], [-372, -1700], [-345, -1250], [-250, -1030], [20, -1035], [250, -1058], [441, -950], [445, -600], [200, -445], [-40, -445]]
+  },
+  {
+    id: 'noryangjin', level: 'medium', name: 'Noryangjin 63 View', ko: '노량진 63 전망', x: -3200, z: 6250, r: 450, kind: 'Hill', ring: true,
+    text: 'Across the Han from Yeouido: a long run north down Jangseungbaegi-ro straight at the golden 63 Building over the river, along Noryangjin-ro, then up and down the winding hill streets of Noryangjin-dong.',
+    via: [[-3345, 6450], [-3340, 5960], [-3150, 5900], [-2975, 5950], [-2975, 6150], [-3100, 6250], [-3090, 6480], [-3200, 6600]]
+  },
+  {
+    id: 'songpa', level: 'hard', name: 'Songpa Sky Lanes', ko: '송파 스카이 골목', x: 11300, z: 7100, r: 450, kind: 'Towers', zigzag: true,
+    text: 'The lanes of Songpa south of the Sky Tower: square corner after square corner, left and right in turn, and on every run north the 555 m tower rising over the rooftops ahead.',
+    minRoad: 7,
+    via: [[11055, 7053], [11466, 6898], [11543, 7189], [11489, 7300], [11257, 7346]]
   }
 ];
 /** The courses of a level, in order. */
@@ -786,7 +811,7 @@ function planViaCourse(roads, def, { step, why, walls, prof }) {
     nodes.forEach((n, i) => {
       if (!n.adj.some((e) => allowed(e.cls, e.width))) return;
       let d = Math.hypot(n.x - x, n.z - z);
-      if (def.zigzag && n.adj.every((e) => !allowed(e.cls, e.width) || e.oneway)) {
+      if ((def.zigzag || def.ring) && n.adj.every((e) => !allowed(e.cls, e.width) || e.oneway)) {
         const fwd = n.adj.filter((e) => allowed(e.cls, e.width) && !e.against);
         if (fwd.length && fwd.every((e) => (nodes[e.to].x - n.x) * wx + (nodes[e.to].z - n.z) * wz < 0)) d += 30;
       }
@@ -815,7 +840,8 @@ function planViaCourse(roads, def, { step, why, walls, prof }) {
       inHead = leg.head;
       let len = 0;
       for (let i = 1; i < leg.route.length; i++) {
-        used.add(`${leg.route[i - 1]}>${leg.route[i]}`);
+        // (`eight`: a figure eight may run a stretch twice, the same way — where its two loops meet)
+        if (!def.eight) used.add(`${leg.route[i - 1]}>${leg.route[i]}`);
         route.push(leg.route[i]);
         len += Math.hypot(nodes[leg.route[i]].x - nodes[leg.route[i - 1]].x, nodes[leg.route[i]].z - nodes[leg.route[i - 1]].z);
       }

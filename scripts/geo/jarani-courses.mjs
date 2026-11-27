@@ -13,6 +13,7 @@
  *   node scripts/geo/jarani-courses.mjs --level hard # one level
  *   JARANI_TRY='{"id":"x","x":0,"z":0,"r":350,"level":"hard"}' node scripts/geo/jarani-courses.mjs x
  */
+import { readFileSync } from 'node:fs';
 import { BIKE_COURSES, planCourse, finishCourse, courseStats } from '../../src/city/course.js';
 import { seoulData, roadsNear, wallsNear, seoulTerrain } from '../../tests/unit/seoulData.mjs';
 
@@ -26,7 +27,7 @@ const args = process.argv.slice(2);
 const li = args.indexOf('--level');
 const level = li >= 0 ? args[li + 1] : null;
 const only = args.filter((a, i) => !a.startsWith('--') && (li < 0 || i !== li + 1));
-const defs = [...BIKE_COURSES, ...(process.env.JARANI_TRY ? [].concat(JSON.parse(process.env.JARANI_TRY)) : [])];
+const defs = [...BIKE_COURSES, ...(process.env.JARANI_TRY ? [].concat(JSON.parse(/^\s*[[{]/.test(process.env.JARANI_TRY) ? process.env.JARANI_TRY : readFileSync(process.env.JARANI_TRY, 'utf8'))) : [])];
 
 /** Up and down over the course (from start line to finish line, or a lap): climbed, dropped, the steepest 30 m (%). */
 export function hills(c, at) {

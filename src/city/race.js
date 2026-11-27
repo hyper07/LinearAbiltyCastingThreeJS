@@ -37,6 +37,7 @@ import { raceSky, TIME_PICKS, WEATHER_PICKS, WEATHERS } from './weather.js';
 import { WetFx } from './wetfx.js';
 import { modeHint } from './controls.js';
 import { laneBand, laneShares, gridSlots, behindStart, lateralOf, bikeContact, resolveBump } from './pack.js';
+import { landmarkLookUp, courseBend, LOOK_BEND } from './skyline.js';
 
 /**
  * Kickrani: an electric-scooter race through Seoul's streets and
@@ -684,10 +685,10 @@ export class Race {
     this.me = this.racers.find((r) => r.me);
     this.fx = new ComicFx(this.g.scene);
     this.police = new PoliceStops(this.g.scene, (x, z, from) => this.g.surfaceAt(x, z, from));
-    // (a zig-zag's local streets: the lighter traffic of its level's `-local` (course.js LEVELS) — traffic.js reads
+    // (a zig-zag's local streets, or a landmark ring's: the lighter traffic of its level's `-local` (course.js LEVELS) — traffic.js reads
     // the level off the course's def as it starts, so it is handed that one while it does)
     const def = course.def;
-    if (def?.zigzag && LEVELS[`${def.level}-local`]) course.def = { ...def, level: `${def.level}-local` };
+    if ((def?.zigzag || def?.ring) && LEVELS[`${def.level}-local`]) course.def = { ...def, level: `${def.level}-local` };
     this.traffic = new RaceTraffic(this.g, this);
     course.def = def;
     this.boxes = new ItemBoxes(this.g, course);
@@ -4261,6 +4262,13 @@ export class Race {
       camera.position.y += (Math.sin(t * 37.1) + Math.sin(t * 19.7) * 0.5) * a * 0.8;
     }
     camera.lookAt(focus);
+    // A tall landmark ahead (Namsan Tower, the Sky Tower, the 63 Building) over the top of the frame: on a
+    // straight, the view tilts up a little toward it (skyline.js landmarkLookUp, at most LOOK_MAX) and
+    // back down before a corner — the camera itself stays where it is (no zoom, the same walls).
+    const straight = r.mode === 'ride' && r.sc == null && this.course?.points && courseBend(this.course.points, r.idx ?? 0, 50, this.course.open) < LOOK_BEND;
+    const look = straight ? landmarkLookUp(camera.position, g.yaw, { pitch: CHASE.pitch, vfov: camera.fov, aspect: camera.aspect, groundAt: (x, z) => g.groundAt?.(x, z) ?? 0 }) : 0;
+    this.lookUp = (this.lookUp ?? 0) + (look - (this.lookUp ?? 0)) * 0.03;
+    if (this.lookUp > 1e-3) camera.rotateX(this.lookUp);
     // The FOV opens with speed (58° standing, about 71° flat out) and kicks wider on a boost.
     const v = Math.abs(r.s.v);
     const fov = 58 + 13 * Math.min(1, Math.max(0, (v - 4) / 16)) + (r.s.boosting || r.drinkT > 0 ? 6 : 0) + (r.drinkT > 0 ? 3 : 0);
