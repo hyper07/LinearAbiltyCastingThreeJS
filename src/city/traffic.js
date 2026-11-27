@@ -99,46 +99,81 @@ export function onScreen(cam, height, x, z, hl, heading, y = 0) {
   return Math.max(L * seen(along), W * seen(across), H * seen(up)) * k;
 }
 
+/** How far either side of a road's corner a lane rounds it (metres, at most: under half of each stretch). */
+export const ROUND = 4.5;
+
 /**
- * Where a vehicle `side` metres right of a road's middle is at { i, t, dir } — the offset turned smoothly
- * round each bend (mitred at the road's corners, blended along each stretch), so a car in an outer lane
- * never jumps where two stretches meet, as an offset square to each stretch would.
+ * Where a vehicle `side` metres right of a road's middle is at { i, t, dir }, and which way it heads.
+ * Each corner of the road's line is rounded off (a curve from ROUND m before it to ROUND m after, as
+ * a driver takes it), the lane offset square to that curve: a car in any lane goes round a bend with
+ * no jump and no kink — the way it moves never snaps round by the corner's angle (up to 60° on Bukak
+ * Skyway's hairpins), so its nose can keep to it. On the inside of a bend tighter than the lane is
+ * wide, the lane closes in toward the middle round the curve (it never loops back on itself).
  */
 export function laneAt(pts, { i, t, dir }, side = 0) {
   const n = pts.length / 2 - 1;
-  const ax = pts[i * 2];
-  const az = pts[i * 2 + 1];
-  const bx = pts[i * 2 + 2];
-  const bz = pts[i * 2 + 3];
-  // the right-hand normal (going +1) of stretch k
-  const norm = (k) => {
+  const unit = (k) => {
     const ex = pts[k * 2 + 2] - pts[k * 2];
     const ez = pts[k * 2 + 3] - pts[k * 2 + 1];
-    const l = Math.hypot(ex, ez) || 1;
-    return [-ez / l, ex / l];
+    const l = Math.hypot(ex, ez) || 1e-6;
+    return [ex / l, ez / l, l];
   };
-  const here = norm(i);
-  // the mitred normal at corner k (between stretches k − 1 and k): the lane keeps its width round it
-  const corner = (k) => {
-    if (k <= 0 || k >= n) return here;
-    const a = norm(k - 1);
-    const b = norm(k);
-    let mx = a[0] + b[0];
-    let mz = a[1] + b[1];
-    const ml = Math.hypot(mx, mz);
-    if (ml < 1e-6) return here;
-    mx /= ml;
-    mz /= ml;
-    const k2 = 1 / Math.max(0.5, mx * a[0] + mz * a[1]);
-    return [mx * k2, mz * k2];
+  const [ux, uz, len] = unit(i);
+  const d = t * len;
+  let x = pts[i * 2] + ux * d;
+  let z = pts[i * 2 + 1] + uz * d;
+  let tx = ux;
+  let tz = uz;
+  let sd = side * dir;
+  // the corner this point is rounding, if any: k (between stretch k − 1 and k), and how far round (0–1)
+  const cutAt = (k) => Math.min(ROUND, unit(k - 1)[2] * 0.45, unit(k)[2] * 0.45);
+  // On the inside of a bend: no further from the middle than 0.8 of the rounded corner's own radius —
+  // closing in gently before it and out after (at most 0.4 m across a metre along), never in and out.
+  const room = (k) => {
+    const [ax, az] = unit(k - 1);
+    const [bx, bz] = unit(k);
+    // (+: it bends toward the right of +1)
+    if (Math.sign(bx * -az + bz * ax) !== Math.sign(sd)) return Infinity;
+    const cos = Math.max(-1, Math.min(1, ax * bx + az * bz));
+    return (0.8 * cutAt(k)) / Math.max(1e-3, Math.tan(Math.acos(cos) / 2));
   };
-  const na = corner(i);
-  const nb = corner(i + 1);
-  const rx = (na[0] + (nb[0] - na[0]) * t) * dir;
-  const rz = (na[1] + (nb[1] - na[1]) * t) * dir;
-  const dx = (bx - ax) * dir;
-  const dz = (bz - az) * dir;
-  return { x: ax + (bx - ax) * t + rx * side, z: az + (bz - az) * t + rz * side, heading: Math.atan2(-dx, -dz) };
+  if (sd) {
+    let cap = Math.abs(sd);
+    const reach = Math.abs(sd) / 0.4;
+    for (let k = i, far = d; k > 0 && far < reach; far += unit(--k)[2]) cap = Math.min(cap, room(k) + 0.4 * far);
+    for (let k = i + 1, far = len - d; k < n && far < reach; far += unit(k++)[2]) cap = Math.min(cap, room(k) + 0.4 * far);
+    sd = Math.sign(sd) * cap;
+  }
+  let k = -1;
+  let tau = 0;
+  if (i > 0 && d < cutAt(i)) {
+    k = i;
+    tau = 0.5 + d / (2 * cutAt(i));
+  } else if (i + 1 < n && len - d < cutAt(i + 1)) {
+    k = i + 1;
+    tau = (d - (len - cutAt(i + 1))) / (2 * cutAt(i + 1));
+  }
+  if (k > 0) {
+    const [ax, az] = unit(k - 1);
+    const [bx, bz] = unit(k);
+    const cos = ax * bx + az * bz;
+    if (cos < 0.9998) {
+      const cut = cutAt(k);
+      const cx = pts[k * 2];
+      const cz = pts[k * 2 + 1];
+      const u = 1 - tau;
+      // (a quadratic curve: ROUND m back along the stretch before, the corner, ROUND m on along the next)
+      x = u * u * (cx - ax * cut) + 2 * u * tau * cx + tau * tau * (cx + bx * cut);
+      z = u * u * (cz - az * cut) + 2 * u * tau * cz + tau * tau * (cz + bz * cut);
+      tx = u * ax + tau * bx;
+      tz = u * az + tau * bz;
+      const tl = Math.hypot(tx, tz);
+      if (tl < 1e-3) [tx, tz] = tau < 0.5 ? [ax, az] : [bx, bz];
+      else [tx, tz] = [tx / tl, tz / tl];
+    }
+  }
+  // right of the line going +1 is (−tz, tx): the lane `side` metres right of the way it goes
+  return { x: x - tz * sd, z: z + tx * sd, heading: Math.atan2(-tx * dir, -tz * dir) };
 }
 
 /** How many metres before a road's end a turn begins, and after the next road's start it ends: more the sharper it is. */
@@ -148,9 +183,9 @@ export const turnIn = (bend) => 2 + 5 * Math.min(1, Math.abs(bend ?? 0) / (Math.
  * A turn's path: a smooth curve (cubic Bézier) from (x0, z0) going `h0` to (x1, z1) going `h1`, its length
  * measured so a vehicle goes round it at its own speed (`arcAt`), and how fast to take it (`slow`, m/s).
  */
-export function arc(x0, z0, h0, x1, z1, h1) {
+export function arc(x0, z0, h0, x1, z1, h1, reach = 0.42) {
   const d = Math.hypot(x1 - x0, z1 - z0);
-  const h = d * 0.42;
+  const h = d * reach;
   const p = [x0, z0, x0 - Math.sin(h0) * h, z0 - Math.cos(h0) * h, x1 + Math.sin(h1) * h, z1 + Math.cos(h1) * h, x1, z1];
   const N = 16;
   const lens = [0];
@@ -1146,12 +1181,16 @@ export class RaceTraffic {
       if (next.end) this._nextRoad(v);
       q = v.turn ? arcAt(v.turn, 0) : laneAt(v.road.pts, v.at, v.lat);
     }
-    // Its nose the way it is moving (no sliding sideways): turned toward its own track, smoothly.
+    // Its nose the way it is moving (no sliding sideways): turned toward its own track, smoothly — however
+    // little it moved this frame. (It used to turn only on a step over 2 cm: at 120 fps anything under
+    // 2.4 m/s — creeping in a queue, round a dead end's U-turn — kept its old heading, and drove on
+    // sideways or backwards.)
     const mx = q.x - b.x;
     const mz = q.z - b.z;
     const moved = Math.hypot(mx, mz);
-    if (moved > 0.02) b.heading += turn(b.heading, Math.atan2(-mx, -mz)) * Math.min(1, dt * 10);
-    else if (moved < 1e-4 && !v.turn && q.heading != null) b.heading += turn(b.heading, q.heading) * Math.min(1, dt * 2);
+    // (within a tenth of a second, and — fast round a hairpin — within 0.8 m of its own motion)
+    if (moved > 1e-6) b.heading += turn(b.heading, Math.atan2(-mx, -mz)) * (1 - Math.exp(-Math.max(dt * 10, moved / 0.8)));
+    else if (!v.turn && q.heading != null) b.heading += turn(b.heading, q.heading) * Math.min(1, dt * 2);
     b.x = q.x;
     b.z = q.z;
     v.v = v.speed;
@@ -1263,10 +1302,12 @@ export class RaceTraffic {
       const from = laneAt(v.road.pts, v.at, v.lat ?? v.lane);
       const ex = v.box.x;
       const ez = v.box.z;
-      v.at = follow(v.road.pts, { ...v.at, dir: -v.at.dir }, 3);
+      // (round in a half circle across the road — its handles two thirds of the way across: the old
+      // tight teardrop, out and 3 m back, swung the nose round faster than it could follow)
+      v.at = follow(v.road.pts, { ...v.at, dir: -v.at.dir }, 0.5);
       v.lane = v.lat = this._lane(v.road, v.kind);
       const to = laneAt(v.road.pts, v.at, v.lat);
-      v.turn = arc(ex, ez, from.heading, to.x, to.z, to.heading);
+      v.turn = arc(ex, ez, from.heading, to.x, to.z, to.heading, 0.66);
       v.turn.slow = 3;
       v.turnSig = 3;
       v.turnSide = 'left';
