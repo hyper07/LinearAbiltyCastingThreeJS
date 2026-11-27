@@ -388,7 +388,19 @@ Seoul's real streets — and the streets stay open.
   wobbles you. How much of it reaches you is the scooter's suspension: on the stiff R7 a plate
   shakes the camera and the rider, costs speed and knocks your line; on the X4 you hardly notice. Speed
   shows: the FOV opens (58° → ~71°, more on a boost), a fine buzz in the camera, wind lines in the air
-  and at the screen's edge, the wind's roar (`src/city/speedfx.js`).
+  and at the screen's edge, the wind's roar (`src/city/speedfx.js`). **On a hill both tyres stay on
+  the road** (`scooterOn` in `src/city/plushRider.js`, `_place` in `race.js`): the surface is sampled
+  under each tyre (the scooter's own wheelbase, 0.82–1.2 m), the deck pitched to the line between
+  them and its middle on it; the rider stands up straight against the hill (four fifths of the deck's
+  pitch undone at the feet), the lean stays the rider's; fallen over, the scooter lies on the road's
+  camber too; a hop still lifts it all; one tyre over a step steeper than any street (a wall's top) is
+  not tipped up to (`STEEPEST`, 32 %). Only what a kerb or a seam adds over the land is eased — the
+  height used to be eased as a whole, so down Bukak Skyway's 24 % the scooter hung up to 20 cm above
+  the road and sank 12 cm into it going up. On Bukak (150 s, autopilot): a tyre more than 4 cm off the
+  road in 2.5 % of samples, at the road's very edge (before: 52 %, a level deck). The police patrol
+  rides on the road beside you, nose with the hill. People in the street stand on what is under their
+  feet near the camera (the pavement's surface, every frame, `src/city/life.js`); before, a guess from
+  the land left 98 % of them sunk into Bukak's pavements, up to half a metre (now under 1 %).
 - **Traffic** (`src/city/traffic.js`, `src/city/fleet.js`): real models (Sketchfab, CC BY 4.0, from
   the Objaverse mirror) — everyday saloons, hatchbacks, people carriers, small SUVs, compacts and
   estates in Seoul's whites, silvers, greys and blacks, taxis with our own roof sign, one-tonne box
@@ -403,10 +415,25 @@ Seoul's real streets — and the streets stay open.
   textures' colours baked into its corners, two draws, no lamps (`LOD`, back to full inside 50 m). The
   delivery riders are posed once and baked into still meshes (`bakeFigure`: a few draws, no skinning —
   a skinned rider was dozens). They drive properly: pulling away at their own pace (a bus slowly),
-  braking smoothly, following the road's bends in their lane with the lane offset mitred round each
-  corner of the road's line (`laneAt`: no jump where two stretches meet), turning at a junction on a
-  smooth arc from their lane to the new road's (`arc`: no teleport, the nose the way they move, never
-  sliding sideways), blinking before the turn and through it, turning round at a dead end. Across a
+  braking smoothly, following the road's bends in their lane, each corner of the road's line rounded
+  off over up to 4.5 m either side (`laneAt`, `ROUND`: no jump and no kink where two stretches meet —
+  Bukak Skyway's 40–60° corners used to snap the way a car moved round at once; on the inside of a
+  bend tighter than the lane, the lane closes in gently, never looping back), turning at a junction
+  on a smooth arc from their lane to the new road's (`arc`: no teleport, the nose the way they move,
+  never sliding sideways), blinking before the turn and through it, turning round at a dead end in a
+  half circle across the road. **Never backwards**: the nose turns toward the way the vehicle moves
+  however little it moved that frame — it used to turn only on a step over 2 cm, so on a 120 Hz screen
+  a car under 2.4 m/s (queueing, round a dead end's U-turn) kept its old heading and drove on sideways
+  or backwards (tested at 30–144 fps: within 30° of its motion whenever over 1 m/s,
+  `tests/unit/jarani-heading.test.mjs`). **On the hill, on its wheels** (`sitOn`, `_place`): each
+  stands on the surface under its own tyres — the model's real axles and track (`v.axles`, a bus's
+  and a truck's longer and wider) — nose up or down the slope, tipped with the road's camber, its
+  lowest tyre on the road and none sunk into it; the four tyres sampled within 90 m of the camera, the
+  axles' middles further off every fourth frame (about 1 µs a sample, 0.07 ms for 28 vehicles).
+  Only what a step adds over the land (a seam, a kerb) is eased; the hill itself is followed exactly
+  (eased as a whole, a car trailed 20 cm above the road going down and sank going up). Measured on
+  Bukak Skyway (150 s, autopilot): tyres more than 5 cm off the road 0.6 % of samples, 15 cm at worst
+  (level bodies before: 81 %, up to 70 cm); `tests/unit/jarani-slope.test.mjs`. Across a
   junction one gives way to the other — the later one, or about together the one with the other on
   its right; one already in the crossing never waits (`giveWay`) — and a last guard stops any from
   driving into another (`_bumps`). They keep their own side, cross at the junctions, honk when held up — and
