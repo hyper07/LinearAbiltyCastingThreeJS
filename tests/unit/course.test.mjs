@@ -4,7 +4,7 @@ import { BIKE_COURSES, LEVELS, planCourse, finishCourse, locate, buildGraph, isS
 import { behindStart } from '../../src/city/pack.js';
 import { coasterTrack, coasterSpeed } from '../../src/city/fairground.js';
 import { woodSpots } from '../../src/city/hillwood.js';
-import { seoulData, roadsNear, wallsNear } from './seoulData.mjs';
+import { seoulData, roadsNear, wallsNear, seoulTerrain } from './seoulData.mjs';
 import { readAlleys, SMALL_WIDTH } from '../../src/city/alleys.js';
 import { encodeAlleys, keepWay } from '../../scripts/geo/seoul-alleys.mjs';
 import { toLonLat } from '../../scripts/geo/tm.mjs';
@@ -187,8 +187,10 @@ test('the bike courses on Seoul\'s real streets, by level: boulevards (Easy), av
       if (c.open) assert.ok(c.length > 1500 && c.length < 3300, `${def.id}: ${Math.round(c.length)} m`);
       else assert.ok(c.length > 1700 && c.length < 3600, `${def.id}: ${Math.round(c.length)} m`);
       if (def.roads !== 'avenues') assert.ok(st.local >= 0.6, `${def.id}: ${Math.round(st.local * 100)}% on local streets`);
-      assert.ok(st.switches >= 4, `${def.id}: ${st.switches} left/right switches`);
-      if (def.roads !== 'avenues') assert.ok(st.sharp + st.switches >= 10, `${def.id}: ${st.sharp} sharp turns, ${st.switches} switches`);
+      // (a hill road's are linked bends more than square corners: ten or more over 30°, counted on their own below)
+      if (def.mountain) assert.ok(st.turns.filter((t) => t.angle > Math.PI / 6).length >= 8, `${def.id}: ${st.turns.length} bends`);
+      else assert.ok(st.switches >= 4, `${def.id}: ${st.switches} left/right switches`);
+      if (def.roads !== 'avenues' && !def.mountain) assert.ok(st.sharp + st.switches >= 10, `${def.id}: ${st.sharp} sharp turns, ${st.switches} switches`);
       // never down a golmok narrower than ZIG_MIN_WIDTH (but for a course drawn along one on purpose)
       if (!def.minRoad) assert.equal(c.points.filter((p) => isSmall(p[3]) && (p[2] ?? 6) < ZIG_MIN_WIDTH - 0.01).length, 0, `${def.id}: down a golmok`);
     } else if (def.level === 'easy') {
@@ -218,6 +220,55 @@ test('the bike courses on Seoul\'s real streets, by level: boulevards (Easy), av
   for (const k of ['River', 'Avenue', 'Market', 'Hill', 'Towers', 'Fairground', 'Downhill']) assert.ok(kinds.has(k), k);
   for (const [level, ids] of Object.entries(byLevel)) assert.ok(ids.length >= 3, `${level}: ${ids.join(', ')}`);
   assert.ok(BIKE_COURSES.length >= 12 && BIKE_COURSES.length <= 24);
+});
+
+test('the hill roads (Hard, one way like the Bukak Skyway): roads cars use, on real slopes, linked bends, a run of about three minutes', { skip: !seoul && 'no Seoul map converted here' }, () => {
+  const ground = seoulTerrain();
+  const hillRoads = BIKE_COURSES.filter((c) => c.mountain && c.zigzag);
+  assert.deepEqual(hillRoads.map((c) => c.id), ['bukak', 'inwangsan']);
+  const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const lines = new Map();
+  for (const def of hillRoads) {
+    assert.equal(def.level, 'hard', def.id);
+    assert.ok(def.open && def.name && /[가-힣]/.test(def.ko) && def.text, def.id);
+    const walls = wallsNear(def.x, def.z, def.r * 4);
+    const c = finishCourse(planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls }), { walls });
+    const st = courseStats(c);
+    const run = c.points.slice(c.startI, c.finishI + 1);
+    lines.set(def.id, run);
+    // 2.2–3.0 km from line to line (about three minutes at a hill road's pace)
+    assert.ok(c.length > 2200 && c.length < 3000, `${def.id}: ${Math.round(c.length)} m`);
+    // on the roads cars use, one lane each way (or a two-lane one-way street in a village): never a boulevard, never down a
+    // golmok, never against a one-way road
+    assert.ok(st.wide <= 0.2, `${def.id}: ${Math.round(st.wide * 100)}% on roads two lanes or more each way`);
+    assert.ok(run.every((p) => p[3] >= 3 && p[3] <= 5 && (p[2] ?? 8) >= 7), `${def.id}: off the secondary, tertiary and residential roads`);
+    assert.equal(run.filter((p) => p[4] === -1).length, 0, `${def.id}: against a one-way road`);
+    // bends: eight or more over 30°, one of them past 57°
+    const bends = st.turns.filter((t) => t.angle > Math.PI / 6);
+    assert.ok(bends.length >= 8, `${def.id}: ${bends.length} bends over 30°`);
+    assert.ok(bends.some((t) => t.angle > 1), `${def.id}: a bend over 57°`);
+    // on real slopes: 120 m or more up and down between the start and the finish, a 15 % stretch or steeper
+    if (ground) {
+      const h = run.filter((_, i) => i % 5 === 0).map((p) => ground(p[0], p[1]));
+      let up = 0;
+      let down = 0;
+      let steep = 0;
+      for (let i = 1; i < h.length; i++) (h[i] > h[i - 1] ? (up += h[i] - h[i - 1]) : (down += h[i - 1] - h[i]));
+      for (let i = 2; i < h.length; i++) steep = Math.max(steep, Math.abs(h[i] - h[i - 2]) / Math.max(1, c.s[c.startI + i * 5] - c.s[c.startI + (i - 2) * 5]));
+      assert.ok(up + down >= 120, `${def.id}: ${Math.round(up)} m up, ${Math.round(down)} m down`);
+      assert.ok(steep >= 0.15, `${def.id}: the steepest stretch ${Math.round(steep * 100)} %`);
+    }
+  }
+  // each in a place of its own: no two share more than a junction's worth of road
+  const ids = [...lines.keys()];
+  for (let a = 0; a < ids.length; a++) {
+    for (let b = a + 1; b < ids.length; b++) {
+      const A = lines.get(ids[a]);
+      const B = lines.get(ids[b]);
+      const shared = A.filter((p, i) => i % 3 === 0 && B.some((q) => near(p, q) < 12)).length * 3 * 6;
+      assert.ok(shared < 120, `${ids[a]} and ${ids[b]} share ${shared} m`);
+    }
+  }
 });
 
 test('a zig-zag through a grid of local streets: one lane each way, corner after corner, left and right in turn — never down the golmok, the arterial only to cross', () => {

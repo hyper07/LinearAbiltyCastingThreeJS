@@ -85,6 +85,14 @@ export const BIKE_COURSES = [
     text: 'The lanes of Songpa south of Seokchon Lake, the 555 m Sky Tower filling the sky to the north: tight corners, one after another.',
     minRoad: 7,
     via: [[11555, 6608], [11298, 6674], [11157, 6470], [11153, 6377], [11333, 6196], [11603, 6241], [11714, 6492]]
+  },
+  // The hill roads (`mountain`, one way like the Bukak Skyway): two-lane roads that cars use, up and over
+  // Seoul's inner mountains on their real slopes — long linked bends, hairpins, the city opening up below.
+  {
+    id: 'inwangsan', level: 'hard', name: 'Inwangsan Skyway', ko: '인왕산 스카이웨이', x: -1050, z: -2100, r: 450, kind: 'Mountain', zigzag: true,
+    text: 'Down from Buam-dong to Changuimun, the old city wall\'s north-west gate, then along Inwangsan\'s granite flank on the old skyway and all the way down to Sajik-dong — Gyeongbokgung and the towers of downtown opening up below. One way.',
+    via: [[-714, -3167], [-852, -3072], [-1003, -2978], [-1061, -2753], [-1243, -2300], [-1426, -1940], [-1386, -1617], [-1234, -1225], [-1093, -1085]],
+    open: true, mountain: true, max: 4200
   }
 ];
 /** The courses of a level, in order. */

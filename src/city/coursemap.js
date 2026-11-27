@@ -36,7 +36,8 @@ export const COURSE_COLORS = {
   seochon: '#f08c00', seongsu: '#e8a400', jamsilpark: '#ff7a1a',
   euljiro: '#e5383b', mullae: '#c2185b', haebangchon: '#ff4d6d', namsandown: '#b5179e',
   heritage: '#ffb703', banpo: '#d98e04', yeouido63: '#ffcf33',
-  bukak: '#9d0208', skytower: '#a4133c'
+  bukak: '#9d0208', skytower: '#a4133c',
+  inwangsan: '#d62828'
 };
 
 /** A little red chilli pepper (SVG): the difficulty badge, one to three of them. */
@@ -63,6 +64,8 @@ export const LANDMARKS = [
   { name: 'Banpo Bridge', ko: '반포대교', x: 1641, z: 5735, icon: 'park', text: 'A bridge over a bridge: its fountain sprays rainbows over the Han at night.' },
   { name: 'Hongik University', ko: '홍익대학교', x: -4677, z: 1637, icon: 'hall', text: 'The art school the Hongdae quarter is named after.' },
   { name: 'Itaewon', ko: '이태원', x: 1473, z: 3527, icon: 'station', text: 'Seoul\'s international street, under Namsan.' },
+  { name: 'Changuimun', ko: '창의문', x: -1026, z: -2933, icon: 'palace', text: 'The old city wall\'s north-west gate, at the pass between Bugaksan and Inwangsan: the Inwangsan Skyway turns down past it.' },
+  { name: 'Sajikdan', ko: '사직단', x: -824, z: -1069, icon: 'palace', text: 'The Joseon kings\' altar to the gods of the land and grain, at the foot of Inwangsan: the Inwangsan Skyway finishes here.' },
   { name: 'Seokchon Lake', ko: '석촌호수', x: 11230, z: 6090, icon: 'park', text: 'The lake the Jamsil Fairground course goes round: a funfair of our own beside it.' }
 ];
 const HILLS = [
