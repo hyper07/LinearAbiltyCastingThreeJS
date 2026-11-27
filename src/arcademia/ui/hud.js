@@ -9,7 +9,8 @@ import { FLOORS } from '../floors.js';
 import { floorStars, neededOn } from '../rules.js';
 import { LAND_LESSONS } from '../content/index.js';
 import { lessonsOn } from '../content/index.js';
-import { t, num, localizeLesson } from '../i18n/index.js';
+import { t, has, num, localizeLesson } from '../i18n/index.js';
+import { SLOTS, subjectAt, buildingName } from '../content/subjects.js';
 import { OASES, GIZA, riverLine, DESERT } from '../world/desert/plan.js';
 import { CRATERS, MOON, LANDMARKS as MOON_SIGHTS } from '../world/moon/plan.js';
 import { planMars, SIGHTS } from '../world/mars/plan.js';
@@ -187,7 +188,8 @@ export class Hud {
 
   setNear(b) {
     this.enterBtn.hidden = !b;
-    if (b) this.enterBtn.textContent = t(`hud.goInto.${b.subject}`);
+    // The mountain's three have their own door lines (hud.goInto.math …); any other school is named.
+    if (b) this.enterBtn.textContent = has(`hud.goInto.${b.subject}`) ? t(`hud.goInto.${b.subject}`) : t('hud.goIntoPlace', { name: buildingName(this.realm, b.slot) });
   }
 
   setNight(on) {
@@ -239,9 +241,11 @@ export class Hud {
       const locked = !open.has(f.n);
       const cls = `arc-mini__tier${locked ? ' is-locked' : ''}${f.n === focusFloor ? ' is-focus' : ''}`;
       svg.push(`<g class="${cls}" data-floor="${f.n}"><rect x="${inset}" y="${y + 2}" width="${W - inset * 2}" height="${rowH - 3}" rx="5"/>`);
-      ['math', 'history', 'physics'].forEach((s, k) => {
-        const done = lessonsOn(f.n, s, this.realm).filter((l) => (stars[l.id] ?? 0) > 0).length;
-        const all = lessonsOn(f.n, s, this.realm).length;
+      // A dot per school (coloured by its slot), filled when its subject's lessons all have a star.
+      SLOTS.forEach((s, k) => {
+        const list = lessonsOn(f.n, subjectAt(this.realm, s), this.realm);
+        const done = list.filter((l) => (stars[l.id] ?? 0) > 0).length;
+        const all = list.length;
         const cx = inset + 18 + k * ((W - inset * 2 - 36) / 2);
         svg.push(`<circle class="arc-mini__dot arc-mini__dot--${s}${done === all && all ? ' is-done' : ''}" cx="${cx}" cy="${y + rowH / 2 + 0.5}" r="3.6"/>`);
       });
@@ -271,8 +275,8 @@ export class Hud {
       const [x, y] = pos[i];
       const locked = !open.has(f.n);
       svg.push(`<g class="arc-mini__tier${locked ? ' is-locked' : ''}${f.n === focusFloor ? ' is-focus' : ''}" data-floor="${f.n}"><circle cx="${x}" cy="${y}" r="13" fill="#f6e7c1" stroke="#fff" stroke-width="2"/>`);
-      ['math', 'history', 'physics'].forEach((sub, k) => {
-        const list = lessonsOn(f.n, sub, this.realm);
+      SLOTS.forEach((sub, k) => {
+        const list = lessonsOn(f.n, subjectAt(this.realm, sub), this.realm);
         const done = list.filter((l) => (stars[l.id] ?? 0) > 0).length;
         svg.push(`<circle class="arc-mini__dot arc-mini__dot--${sub}${done === list.length && list.length ? ' is-done' : ''}" cx="${x - 6 + k * 6}" cy="${y + 6}" r="2.6"/>`);
       });
@@ -318,8 +322,8 @@ export class Hud {
       const [x, y] = pos[i];
       const locked = !open.has(f.n);
       svg.push(`<g class="arc-mini__tier${locked ? ' is-locked' : ''}${f.n === focusFloor ? ' is-focus' : ''}" data-floor="${f.n}"><circle cx="${x}" cy="${y}" r="10" fill="${locked ? '#d8d2c4' : '#9fd27a'}" stroke="${f.n === focusFloor ? '#e9a92a' : '#fff'}" stroke-width="2"/>`);
-      ['math', 'history', 'physics'].forEach((sub, j) => {
-        const list = lessonsOn(f.n, sub, this.realm);
+      SLOTS.forEach((sub, j) => {
+        const list = lessonsOn(f.n, subjectAt(this.realm, sub), this.realm);
         const done = list.filter((l) => (stars[l.id] ?? 0) > 0).length;
         svg.push(`<circle class="arc-mini__dot arc-mini__dot--${sub}${done === list.length && list.length ? ' is-done' : ''}" cx="${x - 5 + j * 5}" cy="${y + 5}" r="2.2"/>`);
       });
@@ -357,8 +361,8 @@ export class Hud {
       const [x, y] = pos[i];
       const locked = !open.has(f.n);
       svg.push(`<g class="arc-mini__tier${locked ? ' is-locked' : ''}${f.n === focusFloor ? ' is-focus' : ''}" data-floor="${f.n}"><circle cx="${x}" cy="${y}" r="13.5" fill="${locked ? '#8a8c97' : '#dfe2ea'}" stroke="${f.n === focusFloor ? '#ffb23f' : '#f4f6fa'}" stroke-width="2.4"/><circle cx="${x}" cy="${y}" r="9.5" fill="${locked ? '#7a7c87' : '#c9ccd5'}"/>`);
-      ['math', 'history', 'physics'].forEach((sub, j) => {
-        const list = lessonsOn(f.n, sub, this.realm);
+      SLOTS.forEach((sub, j) => {
+        const list = lessonsOn(f.n, subjectAt(this.realm, sub), this.realm);
         const done = list.filter((l) => (stars[l.id] ?? 0) > 0).length;
         svg.push(`<circle class="arc-mini__dot arc-mini__dot--${sub}${done === list.length && list.length ? ' is-done' : ''}" cx="${x - 6 + j * 6}" cy="${y + 6}" r="2.6"/>`);
       });
@@ -469,12 +473,12 @@ export class Hud {
         svg.push(`<g class="arc-mini__place" data-place="${kind}" data-floor-of="${f.n}" transform="translate(${px} ${py})"><title>${esc(name)}</title><g class="arc-mini__up"><circle r="${(size * 0.62).toFixed(1)}" fill="#fff8ef" stroke="${o.badge}" stroke-width="0.8"/><text y="${(size * 0.34).toFixed(1)}" text-anchor="middle" style="font-size:${size}px">${text}</text></g></g>`);
       };
       for (const p of g.places) {
-        if (['math', 'history', 'physics'].includes(p.kind)) {
-          const list = lessonsOn(f.n, p.kind, this.realm);
+        if (SLOTS.includes(p.kind)) {
+          const list = lessonsOn(f.n, subjectAt(this.realm, p.kind), this.realm);
           const done = list.length && list.every((l) => (stars[l.id] ?? 0) > 0);
           const [px, py] = P(p.x, p.z);
           if (locked) svg.push(`<circle class="arc-mini__school arc-mini__school--${p.kind} is-locked" cx="${px}" cy="${py}" r="3.4"/>`);
-          else svg.push(`<g class="arc-mini__place arc-mini__school arc-mini__school--${p.kind}${done ? ' is-done' : ''}" data-place="${p.kind}" data-floor-of="${f.n}" transform="translate(${px} ${py})"><title>${esc(t(`${o.key}.building.${p.kind}`))}</title><g class="arc-mini__up"><circle r="6.4"/><text y="2.9" text-anchor="middle" style="font-size:8px">${SUBJECT_ICON[p.kind]}</text></g></g>`);
+          else svg.push(`<g class="arc-mini__place arc-mini__school arc-mini__school--${p.kind}${done ? ' is-done' : ''}" data-place="${p.kind}" data-floor-of="${f.n}" transform="translate(${px} ${py})"><title>${esc(buildingName(this.realm, p.kind))}</title><g class="arc-mini__up"><circle r="6.4"/><text y="2.9" text-anchor="middle" style="font-size:8px">${SUBJECT_ICON[subjectAt(this.realm, p.kind)]}</text></g></g>`);
         } else if (p.kind === 'landmark') icon('landmark', p.x, p.z, f.icon, t(`landmark.${f.look.landmark}`), 8.5);
         else icon(p.kind, p.x, p.z, { shop: '🎩', arcade: '🕹️', museum: '🌈', board: '📋' }[p.kind], t(`place.${p.kind}`), 6.5);
       }

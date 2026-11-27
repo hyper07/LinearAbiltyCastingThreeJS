@@ -18,7 +18,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { planMountain, buildNavGrid, PLINTH_R, FLOOR_H } from './layout.js';
 import { buildTerrain, buildPeaks, buildWater, buildSky, waterClock } from './terrain.js';
-import { buildBuilding, BUILDING_NAMES, SUBJECT_ICONS, windowMat, lampMat } from './buildings.js';
+import { buildBuilding, SUBJECT_ICONS, windowMat, lampMat } from './buildings.js';
+import { SLOTS, subjectAt, buildingName } from '../content/subjects.js';
 import { buildStairs, buildBridge, buildGate, buildChest } from './structures.js';
 import { buildTrees, buildGround, buildClouds, buildBirds, buildFireflies, buildMoonProps, windClock, makeSpotCheck } from './nature.js';
 import { shop, arcade, museum, board, portal, worldGate, landmark, toy, gem, silhouette, TOYS_BY_THEME } from './places.js';
@@ -63,11 +64,14 @@ const placeInfo = (icon, id) => ({ icon, get name() {
 export const PLACE_INFO = { shop: placeInfo('🎩', 'shop'), arcade: placeInfo('🕹️', 'arcade'), museum: placeInfo('🌈', 'museum'), board: placeInfo('📋', 'board'), portal: placeInfo('🌀', 'portal'), worlds: placeInfo('🌍', 'worlds') };
 const LANDMARK_ICONS = { windmill: '🌬️', oasis: '🌴', shrooms: '🍄', snowman: '⛄', rainbow: '🌈', boat: '⛵', rocket: '🚀', glowbloom: '🌼', ...SEA_LANDMARK_ICONS, ...DESERT_LANDMARK_ICONS, ...MOON_LANDMARK_ICONS, ...MARS_LANDMARK_ICONS, ...CASTLE_LANDMARK_ICONS };
 const landmarkName = (id) => `${LANDMARK_ICONS[id] ?? ''} ${tr(`landmark.${id}`)}`;
-const SUBJECTS = ['math', 'history', 'physics'];
+/** Whose subjects a world's schools teach, by its kind (maps.js `realm`). */
+const REALM_OF_KIND = { mountain: 'land', tree: 'forest', lagoon: 'sea', desert: 'desert', moon: 'moon', mars: 'mars', castle: 'castle' };
 
 export class World {
-  constructor({ floors, labels, renderer, reducedMotion = false, buddy = null, on = {}, kind = 'mountain', worlds = WORLDS, suit = null }) {
+  constructor({ floors, labels, renderer, reducedMotion = false, buddy = null, on = {}, kind = 'mountain', worlds = WORLDS, suit = null, realm = REALM_OF_KIND[kind] ?? 'land' }) {
     this.floors = floors;
+    /** Whose subjects the schools teach (content/subjects.js): each school is a slot, and the realm puts a subject in it. */
+    this.realm = realm;
     /** Each floor's story and puzzle boss (the land's, or the sea islands', quests.js). */
     this.worlds = worlds;
     this.kind = kind;
@@ -240,8 +244,9 @@ export class World {
 
   /** A place on a floor: a picking proxy, a label and (later) its model. */
   _place(f, look, p) {
-    const subject = SUBJECTS.includes(p.kind);
-    const entry = { kind: p.kind, subject: subject ? p.kind : null, floor: f.n, plinth: subject ? f.plinths.find((q) => q.subject === p.kind) : null, p, group: null, wiggle: 9, bounce: 9 };
+    const subject = SLOTS.includes(p.kind);
+    // A school: its slot (the building, its plinth and teacher) and the subject the realm teaches there.
+    const entry = { kind: p.kind, slot: subject ? p.kind : null, subject: subject ? subjectAt(this.realm, p.kind) : null, floor: f.n, plinth: subject ? f.plinths.find((q) => q.subject === p.kind) : null, p, group: null, wiggle: 9, bounce: 9 };
     entry.at = { ...(p.at ?? (subject ? { x: p.x, z: p.z + PLINTH_R + 0.8 } : { x: p.x, z: p.z - p.r - 1.2 })), y: f.y };
     entry.door = entry.at;
     const proxy = new THREE.Mesh(new THREE.CylinderGeometry(p.r * 0.8, p.r * 0.8, 8, 8), new THREE.MeshBasicMaterial({ visible: false }));
@@ -253,8 +258,8 @@ export class World {
     el.type = 'button';
     el.className = `arc-pill${subject ? '' : ' arc-pill--place'}`;
     el.innerHTML = '<span class="arc-pill__icon" aria-hidden="true"></span><span class="arc-pill__name"></span><span class="arc-pill__meta"></span>';
-    el.querySelector('.arc-pill__icon').textContent = subject ? SUBJECT_ICONS[p.kind] : p.kind === 'landmark' ? '' : PLACE_INFO[p.kind].icon;
-    const nameOf = () => (subject ? (look.look.resort ? tr(`sea.building.${p.kind}`) : look.look.sandstone ? tr(`desert.building.${p.kind}`) : look.look.lunar ? tr(`moon.building.${p.kind}`) : look.look.martian ? tr(`mars.building.${p.kind}`) : look.look.royal ? tr(`castle.building.${p.kind}`) : look.look.grown ? tr(`forest.building.${p.kind}`) : BUILDING_NAMES[p.kind]) : p.kind === 'landmark' ? landmarkName(look.look.landmark) : PLACE_INFO[p.kind].name);
+    el.querySelector('.arc-pill__icon').textContent = subject ? SUBJECT_ICONS[entry.subject] : p.kind === 'landmark' ? '' : PLACE_INFO[p.kind].icon;
+    const nameOf = () => (subject ? buildingName(this.realm, p.kind) : p.kind === 'landmark' ? landmarkName(look.look.landmark) : PLACE_INFO[p.kind].name);
     el.querySelector('.arc-pill__name').textContent = nameOf();
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -280,7 +285,7 @@ export class World {
     for (const e of this.places.filter((x) => x.floor === n)) {
       let m;
       if (e.kind === 'portal') continue;
-      if (e.subject) m = buildBuilding(e.subject, look, { x: e.p.x, y: f.y + 0.55, z: e.p.z });
+      if (e.slot) m = buildBuilding(e.slot, look, { x: e.p.x, y: f.y + 0.55, z: e.p.z });
       else {
         m = e.kind === 'landmark' ? landmark(look.look.landmark, look.look) : e.kind === 'worlds' ? worldGate() : { shop, arcade, museum, board }[e.kind](look.look);
         m.position.set(e.p.x, f.y, e.p.z);
@@ -588,7 +593,7 @@ export class World {
     const { dist = 4.2, up = 0.2, lift = 1.9, side = 0, subject = 'math', spread = 0.75, back = 1.1, out = 3.6, fov = 58 } = o;
     this.camera.fov = fov;
     this.camera.updateProjectionMatrix();
-    const b = this.buildings.find((e) => e.subject === subject && e.floor === 1);
+    const b = this.buildings.find((e) => (e.slot === subject || e.subject === subject) && e.floor === 1);
     const p = b.p, y = b.at.y;
     let fx = b.at.x - p.x, fz = b.at.z - p.z;
     const L = Math.hypot(fx, fz) || 1;

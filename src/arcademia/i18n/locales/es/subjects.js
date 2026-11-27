@@ -1,0 +1,43 @@
+/** Español: las asignaturas de cada mundo (content/subjects.js) y sus escuelas cuando el mundo las enseña */
+export default {
+  // Subject names (subject.math, subject.history and subject.physics are in ui.js).
+  'subject.logic': "Lógica y patrones",
+  'subject.earth': "La Tierra y el tiempo",
+  'subject.biology': "Biología",
+  'subject.measures': "Medidas y dinero",
+  'subject.geography': "Geografía",
+  'subject.ocean': "Ciencias del mar",
+  'subject.geometry': "Geometría y construcción",
+  'subject.archaeology': "Arqueología",
+  'subject.chemistry': "Materiales y mezclas",
+  'subject.spacenumbers': "Números del espacio",
+  'subject.rockets': "Cohetes y fuerzas",
+  'subject.astronomy': "Astronomía",
+  'subject.coding': "Programación y robots",
+  'subject.engineering': "Ingeniería y diseño",
+  'subject.planets': "Ciencia de los planetas",
+  'subject.music': "Música",
+  'subject.languages': "Idiomas y escritura",
+  'subject.art': "Arte y diseño",
+  // Each world's schools once it teaches its own subjects (<realm>.building.<subject>; slot order).
+  'forest.building.logic': "Escuela Vaina de los Patrones",
+  'forest.building.earth': "Salón de las Raíces del Tiempo",
+  'forest.building.biology': "Laboratorio de la Naturaleza",
+  'sea.building.measures': "Villa de las Medidas",
+  'sea.building.geography': "Pabellón de los Cartógrafos",
+  'sea.building.ocean': "Laboratorio del Océano",
+  'desert.building.geometry': "Escuela de Geometría",
+  'desert.building.archaeology': "Templo de la Arqueología",
+  'desert.building.chemistry': "Observatorio de las Mezclas",
+  'moon.building.spacenumbers': "Cúpula de los Números del Espacio",
+  'moon.building.rockets': "Museo de los Cohetes",
+  'moon.building.astronomy': "Observatorio Estelar",
+  'mars.building.coding': "Cúpula de Programación de Robots",
+  'mars.building.engineering': "Museo de Ingeniería",
+  'mars.building.planets': "Laboratorio de los Planetas",
+  'castle.building.music': "Escuela de Música de la Torre del Reloj",
+  'castle.building.languages': "Biblioteca de los Idiomas",
+  'castle.building.art': "Taller de Arte",
+  // The door button for a school with no hud.goInto.<subject> line of its own.
+  'hud.goIntoPlace': "🚪 Entrar: {name}"
+};

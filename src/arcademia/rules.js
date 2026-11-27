@@ -11,7 +11,7 @@
  */
 import { FLOORS } from './floors.js';
 import { LESSONS, LAND_LESSONS, lessonById, TOPIC_NAMES } from './content/index.js';
-import { SUBJECTS, SUBJECT_NAMES } from './content/schema.js';
+import { LAND_SUBJECTS, REALM_SUBJECTS, SUBJECT_NAMES, isSubject } from './content/subjects.js';
 
 export const MAX_STARS = 3;
 /** Share of a floor's lessons (with at least one star) that opens the floor above. */
@@ -84,6 +84,18 @@ export function weekStart(day) {
 }
 
 /**
+ * The subjects a report shows: the mountain's math, history and physics always, then — grouped by
+ * world, in REALM_SUBJECTS order — the three of every world the child studied one of its own
+ * subjects in. With only the mountain's subjects in the events the report is exactly the old one.
+ */
+export function reportSubjects(events) {
+  const seen = new Set(events.map((e) => e.subject).filter((s) => isSubject(s) && !LAND_SUBJECTS.includes(s)));
+  const out = [...LAND_SUBJECTS];
+  for (const trio of Object.values(REALM_SUBJECTS)) if (trio.some((s) => seen.has(s))) for (const s of trio) if (!out.includes(s)) out.push(s);
+  return out;
+}
+
+/**
  * The parents' weekly report from events and lesson stars.
  *
  * @param {{ events: object[], stars: object, now: number, tzOffset?: number, weekOffset?: number }} input
@@ -93,6 +105,7 @@ export function buildReport({ events, stars = {}, now, tzOffset = 0 }) {
   const start = weekStart(today);
   const lastStart = addDays(start, -7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const SUBJECTS = reportSubjects(events);
   const blank = () => Object.fromEntries(SUBJECTS.map((s) => [s, 0]));
   const minutes = Object.fromEntries(days.map((d) => [d, blank()]));
   const acc = { this: Object.fromEntries(SUBJECTS.map((s) => [s, { right: 0, wrong: 0 }])), last: Object.fromEntries(SUBJECTS.map((s) => [s, { right: 0, wrong: 0 }])) };
@@ -131,6 +144,7 @@ export function buildReport({ events, stars = {}, now, tzOffset = 0 }) {
   return {
     today,
     weekOf: start,
+    subjects: SUBJECTS,
     days: days.map((day) => ({ day, ...Object.fromEntries(SUBJECTS.map((s) => [s, Math.round(minutes[day][s] * 10) / 10])) })),
     minutes: Math.round(days.reduce((sum, day) => sum + SUBJECTS.reduce((s, k) => s + minutes[day][k], 0), 0)),
     lessonsThisWeek: lessonsDone.this.size,
@@ -165,7 +179,7 @@ export function cleanEvent(raw, now) {
   if (!raw || typeof raw !== 'object') return null;
   const kind = String(raw.kind);
   if (kind === 'time') {
-    const subject = SUBJECTS.includes(raw.subject) ? raw.subject : null;
+    const subject = isSubject(raw.subject) ? raw.subject : null;
     const seconds = Math.max(0, Math.min(BEAT_MAX_SECONDS, Math.round(Number(raw.seconds) || 0)));
     return subject && seconds ? { kind, subject, seconds, at: now } : null;
   }

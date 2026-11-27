@@ -15,6 +15,7 @@ export const DEPTH = 30;
 export const GROUND_Y = -7;
 export const PLINTH_R = 4.6;
 export const PLINTH_H = 0.55;
+/** The three schools on a floor, in order: the school slots (content/subjects.js SLOTS); each world puts its own subject in each. */
 export const SUBJECT_ORDER = ['math', 'history', 'physics'];
 
 const smooth = (a, b, x) => {

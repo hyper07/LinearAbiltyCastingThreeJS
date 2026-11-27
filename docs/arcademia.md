@@ -268,6 +268,108 @@ on the back and a chest light (`creatures/hats.js` `spaceHelmet`, `oxygenPack`, 
 
 The World Portal's picker then lists the new world by itself.
 
+## Subjects per world
+
+Every floor of every world has three schools, always in the same three **slots** — slot 1 the
+`math` building, slot 2 the `history` building, slot 3 the `physics` building (the keys are the
+mountain's subjects; the plans, building shapes, roof colours, minimap dots and teachers are keyed
+by them). Each world puts **its own three subjects** in those slots, so its buildings and teachers
+stay and take the slot's subject. Slot 1 is always the world's woven-in math.
+
+| World | Realm | Slot 1 (math building) | Slot 2 (history building) | Slot 3 (physics building) |
+| --- | --- | --- | --- | --- |
+| Learning Mountain ⛰️ | land | Math 🔢 | History 🏛️ | Physics 🔭 |
+| The Great Tree 🌳 | forest | Logic & Patterns 🧩 (Nutmeg) | Earth & Weather 🌦️ (Bramble) | Biology 🐞 (Ribbit) |
+| The Lagoon 🏝️ | sea | Measures & Money ⚖️ (Pip) | Geography 🗺️ (Inka) | Ocean Science 🐠 (Splash) |
+| The Desert 🐪 | desert | Geometry & Building 📐 (Lotus) | Archaeology 🏺 (Reed) | Materials & Mixtures ⚗️ (Sandy) |
+| The Moon 🌙 | moon | Space Numbers 🧮 (Mochi) | Rockets & Forces 🚀 (Ginger) | Astronomy 🌌 (Comet) |
+| Mars 🔴 | mars | Coding & Robots 🤖 (Ruby) | Engineering & Design 🛠️ (Woolly) | Planet Science 🪐 (Digby) |
+| The Sky Castle 🏰 | castle | Music 🎵 (Biscuit) | Languages & Writing ✍️ (Hartley) | Art & Design 🎨 (Sprocket) |
+
+**A world teaches the mountain's math, history and physics until it goes live** (`LIVE` in
+`src/arcademia/content/subjects.js`; today only the mountain is). Until then it plays exactly as
+before; lessons in its new subjects may already sit in its content file — they validate, but are
+not taught (`lessonsIn` keeps only the subjects a world teaches now).
+
+The registry, `src/arcademia/content/subjects.js`:
+
+| | |
+| --- | --- |
+| `SUBJECT_INFO[id]` | `code` (lesson-id prefix: `m`/`h`/`p` for the mountain's, the id itself for the rest), `home` realm, `icon`, `color` (the parents' report), `room` (`classroom`, `hall` or `lab`: the lesson room), `flow` (default activities), `arcade` (`numbers`, `who` or `launch`), `woven` (the world's math), `signature` (the world's own game, still to build) |
+| `REALM_SUBJECTS[realm]` | the three subject ids in slot order |
+| `subjectsOf(realm)` · `subjectAt(realm, slot)` · `slotOf(realm, subject)` · `toSubject(realm, subjectOrSlot)` | what a world teaches now, and the slot ↔ subject mapping |
+| `buildingName(realm, slot)` · `helloKey(realm, subject)` · `activitiesOf(lesson)` | school names (`building.<subject>` on the mountain, `<realm>.building.<subject>` elsewhere), the teacher's greeting key, a lesson's activities |
+| `setLive(realm)` · `content/index.js` `setRealmLessons(realm, lessons)` | switch a world over without editing `LIVE`, or give it other lessons — for tests and for previewing new content (each returns an undo) |
+
+Everything that used to assume math, history and physics goes through it: the school labels and
+signs (`world/World.js`, the Mars and Sky Castle scenes), the teachers (`figures.js` `teacherOf`:
+the slot's teacher), the lesson room and steps (`lesson/LessonRunner.js`), the quests
+(`quests.js`), the puzzle bosses (two riddles from each of the world's subjects), unlocking and the
+HUD's floor stats and minimap, the voice script (each teacher speaks for their slot's subject), the
+lesson check (a lesson's subject must be one its world teaches), the learning record (any subject
+id) and the parents' report (the mountain's three, then each world's three where the child studied
+there, each in its own colour). Names of all 21 subjects, and every world's schools once live, are
+in all five languages (`i18n/locales/<lc>/subjects.js`).
+
+### Moving a world onto its own subjects
+
+For a world `<realm>` (say `desert`: geometry, archaeology, chemistry):
+
+1. **Lessons** in `src/arcademia/content/<realm>.js` (still exporting `DESERT_LESSONS` etc.): at
+   least two per floor in each of its three subjects, `realm: '<realm>'`, ids
+   `<subject><floor>-<realm>-<slug>` (`geometry3-desert-pyramid-angles`), the subject's flow
+   (below) or the lesson's own `activities`, and the data each activity needs (`content/schema.js`
+   says what: a math generator for `board`/`try`, `dialogue` for `chat`, `timeline`, `artifact` for
+   `treasure`, `sim` for `experiment`). Remove the world's old math/history/physics lessons when
+   the new ones replace them (or leave them until the switch: they stay taught until then).
+2. **Translations**: each lesson's text in `i18n/locales/<lc>/lessons-<realm>.js` for ko, es, ja and
+   zh; drop the overlays of lessons that were removed.
+3. **Strings, in all five languages**: `<realm>.hello.<subject>` (lesson.js: the teacher's
+   greeting in the lobby) and `<realm>.quest.<subject>` (ui.js: the quest intro; `{name}` in it
+   names the guide when the subject's lessons chat with one), and if wanted `quest.<subject>.title`
+   (`'…: {title}'`) and `hud.goInto.<subject>` (otherwise the door button names the school). The
+   subject names and the school names are in `subjects.js` already — change them there if they
+   should read differently.
+4. **Switch it on**: `<realm>: true` in `LIVE` (`content/subjects.js`).
+5. **Check**: `npm test`. `tests/unit/arcademia-subjects.test.mjs` "every live world is ready"
+   lists what is still missing (a floor short of lessons, a string not written in a language);
+   the lesson check, the i18n test and the voice tests cover the rest. The e2e suites enter schools
+   by slot key (`enter('math', 1)` finds the world's slot-1 subject), so they keep working.
+6. **Voices**: the new lines (greetings, quest intros, reading cards, quizzes, guides) are in the
+   voice script by themselves (`npm run voice:script`); generate their voices as usual.
+7. **Docs**: the world's row in [Study worlds](#study-worlds).
+
+### Adding an activity kind
+
+A lesson runs `story`, `learn`, one to four hands-on activities, then `challenge`. The kinds today:
+
+| Kind | Quest steps | Room | Lesson data |
+| --- | --- | --- | --- |
+| `board` | Watch the board | any | `board: { gen }` |
+| `try` | Try it | any | `practice: { kind, gen }` |
+| `chat` | Chat | hall | `dialogue` |
+| `timeline` | Timeline | any | `timeline` |
+| `treasure` | Treasure | hall | `artifact` |
+| `experiment` | Guess, Experiment | any | `sim` |
+
+The default flows by room (`subjects.js` `FLOWS`): classroom `story, learn, board, try, challenge`;
+hall `story, learn, chat, timeline, treasure, challenge`; lab `story, learn, experiment, challenge`.
+A lesson may list its own (`activities: ['story', 'learn', 'board', 'experiment', 'challenge']`).
+
+To add one (the planned signature games: `sort` for Biology, `maphunt` for Geography, `dig` for
+Archaeology, `countdown` for Rockets, `rover` for Coding, `rhythm` for Music):
+
+1. `content/schema.js` `ACTIVITIES.<kind>`: its quest `steps`, the `rooms` it can run in (or
+   `null`), and `check(lesson, { gens })` returning problems with the lesson data it needs.
+2. Its steps' names, `quest.step.<step>`, in ui.js in all five languages.
+3. Its runner in `lesson/activities.js` `RUNNERS.<kind>`: `async (runner) => …`, using the
+   runner's helpers (`clear`, `shot`, `say`, `until`, `choices`, `good`/`oops`, `runner.lesson`,
+   `runner.room`, `runner.main`; `runner.at` is its first quest step). It resolves when the child is
+   done. The lesson runner itself does not change.
+4. Any voice lines it speaks: a `t.<key>` or `l.<lesson>.<path>` line in `voice/script.js`.
+5. A lesson that uses it (its subject's `flow`, or the lesson's `activities`), and a unit test for
+   its check.
+
 ## Languages
 
 The game speaks **English, 한국어 (Korean), Español, 日本語 (Japanese) and 简体中文 (Chinese)**. The
@@ -649,6 +751,8 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | The game: world, HUD, lessons, places, settings | `src/arcademia/ArcademiaGame.js` |
 | Floors (themes) and their stories and bosses | `src/arcademia/floors.js`, `src/arcademia/quests.js` |
 | Lessons: format and checks; math generators and chalkboard scripts; history; physics | `src/arcademia/content/` |
+| Subjects: every world's three, the slot ↔ subject mapping, which worlds are live | `src/arcademia/content/subjects.js` |
+| Activity kinds: their data and checks · how each plays | `src/arcademia/content/schema.js` `ACTIVITIES` · `src/arcademia/lesson/activities.js` |
 | Stars, unlocks, caps, the weekly report (shared with the server) | `src/arcademia/rules.js` |
 | The mountain plan: terraces, places, stairs, stream, heights, walking grid | `src/arcademia/world/layout.js` |
 | Study worlds: the list, the Great Tree's, the Lagoon's, the Desert's, the Moon's, Mars's and the Sky Castle's floors | `src/arcademia/maps.js` |
@@ -670,7 +774,7 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | Learning API and its caps | `server/learningStore.js` (wired in `server/server.js` and `vite.config.js`) |
 | The tutor route | `server/api/ai.js` |
 | The share page | `parent-report.html`, `src/arcademia/sharedReport.js` |
-| Tests | `tests/unit/arcademia.test.mjs`, `arcademia-i18n.test.mjs`, `arcademia-math-i18n.test.mjs`, `arcademia-creatures.test.mjs`, `voice.test.mjs`; `tests/e2e/voice.mjs`, `tests/e2e/worlds.mjs` |
+| Tests | `tests/unit/arcademia.test.mjs`, `arcademia-subjects.test.mjs`, `arcademia-i18n.test.mjs`, `arcademia-math-i18n.test.mjs`, `arcademia-creatures.test.mjs`, `voice.test.mjs`; `tests/e2e/voice.mjs`, `tests/e2e/worlds.mjs` |
 
 To add a floor, add an entry to `FLOORS`, a world to `WORLDS` and at least two lessons per subject:
 the mountain, nav, minimap and unlock rules follow.

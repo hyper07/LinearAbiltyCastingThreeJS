@@ -36,6 +36,7 @@
 import { tIn, localizeLesson, LOCALE_IDS } from '../i18n/index.js';
 import { LESSONS } from '../content/index.js';
 import { FLOOR_COUNT } from '../content/schema.js';
+import { SLOTS, subjectAt, slotOf, activitiesOf, helloKey, buildingKey } from '../content/subjects.js';
 
 export const VOICE_KINDS = ['bark', 'story', 'reading', 'quiz'];
 export const VOICE_GROUPS = ['teacher', 'guide', 'boss', 'townsfolk', 'buddy'];
@@ -48,7 +49,7 @@ export const isCharId = (s) => typeof s === 'string' && CHAR_RE.test(s);
 /** How a recording is addressed: language, character, line. */
 export const lineKey = (lang, char, id) => `${lang}/${char}/${id}`;
 
-/** The teachers and the subject each one teaches. */
+/** The teachers, by the school slot each one teaches in (content/subjects.js SLOTS; the subject there is the realm's). */
 export const TEACHER_OF = { math: 'hoot', history: 'tock', physics: 'gizmo' };
 /** The sea islands' teachers: Captain Pip, Grandma Inka, Dr. Splash. */
 export const SEA_TEACHER_OF = { math: 'pip', history: 'inka', physics: 'splash' };
@@ -62,16 +63,19 @@ export const MOON_TEACHER_OF = { math: 'mochi', history: 'ginger', physics: 'com
 export const MARS_TEACHER_OF = { math: 'ruby', history: 'woolly', physics: 'digby' };
 /** The Sky Castle's teachers: Miss Biscuit, Professor Hartley, Dr. Sprocket. */
 export const CASTLE_TEACHER_OF = { math: 'biscuit', history: 'hartley', physics: 'sprocket' };
-/** Each realm's teachers, by subject. */
+/** Each realm's teachers, by school slot. */
 export const REALM_TEACHER_OF = { land: TEACHER_OF, forest: FOREST_TEACHER_OF, sea: SEA_TEACHER_OF, desert: DESERT_TEACHER_OF, moon: MOON_TEACHER_OF, mars: MARS_TEACHER_OF, castle: CASTLE_TEACHER_OF };
-const SUBJECT_OF = Object.fromEntries(Object.values(REALM_TEACHER_OF).flatMap((m) => Object.entries(m).map(([subject, id]) => [id, subject])));
-/** Who voices a lesson: its realm's teacher for its subject. */
-export const teacherOf = (lesson) => (REALM_TEACHER_OF[lesson?.realm ?? 'land'] ?? TEACHER_OF)[lesson?.subject];
+/** Who voices a lesson: its realm's teacher of the slot its subject is taught in. */
+export const teacherOf = (lesson) => {
+  const realm = lesson?.realm ?? 'land';
+  return (REALM_TEACHER_OF[realm] ?? TEACHER_OF)[slotOf(realm, lesson?.subject) ?? lesson?.subject];
+};
 const MATH_QUESTS = new Set(['count', 'add10', 'sub10', 'tens-ones', 'add-carry', 'skip-count', 'times', 'sub-borrow', 'fractions', 'mult-2x1', 'division', 'fraction-of', 'balance', 'decimals', 'area', 'negatives', 'percent', 'two-step', 'squares']);
 const PRAISES = 8;
 const NPC_TIPS = 10;
 const GEMS_PER_FLOOR = 3;
-const historyLessons = () => LESSONS.filter((l) => l.subject === 'history');
+/** The lessons with a guide to chat with (each guide is a voice of their own). */
+const guidedLessons = () => LESSONS.filter((l) => activitiesOf(l).includes('chat'));
 
 /** Direction for the voice actor, by character (English: it is for the person recording). */
 const DIRECTION = {
@@ -114,7 +118,7 @@ export function pace(floor) {
   return 'A natural pace for 10–13 year-olds.';
 }
 
-/** Every character, with its name in a language. Guides come from the history lessons. */
+/** Every character, with its name in a language. Guides come from the lessons with a chat (the history lessons). */
 export function voiceCharacters(lang = 'en') {
   const out = [
     { id: 'hoot', group: 'teacher', species: 'owl', emoji: '🦉', name: tIn(lang, 'teacher.math'), subject: 'math' },
@@ -139,7 +143,7 @@ export function voiceCharacters(lang = 'en') {
     { id: 'hartley', group: 'teacher', species: 'stag', emoji: '🦌', name: tIn(lang, 'castle.teacher.history'), subject: 'history', realm: 'castle' },
     { id: 'sprocket', group: 'teacher', species: 'beaver', emoji: '🦫', name: tIn(lang, 'castle.teacher.physics'), subject: 'physics', realm: 'castle' }
   ];
-  for (const l of historyLessons()) {
+  for (const l of guidedLessons()) {
     const d = localizeLesson(l, lang).dialogue;
     out.push({ id: `guide-${l.id}`, group: 'guide', species: null, emoji: '🧭', name: d.npc.name, role: d.npc.role, floor: l.floor, lesson: l.id, direction: guideDirection(l.dialogue.npc.name, l.dialogue.npc.role) });
   }
@@ -161,6 +165,8 @@ export function voiceCharacters(lang = 'en') {
   const BUDDY_EMOJI = { fox: '🦊', robot: '🤖', dragon: '🐲', puff: '☁️', bunny: '🐰' };
   for (const b of BUDDY_IDS) out.push({ id: `buddy-${b}`, group: 'buddy', species: b, emoji: BUDDY_EMOJI[b], name: tIn(lang, `buddy.${b}`) });
   for (const c of out) c.direction ??= DIRECTION[c.id];
+  // A teacher is listed by slot above; they teach whatever their realm puts in that slot (content/subjects.js).
+  for (const c of out) if (c.group === 'teacher') c.subject = subjectAt(c.realm ?? 'land', c.subject);
   return out;
 }
 export const characterIds = () => voiceCharacters('en').map((c) => c.id);
@@ -186,6 +192,29 @@ export function estimateSeconds(text, lang = 'en', floor = 0) {
 
 /* ---------------------------------------------------------------- the lines */
 
+/** The activities a realm's lessons in a subject run (the subject's flow, and any a lesson adds). */
+function activitiesFor(realm, subject) {
+  const out = new Set(activitiesOf({ subject }));
+  for (const l of LESSONS) if ((l.realm ?? 'land') === realm && l.subject === subject) for (const k of activitiesOf(l)) out.add(k);
+  return out;
+}
+/** How the voice actor hears each shared quest intro (others: by the school's name). */
+const INTRO_CONTEXT = {
+  'land.physics': 'Lesson start: every physics quest begins with this.',
+  'forest.math': 'Lesson start: every Forest Math quest on the Great Tree begins with this.',
+  'forest.physics': 'Lesson start: every Nature Lab quest on the Great Tree begins with this.',
+  'sea.math': 'Lesson start: every Sea Math quest on the islands begins with this.',
+  'sea.physics': 'Lesson start: every Ocean Lab quest on the islands begins with this.',
+  'desert.math': 'Lesson start: every Pyramid School quest in the desert begins with this.',
+  'desert.physics': 'Lesson start: every Sun Observatory quest in the desert begins with this.',
+  'moon.math': 'Lesson start: every Dome School quest on the Moon begins with this.',
+  'moon.physics': 'Lesson start: every Star Observatory quest on the Moon begins with this.',
+  'mars.math': 'Lesson start: every Red Dome School quest on Mars begins with this.',
+  'mars.physics': 'Lesson start: every Weather Lab quest on Mars begins with this.',
+  'castle.math': 'Lesson start: every Clock Tower School quest in the Sky Castle begins with this.',
+  'castle.physics': 'Lesson start: every Inventor\'s Workshop quest in the Sky Castle begins with this.'
+};
+
 /**
  * The whole script in a language, in recording order (barks first, then
  * floor by floor). Each line: { id, char, kind, floor, text, context,
@@ -201,15 +230,15 @@ export function buildScript(lang = 'en') {
     const c = chars.get(char);
     lines.push({ id, char, kind, floor, text: String(text).trim(), context, direction: `${c.direction} ${pace(floor)}`, seconds: estimateSeconds(text, lang, floor) });
   };
-  const T = (key, vars) => tIn(lang, key, vars);
+  // A line whose string is not written yet (a world's new subject before its words are in) is no line at all.
+  const T = (key, vars) => (tIn('en', key, vars) === key ? '' : tIn(lang, key, vars));
   const key = (k, variant = null) => `t.${k}${variant != null ? `~${variant}` : ''}`;
 
-  // ---- barks: teachers
-  for (const char of ['hoot', 'tock', 'gizmo', 'nutmeg', 'bramble', 'ribbit', 'pip', 'inka', 'splash', 'lotus', 'reed', 'sandy', 'mochi', 'ginger', 'comet', 'ruby', 'woolly', 'digby', 'biscuit', 'hartley', 'sprocket']) {
-    const subject = SUBJECT_OF[char];
+  // ---- barks: teachers (each realm's three, by school slot; each speaks for the subject taught in its slot)
+  const teachers = Object.entries(REALM_TEACHER_OF).flatMap(([realm, bySlot]) => SLOTS.map((slot) => ({ char: bySlot[slot], realm, slot, subject: subjectAt(realm, slot) })));
+  for (const { char, realm, subject } of teachers) {
     // Each realm's teachers greet in their own words (lesson.js lesson.hello.* / <realm>.hello.*).
-    const realm = Object.keys(REALM_TEACHER_OF).find((r) => REALM_TEACHER_OF[r][subject] === char);
-    const hello = realm === 'land' ? `lesson.hello.${subject}` : `${realm}.hello.${subject}`;
+    const hello = helloKey(realm, subject);
     add(char, key(hello), 'bark', 0, T(hello), 'Greeting: the child walks into the building and sees the quest list.');
     for (let i = 0; i < PRAISES; i++) add(char, key(`lesson.praise.${i}`), 'bark', 0, T(`lesson.praise.${i}`), 'Great job: a right answer (one of several, picked at random).');
     add(char, key('voice.teacher.tryAgain'), 'bark', 0, T('voice.teacher.tryAgain'), 'Try again: a wrong answer, before the hint shows.');
@@ -218,54 +247,23 @@ export function buildScript(lang = 'en') {
     add(char, key('lesson.say2'), 'bark', 0, T('lesson.say2'), 'Lesson end: two stars.');
     add(char, key('lesson.say1'), 'bark', 0, T('lesson.say1'), 'Lesson end: one star (finished).');
   }
-  add('hoot', key('lesson.yourTurn'), 'bark', 0, T('lesson.yourTurn'), 'Practice: the first problem after the chalkboard example.');
-  add('hoot', key('lesson.oneMore'), 'bark', 0, T('lesson.oneMore'), 'Practice: the second problem.');
-  add('tock', key('lesson.tlSay'), 'bark', 0, T('lesson.tlSay'), 'Timeline: the cards are jumbled for the child to put in order.');
-  add('gizmo', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
-  add('gizmo', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
-  add('gizmo', key('quest.physics.intro'), 'bark', 0, T('quest.physics.intro'), 'Lesson start: every physics quest begins with this.');
-  add('nutmeg', key('lesson.yourTurn'), 'bark', 0, T('lesson.yourTurn'), 'Practice: the first problem after the chalkboard example.');
-  add('nutmeg', key('lesson.oneMore'), 'bark', 0, T('lesson.oneMore'), 'Practice: the second problem.');
-  add('nutmeg', key('forest.quest.math'), 'bark', 0, T('forest.quest.math'), 'Lesson start: every Forest Math quest on the Great Tree begins with this.');
-  add('bramble', key('lesson.tlSay'), 'bark', 0, T('lesson.tlSay'), 'Timeline: the cards are jumbled for the child to put in order.');
-  add('ribbit', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
-  add('ribbit', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
-  add('ribbit', key('forest.quest.physics'), 'bark', 0, T('forest.quest.physics'), 'Lesson start: every Nature Lab quest on the Great Tree begins with this.');
-  add('pip', key('lesson.yourTurn'), 'bark', 0, T('lesson.yourTurn'), 'Practice: the first problem after the chalkboard example.');
-  add('pip', key('lesson.oneMore'), 'bark', 0, T('lesson.oneMore'), 'Practice: the second problem.');
-  add('pip', key('sea.quest.math'), 'bark', 0, T('sea.quest.math'), 'Lesson start: every Sea Math quest on the islands begins with this.');
-  add('inka', key('lesson.tlSay'), 'bark', 0, T('lesson.tlSay'), 'Timeline: the cards are jumbled for the child to put in order.');
-  add('splash', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
-  add('splash', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
-  add('splash', key('sea.quest.physics'), 'bark', 0, T('sea.quest.physics'), 'Lesson start: every Ocean Lab quest on the islands begins with this.');
-  add('lotus', key('lesson.yourTurn'), 'bark', 0, T('lesson.yourTurn'), 'Practice: the first problem after the chalkboard example.');
-  add('lotus', key('lesson.oneMore'), 'bark', 0, T('lesson.oneMore'), 'Practice: the second problem.');
-  add('lotus', key('desert.quest.math'), 'bark', 0, T('desert.quest.math'), 'Lesson start: every Pyramid School quest in the desert begins with this.');
-  add('reed', key('lesson.tlSay'), 'bark', 0, T('lesson.tlSay'), 'Timeline: the cards are jumbled for the child to put in order.');
-  add('sandy', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
-  add('sandy', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
-  add('sandy', key('desert.quest.physics'), 'bark', 0, T('desert.quest.physics'), 'Lesson start: every Sun Observatory quest in the desert begins with this.');
-  add('mochi', key('lesson.yourTurn'), 'bark', 0, T('lesson.yourTurn'), 'Practice: the first problem after the chalkboard example.');
-  add('mochi', key('lesson.oneMore'), 'bark', 0, T('lesson.oneMore'), 'Practice: the second problem.');
-  add('mochi', key('moon.quest.math'), 'bark', 0, T('moon.quest.math'), 'Lesson start: every Dome School quest on the Moon begins with this.');
-  add('ginger', key('lesson.tlSay'), 'bark', 0, T('lesson.tlSay'), 'Timeline: the cards are jumbled for the child to put in order.');
-  add('comet', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
-  add('comet', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
-  add('comet', key('moon.quest.physics'), 'bark', 0, T('moon.quest.physics'), 'Lesson start: every Star Observatory quest on the Moon begins with this.');
-  add('ruby', key('lesson.yourTurn'), 'bark', 0, T('lesson.yourTurn'), 'Practice: the first problem after the chalkboard example.');
-  add('ruby', key('lesson.oneMore'), 'bark', 0, T('lesson.oneMore'), 'Practice: the second problem.');
-  add('ruby', key('mars.quest.math'), 'bark', 0, T('mars.quest.math'), 'Lesson start: every Red Dome School quest on Mars begins with this.');
-  add('woolly', key('lesson.tlSay'), 'bark', 0, T('lesson.tlSay'), 'Timeline: the cards are jumbled for the child to put in order.');
-  add('digby', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
-  add('digby', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
-  add('digby', key('mars.quest.physics'), 'bark', 0, T('mars.quest.physics'), 'Lesson start: every Weather Lab quest on Mars begins with this.');
-  add('biscuit', key('lesson.yourTurn'), 'bark', 0, T('lesson.yourTurn'), 'Practice: the first problem after the chalkboard example.');
-  add('biscuit', key('lesson.oneMore'), 'bark', 0, T('lesson.oneMore'), 'Practice: the second problem.');
-  add('biscuit', key('castle.quest.math'), 'bark', 0, T('castle.quest.math'), 'Lesson start: every Clock Tower School quest in the Sky Castle begins with this.');
-  add('hartley', key('lesson.tlSay'), 'bark', 0, T('lesson.tlSay'), 'Timeline: the cards are jumbled for the child to put in order.');
-  add('sprocket', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
-  add('sprocket', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
-  add('sprocket', key('castle.quest.physics'), 'bark', 0, T('castle.quest.physics'), 'Lesson start: every Inventor\'s Workshop quest in the Sky Castle begins with this.');
+  // What each teacher says in the activities its subject runs, and the quest intro every one of its quests shares.
+  for (const { char, realm, slot, subject } of teachers) {
+    const acts = activitiesFor(realm, subject);
+    if (acts.has('try')) {
+      add(char, key('lesson.yourTurn'), 'bark', 0, T('lesson.yourTurn'), 'Practice: the first problem after the chalkboard example.');
+      add(char, key('lesson.oneMore'), 'bark', 0, T('lesson.oneMore'), 'Practice: the second problem.');
+    }
+    if (acts.has('timeline')) add(char, key('lesson.tlSay'), 'bark', 0, T('lesson.tlSay'), 'Timeline: the cards are jumbled for the child to put in order.');
+    if (acts.has('experiment')) {
+      add(char, key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
+      add(char, key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
+    }
+    // The mountain's math quests have an intro per topic, and guided ones (a chat) one per lesson: both are story lines below.
+    if ((realm === 'land' && subject === 'math') || acts.has('chat')) continue;
+    const intro = realm === 'land' ? `quest.${subject}.intro` : `${realm}.quest.${subject}`;
+    add(char, key(intro), 'bark', 0, T(intro), INTRO_CONTEXT[`${realm}.${subject}`] ?? `Lesson start: every ${tIn('en', buildingKey(realm, slot))} quest begins with this.`);
+  }
   // ---- barks: buddies
   const BUDDY_BARKS = [
     ['hello', 'Greeting: the child starts playing.'],
@@ -324,26 +322,28 @@ export function buildScript(lang = 'en') {
     const { id, floor, subject } = lesson0;
     const teacher = teacherOf(lesson0);
     const where = `Lesson “${lesson0.title}” (${id}, floor ${floor})`;
+    const acts = activitiesOf(lesson0);
+    const guided = acts.includes('chat');
     if (lesson0.realm && lesson0.realm !== 'land') {
       const r = lesson0.realm;
-      if (subject === 'history') add(teacher, key(`${r}.quest.history`, id), 'story', floor, T(`${r}.quest.history`, { name: lesson.dialogue.npc.name.split(/[,，、]/)[0] }), `Story: the quest that starts ${where}.`);
+      if (guided) add(teacher, key(`${r}.quest.${subject}`, id), 'story', floor, T(`${r}.quest.${subject}`, { name: lesson.dialogue.npc.name.split(/[,，、]/)[0] }), `Story: the quest that starts ${where}.`);
     } else if (subject === 'math') {
       const k = MATH_QUESTS.has(lesson0.topic) ? `quest.math.${lesson0.topic}.intro` : 'quest.math.default';
       add(teacher, key(k), 'story', floor, T(k), `Story: the quest that starts ${where}.`);
-    } else if (subject === 'history') {
-      add(teacher, key('quest.history.intro', id), 'story', floor, T('quest.history.intro', { name: lesson.dialogue.npc.name.split(/[,，、]/)[0] }), `Story: the quest that starts ${where}.`);
+    } else if (guided) {
+      add(teacher, key(`quest.${subject}.intro`, id), 'story', floor, T(`quest.${subject}.intro`, { name: lesson.dialogue.npc.name.split(/[,，、]/)[0] }), `Story: the quest that starts ${where}.`);
     }
     lesson.reading.forEach((c, i) => add(teacher, `l.${id}.reading.${i}`, 'reading', floor, `${c.title}. ${c.text}`, `Reading card ${i + 1} of ${lesson.reading.length}: ${where}. Say the title, a short pause, then the text.`));
-    if (subject === 'history') {
+    if (guided) {
       const d = lesson.dialogue;
       const g = `guide-${id}`;
       add(g, `l.${id}.dialogue.intro`, 'story', floor, d.intro, `The guide says hello: ${where}.`);
       d.topics.forEach((tp, i) => add(g, `l.${id}.dialogue.topics.${i}.answer`, 'story', floor, tp.answer, `The child asked: “${lesson0.dialogue.topics[i].ask}” (${where}).`));
       add(g, `l.${id}.dialogue.challenge`, 'quiz', floor, T('lesson.guideAsks', { q: d.challenge.q }), `The guide asks the child a question; the choices show on screen (${where}).`);
       add(g, `l.${id}.dialogue.farewell`, 'story', floor, d.farewell, `The guide says goodbye (${where}).`);
-      add(teacher, key('lesson.lookFound', id), 'story', floor, T('lesson.lookFound', { name: lesson.artifact.name }), `The treasure on its pedestal (${where}).`);
     }
-    if (subject === 'physics') {
+    if (acts.includes('treasure')) add(teacher, key('lesson.lookFound', id), 'story', floor, T('lesson.lookFound', { name: lesson.artifact.name }), `The treasure on its pedestal (${where}).`);
+    if (acts.includes('experiment')) {
       const p = lesson.sim.predict;
       add(teacher, `l.${id}.sim.predict.q`, 'quiz', floor, p.q, `Guess first: the question before the experiment (${where}).`);
       add(teacher, key('lesson.guessRightSay', id), 'story', floor, T('lesson.guessRightSay', { explain: p.explain }), `The child guessed right; the experiment showed why (${where}).`);

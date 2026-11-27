@@ -4,9 +4,13 @@
  *
  *   story → learn (reading cards) → the hands-on part → challenge → rewards
  *
- * The hands-on part is the subject's own: Professor Hoot's chalkboard and a
- * manipulative (math); a chat with a guide, a timeline to fix and a
- * treasure to turn (history); guess-then-test with an experiment (physics).
+ * The hands-on part is the lesson's own activities (content/schema.js
+ * ACTIVITIES, played by lesson/activities.js): Professor Hoot's chalkboard and
+ * a manipulative (math); a chat with a guide, a timeline to fix and a
+ * treasure to turn (history); guess-then-test with an experiment (physics) —
+ * each subject's default flow (content/subjects.js), or the lesson's own list.
+ * The room is its subject's (classroom, hall or lab); the teacher the one of
+ * the school slot the subject is taught in.
  * The challenge has a combo meter, a hint after a miss, the worked answer
  * after two, and Professor Hoot (Plus) on call. Every reading, answer and
  * finished lesson goes to progress.js; coins, XP and stickers to gamestate.js.
@@ -18,11 +22,11 @@
 import * as THREE from 'three';
 import { el, button, sparkle, confetti, SUBJECT_ICON } from '../ui/dom.js';
 import { FLOORS } from '../floors.js';
-import { lessonsOn, quizFor, lessonById, teachingRealm } from '../content/index.js';
+import { lessonsOn, quizFor, lessonById, teachingRealm, guidesOn } from '../content/index.js';
 import { makeProblem } from '../content/math.js';
 import { questFor } from '../quests.js';
 import { buildClassroom, buildHall, buildLab } from '../world/interiors.js';
-import { makeCreature, TEACHERS, teachersIn } from '../world/figures.js';
+import { makeCreature, TEACHERS, teacherOf } from '../world/figures.js';
 import { Chalkboard } from './chalkboard.js';
 import { mountPractice } from './practice.js';
 import { createSim } from './sims.js';
@@ -32,8 +36,16 @@ import { speech } from '../sound.js';
 import { levelOf } from '../gamestate.js';
 import { t as tr, localizeLesson } from '../i18n/index.js';
 import { REALM_TEACHER_OF } from '../voice/script.js';
+import { SUBJECT_INFO, slotOf, activitiesOf, helloKey } from '../content/subjects.js';
+import { ACTIVITIES } from '../content/schema.js';
+import { RUNNERS } from './activities.js';
 
-const ROOMS = { math: buildClassroom, history: buildHall, physics: buildLab };
+/** The lesson rooms (content/subjects.js ROOMS): the 3D room and where the buddy stands in it. */
+const ROOMS = {
+  classroom: { build: buildClassroom, buddy: [2.4, 0, -1.6, -0.45] },
+  hall: { build: buildHall, buddy: [3.4, 0, -1.2, -0.5] },
+  lab: { build: buildLab, buddy: [3.0, 0, -2.0, -0.5] }
+};
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function openBuilding(game, { subject, floor, lesson = null }) {
@@ -52,12 +64,16 @@ class Runner {
     this.back = game.map?.back ?? ['lesson.back', 'lesson.backAria'];
     /** The realm's teachers: the land's, or the sea islands' (maps.js). */
     this.realm = teachingRealm(game.map?.realm ?? 'land');
-    this.teacher = teachersIn(this.realm)[subject];
+    /** The school slot (building, teacher, voice) the subject is taught in, and its room style. */
+    this.slot = slotOf(this.realm, subject) ?? subject;
+    this.info = SUBJECT_INFO[subject] ?? SUBJECT_INFO.math;
+    this.teacher = teacherOf(this.realm, subject);
     game._rooms ??= new Map();
     const key = `${game.map?.id ?? 'mountain'}:${subject}:${floor}`;
     // On the space maps the teachers and guides wear space suits too (maps.js `suit`).
     this.suit = game.map?.suit ?? null;
-    if (!game._rooms.has(key)) game._rooms.set(key, ROOMS[subject](this.look.look, this.teacher.species, { suit: this.suit }));
+    const roomStyle = ROOMS[this.info.room] ?? ROOMS.classroom;
+    if (!game._rooms.has(key)) game._rooms.set(key, roomStyle.build(this.look.look, this.teacher.species, { suit: this.suit }));
     this.room = game._rooms.get(key);
     this.camera = new THREE.PerspectiveCamera(46, 1, 0.1, 120);
     this.camAt = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
@@ -66,12 +82,12 @@ class Runner {
     game.stage.setGlow(0);
     // The player's buddy comes inside too, to cheer and wobble along.
     this.buddy = makeCreature({ ...(game.gs.buddy ?? { species: 'fox' }), scale: 1.0, suit: this.suit });
-    const spot = { math: [2.4, 0, -1.6, -0.45], history: [3.4, 0, -1.2, -0.5], physics: [3.0, 0, -2.0, -0.5] }[subject];
+    const spot = roomStyle.buddy;
     this.buddy.group.position.set(spot[0], spot[1], spot[2]);
     this.buddy.group.rotation.y = spot[3];
     this.room.scene.add(this.buddy.group);
     this.voice = game.prefs.voice ?? floor <= 2;
-    this.teacherChar = REALM_TEACHER_OF[this.realm][subject];
+    this.teacherChar = REALM_TEACHER_OF[this.realm][this.slot];
     this.buddyChar = `buddy-${game.gs.buddy?.species ?? 'fox'}`;
     this.time = 0;
     this._ui();
@@ -278,12 +294,12 @@ class Runner {
       grid.append(b);
     }
     const arcade = button('arc-quest-card arc-quest-card--arcade', null, () => this.arcade());
-    arcade.append(el('span', 'arc-quest-card__stars', '🕹️'), el('strong', null, ARCADE_NAMES[this.subject](this.floor)), el('span', null, tr('lesson.arcadeSub')));
+    arcade.append(el('span', 'arc-quest-card__stars', '🕹️'), el('strong', null, ARCADE_NAMES[this.info.arcade](this.floor)), el('span', null, tr('lesson.arcadeSub')));
     grid.append(arcade);
     card.append(grid);
     this.main.append(card);
-    // Each realm's teacher greets in their own words (lesson.js lesson.hello.* on the mountain, <realm>.hello.* elsewhere).
-    const hello = this.realm === 'land' ? `lesson.hello.${this.subject}` : `${this.realm}.hello.${this.subject}`;
+    // Each realm's teacher greets in their own words (lesson.js lesson.hello.<subject> on the mountain, <realm>.hello.<subject> elsewhere).
+    const hello = helloKey(this.realm, this.subject);
     this.say(tr(hello), { line: `t.${hello}` });
     speech.preloadFloor(this.floor, this.buddyChar);
   }
@@ -291,15 +307,17 @@ class Runner {
   async arcade() {
     this.clear();
     this.hush();
-    this.titleEl.textContent = `🕹️ ${ARCADE_NAMES[this.subject](this.floor)}`;
-    this.shot(this.subject === 'physics' ? 'screen' : 'wide');
+    this.titleEl.textContent = `🕹️ ${ARCADE_NAMES[this.info.arcade](this.floor)}`;
+    // The lab's screen where the room has one (shot() falls back to the wide view).
+    this.shot('screen');
     const frame = el('div', 'arc-card arc-arcade');
     this.main.append(frame);
     const ctx = { floor: this.floor, sound: this.game.sound, reducedMotion: this.game.reducedMotion };
     let score;
-    if (this.subject === 'math') score = this.floor <= 2 && Math.random() < 0.5 ? await feedMonster(frame, ctx) : await bubblePop(frame, ctx);
-    else if (this.subject === 'physics') score = await launch(frame, ctx);
-    else score = await whoSaid(frame, { ...ctx, lessons: lessonsOn(this.floor, 'history', this.realm) });
+    const kind = this.info.arcade;
+    if (kind === 'numbers') score = this.floor <= 2 && Math.random() < 0.5 ? await feedMonster(frame, ctx) : await bubblePop(frame, ctx);
+    else if (kind === 'launch') score = await launch(frame, ctx);
+    else score = await whoSaid(frame, { ...ctx, lessons: guidesOn(this.floor, this.realm) });
     if (!this.root.isConnected) return;
     const got = this.game.gs.event('arcade', { game: `${this.subject}-${this.floor}`, score });
     this.buddy.cheer(1.6);
@@ -328,30 +346,14 @@ class Runner {
     this.score = 0;
     this.comboN = 0;
     try {
-      this.steps(S, 0);
-      await this.story();
-      this.steps(S, 1);
-      await this.reading();
-      if (lesson.subject === 'math') {
-        this.steps(S, 2);
-        await this.boardStep();
-        this.steps(S, 3);
-        await this.practiceStep();
-        this.steps(S, 4);
-      } else if (lesson.subject === 'history') {
-        this.steps(S, 2);
-        await this.chatStep();
-        this.steps(S, 3);
-        await this.timelineStep();
-        this.steps(S, 4);
-        await this.artifactStep();
-        this.steps(S, 5);
-      } else {
-        this.steps(S, 2);
-        await this.simStep();
-        this.steps(S, 4);
+      // The lesson's activities in order (content/schema.js ACTIVITIES; lesson/activities.js plays each).
+      // `at` is the quest step an activity starts on; some show two (the experiment: guess, then test).
+      this.at = 0;
+      for (const kind of activitiesOf(lesson)) {
+        this.steps(S, this.at);
+        await RUNNERS[kind](this);
+        this.at += ACTIVITIES[kind].steps.length;
       }
-      await this.challenge();
       this.steps(S, S.length);
       this.results();
     } catch (error) {
@@ -369,7 +371,8 @@ class Runner {
 
   async story() {
     this.clear();
-    this.shot(this.subject === 'math' ? 'teacher' : 'wide');
+    // The teacher close up where the room has the shot (the classroom), else the wide view.
+    this.shot('teacher');
     const card = el('section', 'arc-card arc-story');
     const go = button('arc-btn arc-btn--primary arc-btn--big', tr('lesson.go'), null);
     card.append(el('div', 'arc-story__who', this.teacher.emoji, { 'aria-hidden': 'true' }), el('p', 'arc-story__kicker', tr('lesson.storyKicker', { floor: this.floor, teacher: this.teacher.name })), el('h2', null, this.quest.title), el('p', 'arc-story__text', this.quest.intro), go);
@@ -708,7 +711,7 @@ class Runner {
     this.teacherReact(ok);
     this.say(tr(ok ? 'lesson.guessRightSay' : 'lesson.guessSurpriseSay', { explain: s.predict.explain }), { line: `t.lesson.${ok ? 'guessRightSay' : 'guessSurpriseSay'}~${this.lesson.id}` });
     // 3. Play.
-    this.steps(this.quest.steps, 3);
+    this.steps(this.quest.steps, this.at + 1);
     const play = button('arc-btn arc-btn--primary', tr('lesson.tryIt'), null);
     panel.append(play);
     await this.until(play);
@@ -795,7 +798,8 @@ class Runner {
     for (let i = 0; i < qs.length; i++) {
       this.clear();
       this.combo.hidden = false;
-      this.shot(this.subject === 'math' ? 'board' : this.subject === 'history' ? 'wide' : 'screen');
+      // The classroom's board, the lab's screen, else the wide view.
+      this.shot(this.room.shots.board ? 'board' : 'screen');
       const q = qs[i];
       this.ctx = { step: tr('lesson.ctxChallenge', { q: q.q, choices: q.choices.join(' / ') }), hint: q.hint, worked: q.explain };
       const card = el('section', 'arc-card arc-quiz');
@@ -952,7 +956,8 @@ class Runner {
 const LEFT = Symbol('left the lesson');
 /** How many praise words there are (lesson.praise.0 …). */
 const PRAISES = 8;
-const ARCADE_NAMES = { math: (f) => tr(f <= 2 ? 'lesson.arcade.mathSmall' : 'lesson.arcade.math'), physics: () => tr('lesson.arcade.physics'), history: () => tr('lesson.arcade.history') };
+/** The lobby's arcade game by kind (content/subjects.js `arcade`). */
+const ARCADE_NAMES = { numbers: (f) => tr(f <= 2 ? 'lesson.arcade.mathSmall' : 'lesson.arcade.math'), launch: () => tr('lesson.arcade.physics'), who: () => tr('lesson.arcade.history') };
 function quizLength(l) {
   return Array.isArray(l.quiz) ? l.quiz.length : l.quiz.count;
 }

@@ -1,0 +1,43 @@
+/** 한국어: 모든 세계의 과목(content/subjects.js)과, 세계가 자기 과목으로 바뀐 뒤의 학교 이름 */
+export default {
+  // Subject names (subject.math, subject.history and subject.physics are in ui.js).
+  'subject.logic': "논리와 패턴",
+  'subject.earth': "지구와 날씨",
+  'subject.biology': "생물",
+  'subject.measures': "측정과 돈",
+  'subject.geography': "지리",
+  'subject.ocean': "바다 과학",
+  'subject.geometry': "도형과 건축",
+  'subject.archaeology': "고고학",
+  'subject.chemistry': "물질과 혼합물",
+  'subject.spacenumbers': "우주 숫자",
+  'subject.rockets': "로켓과 힘",
+  'subject.astronomy': "천문학",
+  'subject.coding': "코딩과 로봇",
+  'subject.engineering': "공학과 설계",
+  'subject.planets': "행성 과학",
+  'subject.music': "음악",
+  'subject.languages': "언어와 글쓰기",
+  'subject.art': "미술과 디자인",
+  // Each world's schools once it teaches its own subjects (<realm>.building.<subject>; slot order).
+  'forest.building.logic': "패턴 꼬투리 학교",
+  'forest.building.earth': "날씨 뿌리 전당",
+  'forest.building.biology': "자연 연구소",
+  'sea.building.measures': "측정 빌라",
+  'sea.building.geography': "지도 만드는 사람들의 파빌리온",
+  'sea.building.ocean': "바다 연구소",
+  'desert.building.geometry': "도형 학교",
+  'desert.building.archaeology': "고고학 신전",
+  'desert.building.chemistry': "섞기 관측소",
+  'moon.building.spacenumbers': "우주 숫자 돔",
+  'moon.building.rockets': "로켓 박물관",
+  'moon.building.astronomy': "별 관측소",
+  'mars.building.coding': "로봇 코딩 돔",
+  'mars.building.engineering': "공학 박물관",
+  'mars.building.planets': "행성 연구소",
+  'castle.building.music': "시계탑 음악 학교",
+  'castle.building.languages': "언어 도서관",
+  'castle.building.art': "미술 작업실",
+  // The door button for a school with no hud.goInto.<subject> line of its own.
+  'hud.goIntoPlace': "🚪 {name}에 들어가기"
+};

@@ -44,7 +44,7 @@ export async function run(browser) {
     t.check('the buildings stand all the way round the tree', round === 4);
     await page.evaluate(() => {
       const w = window.arcademia.world;
-      const b = w.buildings.find((x) => x.subject === 'history' && x.floor === 1);
+      const b = w.buildings.find((x) => x.slot === 'history' && x.floor === 1);
       window.__arrived = false;
       w.goTo(b.at, () => (window.__arrived = true));
     });
@@ -101,7 +101,7 @@ export async function run(browser) {
     t.check('the Lagoon teaches its own 42 sea lessons', sea.lessons === 42 && sea.allSea, JSON.stringify(sea));
     await page.evaluate(() => {
       const w = window.arcademia.world;
-      const b = w.buildings.find((x) => x.subject === 'physics' && x.floor === 1);
+      const b = w.buildings.find((x) => x.slot === 'physics' && x.floor === 1);
       window.__arrived = false;
       w.goTo(b.at, () => (window.__arrived = true));
     });
@@ -145,7 +145,7 @@ export async function run(browser) {
       const w = window.arcademia.world;
       w.setLocked(new Set());
       w.teleport(1);
-      const b = w.buildings.find((x) => x.subject === 'history' && x.floor === 2);
+      const b = w.buildings.find((x) => x.slot === 'history' && x.floor === 2);
       window.__arrived = false;
       window.__onCauseway = false;
       const st = w.plan.stairs[0];
@@ -215,7 +215,7 @@ export async function run(browser) {
       const w = window.arcademia.world;
       w.setLocked(new Set());
       w.teleport(1);
-      const b = w.buildings.find((x) => x.subject === 'physics' && x.floor === 2);
+      const b = w.buildings.find((x) => x.slot === 'physics' && x.floor === 2);
       window.__arrived = false;
       window.__inTube = false;
       const st = w.plan.stairs[0];
@@ -328,7 +328,7 @@ export async function run(browser) {
       const w = window.arcademia.world;
       w.setLocked(new Set());
       w.teleport(1);
-      const b = w.buildings.find((x) => x.subject === 'math' && x.floor === 2);
+      const b = w.buildings.find((x) => x.slot === 'math' && x.floor === 2);
       window.__arrived = false;
       window.__onStairs = false;
       const watch = setInterval(() => {
@@ -401,7 +401,7 @@ export async function run(browser) {
     await page.evaluate(() => {
       const w = window.arcademia.world;
       w.teleport(1);
-      const b = w.buildings.find((x) => x.subject === 'history' && x.floor === 1);
+      const b = w.buildings.find((x) => x.slot === 'history' && x.floor === 1);
       window.__arrived = false;
       w.goTo(b.at, () => (window.__arrived = true));
     });
@@ -437,7 +437,7 @@ export async function run(browser) {
       const w = window.arcademia.world;
       w.setLocked(new Set());
       w.teleport(1);
-      const b = w.buildings.find((x) => x.subject === 'math' && x.floor === 2);
+      const b = w.buildings.find((x) => x.slot === 'math' && x.floor === 2);
       window.__arrived = false;
       window.__onStairs = false;
       const watch = setInterval(() => {

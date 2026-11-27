@@ -30,6 +30,7 @@ import * as THREE from 'three';
 import { fbm, noise } from '../layout.js';
 import { add, batch, box, cyl, ico, mat, seeded, toonRamp, gable } from '../kit.js';
 import { lampMat, windowMat, SUBJECT_ICONS } from '../buildings.js';
+import { subjectsOf } from '../../content/subjects.js';
 import { patchCutout } from '../cutout.js';
 import { gridMesh, facet, toonMesh, parts, Mx, bar, signTexture, discTexture, glowTexture } from '../mars/scene.js';
 import { CASTLE as C, UNDER, BELOW, farGround } from './plan.js';
@@ -1138,7 +1139,8 @@ export function buildCastleWorld(plan, floors) {
   const isles = islets(plan);
   group.add(isles);
   group.add(farLand(plan), ruins());
-  const subjects = `${SUBJECT_ICONS.math}${SUBJECT_ICONS.history}${SUBJECT_ICONS.physics}`;
+  // The signs show the three subjects taught here (content/subjects.js).
+  const subjects = subjectsOf('castle').map((s) => SUBJECT_ICONS[s]).join('');
   const count = plan.floors.length;
   const fireflySpots = [];
   // The floors: each its own street (walkable), its parapet, lanterns, signs and street life, greyed while it is locked.

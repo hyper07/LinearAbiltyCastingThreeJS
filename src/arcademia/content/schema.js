@@ -4,8 +4,11 @@
  *
  * A lesson is plain data:
  *
- *   id        'h3-silk-road'  — /^[mhp][1-9]-[a-z0-9-]+$/, unique; first letter is the subject
- *   subject   'math' | 'history' | 'physics'
+ *   id        'h3-silk-road'  — /^([a-z]+)([1-9])-[a-z0-9-]+$/, unique; the first part is its subject's
+ *             code (content/subjects.js): m, h or p for the mountain's three ('m3-…'), the subject id
+ *             for the rest ('biology3-forest-…'); the digit is the floor
+ *   subject   one of content/subjects.js ALL_SUBJECTS, and one its realm teaches (REALM_SUBJECTS;
+ *             the mountain's math, history and physics until the realm is live)
  *   floor     1..FLOOR_COUNT  (floor 1 ≈ age 6–7 … floor 7 ≈ age 12–13)
  *   title     short, kid-friendly
  *   topic     a short key for "worth practising" in the parents' report ('fractions', 'ancient-egypt')
@@ -14,24 +17,31 @@
  *   realm     (optional) 'forest' (content/forest.js, the Great Tree), 'sea' (content/sea.js, the Lagoon),
  *             'desert' (content/desert.js, the Desert of the Pyramids), 'moon' (content/moon.js, the Moon),
  *             'mars' (content/mars.js, Mars) or 'castle' (content/castle.js, the Sky Castle); land if absent
+ *   activities (optional) the activity kinds it runs, in order (ACTIVITIES below): 'story', 'learn',
+ *             one to four hands-on kinds, 'challenge'. Without it: its subject's flow (subjects.js FLOWS)
  *   reading   2–4 cards: { title, text, emoji? } — big friendly text, one idea a card
  *   quiz      3–5 questions: { q, choices[2–4], answer (index), hint, explain }
- *             — or, for math, { gen, count } to draw them from a generator (math.js)
+ *             — or { gen, count } to draw them from a math generator (math.js)
  *
- * And one interactive part, by subject:
+ * And the data its hands-on activities need (ACTIVITIES[kind].check says what):
  *
- *   math      board    the worked example written on the chalkboard: { gen } (math.js draws it)
- *             practice { kind: one of PRACTICE_KINDS, gen }
- *   history   dialogue { npc: { name, role, look (LOOKS), portrayal: 'generic'|'portrayal' },
+ *   board     the worked example written on the chalkboard: { gen } (math.js draws it)
+ *   try       practice { kind: one of PRACTICE_KINDS, gen }
+ *   chat      dialogue { npc: { name, role, look (LOOKS), portrayal: 'generic'|'portrayal' },
  *                        intro, topics: [{ ask, answer }] (3–5), challenge: { q, choices, answer, explain }, farewell }
  *                        'portrayal' = an educational portrayal of a real person; the game labels it so
- *             timeline { title, events: [{ label, year (number, BCE negative), when (how it reads) }] } (4–6)
- *             artifact { model (ARTIFACTS), name, text }
- *   physics   sim      { id (SIMS), setup?: {...}, predict: { q, choices, answer, explain } }
+ *   timeline  timeline { title, events: [{ label, year (number, BCE negative), when (how it reads) }] } (4–6)
+ *   treasure  artifact { model (ARTIFACTS), name, text }
+ *   experiment sim     { id (SIMS), setup?: {...}, predict: { q, choices, answer, explain } }
+ *
+ * The mountain's math lessons run story, learn, board, try, challenge; history story, learn, chat,
+ * timeline, treasure, challenge; physics story, learn, experiment (guess + test), challenge.
  */
+import { ALL_SUBJECTS, LAND_SUBJECTS, SUBJECT_INFO, allowedSubjects, activitiesOf, isSubject } from './subjects.js';
 
-export const SUBJECTS = ['math', 'history', 'physics'];
-export const SUBJECT_NAMES = { math: 'Math', history: 'History', physics: 'Physics' };
+/** The Learning Mountain's subjects (content/subjects.js has every world's). */
+export const SUBJECTS = LAND_SUBJECTS;
+export { SUBJECT_NAMES } from './subjects.js';
 export const FLOOR_COUNT = 7;
 /** The study worlds' realms (maps.js): each has its own lessons. */
 export const REALM_IDS = ['land', 'forest', 'sea', 'desert', 'moon', 'mars', 'castle'];
@@ -110,8 +120,9 @@ export const FLOAT_ITEMS = { apple: true, 'wooden-block': true, cork: true, 'rub
 
 export const PRACTICE_KINDS = ['count', 'numberline', 'place-value', 'column', 'array', 'pizza', 'balance', 'grid'];
 
-const ID = /^([mhp])([1-9])-[a-z0-9-]+$/;
-const LETTER = { m: 'math', h: 'history', p: 'physics' };
+const ID = /^([a-z]+)([1-9])-[a-z0-9-]+$/;
+/** Lesson id code → subject ('m' → math, 'biology' → biology). */
+const CODE = Object.fromEntries(Object.values(SUBJECT_INFO).map((x) => [x.code, x.id]));
 
 /** Problems with one question: [] when it is fine. */
 export function questionProblems(q, where = 'question') {
@@ -129,15 +140,109 @@ export function questionProblems(q, where = 'question') {
   return out;
 }
 
+/**
+ * The activity kinds a lesson can run (LessonRunner plays each with lesson/activities.js):
+ *   steps   the quest steps it shows (i18n quest.step.<step>), in order
+ *   rooms   the lesson rooms it can run in (null: any)
+ *   check   problems with the lesson's data for it: (lesson, { gens }) → [] when fine
+ * To add one: an entry here (its data and check), its steps' names in every language, and its
+ * runner in lesson/activities.js (docs/arcademia.md, "Adding an activity kind").
+ */
+export const ACTIVITIES = {
+  story: { steps: ['story'], rooms: null },
+  learn: { steps: ['learn'], rooms: null },
+  board: {
+    steps: ['board'],
+    rooms: null,
+    check: (l, { gens }) => (gens[l.board?.gen] ? [] : [`${l.id}: the chalkboard needs a generator`])
+  },
+  try: {
+    steps: ['try'],
+    rooms: null,
+    check: (l, { gens }) => [
+      ...(PRACTICE_KINDS.includes(l.practice?.kind) ? [] : [`${l.id}: practice kind`]),
+      ...(gens[l.practice?.gen] ? [] : [`${l.id}: practice needs a generator`])
+    ]
+  },
+  chat: {
+    steps: ['chat'],
+    rooms: ['hall'],
+    check: (l) => {
+      const out = [], at = l.id, d = l.dialogue;
+      if (!d?.npc?.name || !d.npc.role || !LOOKS.includes(d.npc.look) || !['generic', 'portrayal'].includes(d.npc.portrayal)) out.push(`${at}: dialogue npc (name, role, look, portrayal)`);
+      if (typeof d?.intro !== 'string' || typeof d?.farewell !== 'string') out.push(`${at}: dialogue intro and farewell`);
+      if (!Array.isArray(d?.topics) || d.topics.length < 3 || d.topics.length > 5 || d.topics.some((t) => !t.ask || !t.answer)) out.push(`${at}: 3–5 dialogue topics`);
+      out.push(...questionProblems(d?.challenge, `${at} challenge`));
+      return out;
+    }
+  },
+  timeline: {
+    steps: ['timeline'],
+    rooms: null,
+    check: (l) => {
+      const out = [], at = l.id, ev = l.timeline?.events;
+      if (!l.timeline?.title || !Array.isArray(ev) || ev.length < 4 || ev.length > 6) out.push(`${at}: timeline of 4–6 events`);
+      else {
+        if (ev.some((e) => !e.label || !Number.isFinite(e.year) || !e.when)) out.push(`${at}: each timeline event needs label, year, when`);
+        if (new Set(ev.map((e) => e.year)).size !== ev.length) out.push(`${at}: timeline years must differ`);
+      }
+      return out;
+    }
+  },
+  treasure: {
+    steps: ['treasure'],
+    rooms: ['hall'],
+    check: (l) => (!ARTIFACTS.includes(l.artifact?.model) || !l.artifact?.name || !l.artifact?.text ? [`${l.id}: artifact (model, name, text)`] : [])
+  },
+  experiment: {
+    steps: ['guess', 'experiment'],
+    rooms: null,
+    check: (l) => {
+      const out = [], at = l.id, s = l.sim;
+      if (!SIMS[s?.id]) out.push(`${at}: sim id`);
+      else {
+        const setup = s.setup ?? {};
+        const listOk = (list, allowed, min, max) => Array.isArray(list) && list.length >= min && list.length <= max && list.every((x) => allowed.includes(x)) && new Set(list).size === list.length;
+        if (s.id === 'drop' && !listOk(setup.objects ?? ['ball', 'feather'], DROP_OBJECTS, 2, 2)) out.push(`${at}: drop objects`);
+        if (s.id === 'ramp' && !listOk(setup.surfaces ?? ['ice', 'wood', 'carpet'], RAMP_SURFACES, 2, 3)) out.push(`${at}: ramp surfaces`);
+        if (s.id === 'magnet' && !listOk(setup.items, Object.keys(MAGNET_ITEMS), 4, 6)) out.push(`${at}: magnet items`);
+        if (s.id === 'circuit' && !listOk(setup.items, Object.keys(CIRCUIT_ITEMS), 4, 6)) out.push(`${at}: circuit items`);
+        if (s.id === 'float' && !listOk(setup.items, Object.keys(FLOAT_ITEMS), 4, 6)) out.push(`${at}: float items`);
+      }
+      out.push(...questionProblems(s?.predict, `${at} predict`));
+      return out;
+    }
+  },
+  challenge: { steps: ['challenge'], rooms: null }
+};
+/** The hands-on kinds (everything but the story, the reading and the challenge every lesson has). */
+export const HANDS_ON = Object.keys(ACTIVITIES).filter((k) => !['story', 'learn', 'challenge'].includes(k));
+
+/** Problems with a lesson's activity list: [] when it runs. */
+export function activityProblems(lesson) {
+  const at = lesson.id, list = activitiesOf(lesson), room = SUBJECT_INFO[lesson.subject]?.room;
+  const out = [];
+  if (lesson.activities != null && !Array.isArray(lesson.activities)) return [`${at}: activities is a list`];
+  const unknown = list.filter((k) => !ACTIVITIES[k]);
+  if (unknown.length) return [`${at}: unknown activity ${unknown.join(', ')}`];
+  const mid = list.slice(2, -1);
+  if (list[0] !== 'story' || list[1] !== 'learn' || list.at(-1) !== 'challenge' || mid.length < 1 || mid.length > 4 || mid.some((k) => !HANDS_ON.includes(k))) out.push(`${at}: activities run story, learn, one to four hands-on kinds, challenge`);
+  if (new Set(list).size !== list.length) out.push(`${at}: an activity twice`);
+  for (const k of mid) if (ACTIVITIES[k].rooms && !ACTIVITIES[k].rooms.includes(room)) out.push(`${at}: ${k} needs a ${ACTIVITIES[k].rooms.join(' or ')} (${lesson.subject} is taught in the ${room})`);
+  return out;
+}
+
 /** Problems with one lesson: [] when it is well-formed. `gens` = the math generators by id. */
 export function lessonProblems(lesson, { gens = {} } = {}) {
   const out = [];
   const m = ID.exec(lesson?.id ?? '');
   if (!m) return [`bad id ${lesson?.id}`];
   const at = lesson.id;
-  if (LETTER[m[1]] !== lesson.subject) out.push(`${at}: subject does not match the id`);
+  if (!isSubject(lesson.subject)) return [`${at}: subject is one of ${ALL_SUBJECTS.join(', ')}`];
+  if (CODE[m[1]] !== lesson.subject) out.push(`${at}: subject does not match the id`);
   if (Number(m[2]) !== lesson.floor || lesson.floor < 1 || lesson.floor > FLOOR_COUNT) out.push(`${at}: floor does not match the id`);
   if (lesson.realm != null && !REALM_IDS.includes(lesson.realm)) out.push(`${at}: realm is one of ${REALM_IDS.join(', ')}`);
+  else if (!allowedSubjects(lesson.realm ?? 'land').includes(lesson.subject)) out.push(`${at}: ${lesson.subject} is not taught in the ${lesson.realm ?? 'land'} realm (content/subjects.js REALM_SUBJECTS)`);
   for (const key of ['title', 'topic', 'topicName', 'blurb']) if (typeof lesson[key] !== 'string' || !lesson[key].trim()) out.push(`${at}: no ${key}`);
   if (!/^[a-z0-9-]+$/.test(lesson.topic ?? '')) out.push(`${at}: topic is a short key`);
   if (!Array.isArray(lesson.reading) || lesson.reading.length < 2 || lesson.reading.length > 4) out.push(`${at}: 2–4 reading cards`);
@@ -152,39 +257,8 @@ export function lessonProblems(lesson, { gens = {} } = {}) {
     if (!gens[lesson.quiz.gen]) out.push(`${at}: no generator ${lesson.quiz.gen}`);
     if (!(lesson.quiz.count >= 3 && lesson.quiz.count <= 5)) out.push(`${at}: 3–5 quiz questions`);
   } else out.push(`${at}: no quiz`);
-  // The interactive part.
-  if (lesson.subject === 'math') {
-    if (!gens[lesson.board?.gen]) out.push(`${at}: the chalkboard needs a generator`);
-    if (!PRACTICE_KINDS.includes(lesson.practice?.kind)) out.push(`${at}: practice kind`);
-    if (!gens[lesson.practice?.gen]) out.push(`${at}: practice needs a generator`);
-  }
-  if (lesson.subject === 'history') {
-    const d = lesson.dialogue;
-    if (!d?.npc?.name || !d.npc.role || !LOOKS.includes(d.npc.look) || !['generic', 'portrayal'].includes(d.npc.portrayal)) out.push(`${at}: dialogue npc (name, role, look, portrayal)`);
-    if (typeof d?.intro !== 'string' || typeof d?.farewell !== 'string') out.push(`${at}: dialogue intro and farewell`);
-    if (!Array.isArray(d?.topics) || d.topics.length < 3 || d.topics.length > 5 || d.topics.some((t) => !t.ask || !t.answer)) out.push(`${at}: 3–5 dialogue topics`);
-    out.push(...questionProblems(d?.challenge, `${at} challenge`));
-    const ev = lesson.timeline?.events;
-    if (!lesson.timeline?.title || !Array.isArray(ev) || ev.length < 4 || ev.length > 6) out.push(`${at}: timeline of 4–6 events`);
-    else {
-      if (ev.some((e) => !e.label || !Number.isFinite(e.year) || !e.when)) out.push(`${at}: each timeline event needs label, year, when`);
-      if (new Set(ev.map((e) => e.year)).size !== ev.length) out.push(`${at}: timeline years must differ`);
-    }
-    if (!ARTIFACTS.includes(lesson.artifact?.model) || !lesson.artifact?.name || !lesson.artifact?.text) out.push(`${at}: artifact (model, name, text)`);
-  }
-  if (lesson.subject === 'physics') {
-    const s = lesson.sim;
-    if (!SIMS[s?.id]) out.push(`${at}: sim id`);
-    else {
-      const setup = s.setup ?? {};
-      const listOk = (list, allowed, min, max) => Array.isArray(list) && list.length >= min && list.length <= max && list.every((x) => allowed.includes(x)) && new Set(list).size === list.length;
-      if (s.id === 'drop' && !listOk(setup.objects ?? ['ball', 'feather'], DROP_OBJECTS, 2, 2)) out.push(`${at}: drop objects`);
-      if (s.id === 'ramp' && !listOk(setup.surfaces ?? ['ice', 'wood', 'carpet'], RAMP_SURFACES, 2, 3)) out.push(`${at}: ramp surfaces`);
-      if (s.id === 'magnet' && !listOk(setup.items, Object.keys(MAGNET_ITEMS), 4, 6)) out.push(`${at}: magnet items`);
-      if (s.id === 'circuit' && !listOk(setup.items, Object.keys(CIRCUIT_ITEMS), 4, 6)) out.push(`${at}: circuit items`);
-      if (s.id === 'float' && !listOk(setup.items, Object.keys(FLOAT_ITEMS), 4, 6)) out.push(`${at}: float items`);
-    }
-    out.push(...questionProblems(s?.predict, `${at} predict`));
-  }
+  // The activities, and the data each needs.
+  out.push(...activityProblems(lesson));
+  for (const k of activitiesOf(lesson)) out.push(...(ACTIVITIES[k]?.check?.(lesson, { gens }) ?? []));
   return out;
 }

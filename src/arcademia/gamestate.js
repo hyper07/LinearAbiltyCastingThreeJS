@@ -144,7 +144,8 @@ export class GameState {
     const before = this.level.level;
     const got = { coins: 0, xp: 0, stickers: [], levelUp: false };
     const sticker = (id) => {
-      if (this.s.stickers[id]) return;
+      // Only stickers that exist (the other worlds' subjects have no '<subject>-5' sticker yet).
+      if (this.s.stickers[id] || !STICKERS.some((x) => x.id === id)) return;
       this.s.stickers[id] = Date.now();
       got.stickers.push(STICKERS.find((x) => x.id === id));
     };
@@ -166,6 +167,8 @@ export class GameState {
       quest('lesson');
       quest('stars', data.newStars ?? data.stars);
       quest(data.subject);
+      // Lessons per subject: any subject id (content/subjects.js), kept in the save as it comes.
+      this.s.counts ??= {};
       this.s.counts[data.subject] = (this.s.counts[data.subject] ?? 0) + 1;
       sticker('first-quest');
       if (data.stars === 3) sticker('three-stars');

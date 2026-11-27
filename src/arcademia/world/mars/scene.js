@@ -27,6 +27,7 @@ import * as THREE from 'three';
 import { GROUND_Y, fbm, noise } from '../layout.js';
 import { add, batch, box, cyl, mat, seeded, sphere, toonRamp, vcMat } from '../kit.js';
 import { lampMat, windowMat, SUBJECT_ICONS } from '../buildings.js';
+import { subjectsOf } from '../../content/subjects.js';
 import { patchCutout } from '../cutout.js';
 import { tmat } from '../moon/buildings.js';
 import { SIGHTS, MOONS, SUN, MARS as M, farGround, plain } from './plan.js';
@@ -886,7 +887,8 @@ export function buildMarsWorld(plan, floors) {
   const big = giants(group);
   plainRocks(group, plan);
   const blinkers = [];
-  const subjects = `${SUBJECT_ICONS.math}${SUBJECT_ICONS.history}${SUBJECT_ICONS.physics}`;
+  // The signs show the three subjects taught here (content/subjects.js).
+  const subjects = subjectsOf('mars').map((s) => SUBJECT_ICONS[s]).join('');
   const count = plan.floors.length;
   // The floors: each its own stretch of terrace (walkable), its railing, lamps, signs, tubes, rocks and props, greyed while it is locked.
   const tiers = plan.floors.map((f) => {

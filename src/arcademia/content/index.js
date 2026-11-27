@@ -13,6 +13,7 @@ import { MOON_LESSONS } from './moon.js';
 import { MARS_LESSONS } from './mars.js';
 import { CASTLE_LESSONS } from './castle.js';
 import { SUBJECTS } from './schema.js';
+import { subjectsOf, liveStamp, activitiesOf } from './subjects.js';
 import { locale, localizeLesson } from '../i18n/index.js';
 
 /** The land's lessons (the mountain and the Great Tree share them). */
@@ -23,15 +24,55 @@ export const LESSONS = [...LAND_LESSONS, ...FOREST_LESSONS, ...SEA_LESSONS, ...D
 const BY_REALM = { land: LAND_LESSONS, forest: FOREST_LESSONS, sea: SEA_LESSONS, desert: DESERT_LESSONS, moon: MOON_LESSONS, mars: MARS_LESSONS, castle: CASTLE_LESSONS };
 export const REALMS = Object.keys(BY_REALM);
 const BY_ID = new Map(LESSONS.map((l) => [l.id, l]));
+/** Each realm's lessons in the subjects it teaches now (content/subjects.js subjectsOf), cached until a realm goes live. */
+const taught = new Map();
+let taughtAt = -1;
+
+/**
+ * Put other lessons in a realm (tests, and previewing a world's new lessons before they ship):
+ * they are found by id too. Returns a function that puts the realm's own lessons back.
+ */
+export function setRealmLessons(realm, lessons) {
+  const was = BY_REALM[realm];
+  BY_REALM[realm] = lessons;
+  for (const l of lessons) BY_ID.set(l.id, l);
+  taughtAt = -1;
+  return () => {
+    BY_REALM[realm] = was;
+    for (const l of lessons) if (!LESSONS.includes(l)) BY_ID.delete(l.id);
+    taughtAt = -1;
+  };
+}
 
 /** A lesson's realm: 'land' (the default), 'forest', 'sea', 'desert', 'moon', 'mars' or 'castle'. */
 export const realmOf = (lesson) => lesson?.realm ?? 'land';
 /** A realm's lessons: its floors open and its stars count by these alone. */
-export const lessonsIn = (realm = 'land') => BY_REALM[realm] ?? LAND_LESSONS;
+export function lessonsIn(realm = 'land') {
+  if (taughtAt !== liveStamp()) {
+    taught.clear();
+    taughtAt = liveStamp();
+  }
+  const key = BY_REALM[realm] ? realm : 'land';
+  let list = taught.get(key);
+  if (!list) {
+    const subjects = subjectsOf(key);
+    // A world whose new lessons are written but not live yet keeps teaching only its current ones.
+    list = BY_REALM[key].filter((l) => subjects.includes(l.subject));
+    if (list.length === BY_REALM[key].length) list = BY_REALM[key];
+    taught.set(key, list);
+  }
+  return list;
+}
 /** Whose lessons, teachers and stories a world teaches with: its own realm once it has lessons, else the land's (a world still being written). */
 export const teachingRealm = (realm = 'land') => (BY_REALM[realm] ? realm : 'land');
 export const lessonById = (id) => BY_ID.get(id) ?? null;
 export const lessonsOn = (floor, subject = null, realm = 'land') => lessonsIn(realm).filter((l) => l.floor === floor && (!subject || l.subject === subject));
+/** A floor's lessons with a guide to chat with (Who Said It?): the realm's, else the mountain's on that floor. */
+export function guidesOn(floor, realm = 'land') {
+  const guided = (r) => lessonsOn(floor, null, r).filter((l) => activitiesOf(l).includes('chat'));
+  const mine = guided(realm);
+  return mine.length ? mine : guided('land');
+}
 /** How many questions a lesson's check asks. */
 export const quizLength = (lesson) => (Array.isArray(lesson.quiz) ? lesson.quiz.length : lesson.quiz?.count ?? 0);
 

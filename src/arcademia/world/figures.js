@@ -32,6 +32,7 @@
  */
 import * as THREE from 'three';
 import { t } from '../i18n/index.js';
+import { slotOf } from '../content/subjects.js';
 import { SPECIES, costumePaint, garbPaint } from './creatures/species.js';
 import { compile, sculpt, trace } from './creatures/sculpt.js';
 import { creatureMaterial, outlineMaterial, inkFor, propMaterial } from './creatures/materials.js';
@@ -634,8 +635,10 @@ export const CASTLE_TEACHERS = {
   history: { species: 'stag', emoji: '🦌', get name() { return t('castle.teacher.history'); } },
   physics: { species: 'beaver', emoji: '🦫', get name() { return t('castle.teacher.physics'); } }
 };
-/** A realm's teachers ('land', 'forest', 'sea', 'desert', 'moon', 'mars' or 'castle'). */
+/** A realm's teachers ('land', 'forest', 'sea', 'desert', 'moon', 'mars' or 'castle'), by school slot (content/subjects.js SLOTS). */
 export const teachersIn = (realm = 'land') => ({ sea: SEA_TEACHERS, forest: FOREST_TEACHERS, desert: DESERT_TEACHERS, moon: MOON_TEACHERS, mars: MARS_TEACHERS, castle: CASTLE_TEACHERS })[realm] ?? TEACHERS;
+/** Who teaches a subject in a realm: the teacher of the school slot it is taught in (or of the slot itself, given a slot key). */
+export const teacherOf = (realm, subject) => teachersIn(realm)[slotOf(realm, subject) ?? subject] ?? null;
 /** A guide's species, from their look (the same look, the same critter). */
 export function guideSpecies(look) {
   const list = ['bear', 'fox', 'mouse', 'hedgehog', 'frog', 'duck', 'bunny', 'owl'];

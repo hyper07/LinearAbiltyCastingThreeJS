@@ -1,0 +1,43 @@
+/** 日本語：それぞれの世界の教科（content/subjects.js）と、世界が自分の教科になったときの学校の名前 */
+export default {
+  // Subject names (subject.math, subject.history and subject.physics are in ui.js).
+  'subject.logic': "ロジックとパターン",
+  'subject.earth': "ちきゅうとてんき",
+  'subject.biology': "いきもの",
+  'subject.measures': "はかり方とお金",
+  'subject.geography': "ちり",
+  'subject.ocean': "うみのかがく",
+  'subject.geometry': "ずけいとたてもの",
+  'subject.archaeology': "こうこがく",
+  'subject.chemistry': "ものとまぜもの",
+  'subject.spacenumbers': "うちゅうのかず",
+  'subject.rockets': "ロケットと力",
+  'subject.astronomy': "てんもんがく",
+  'subject.coding': "プログラミングとロボット",
+  'subject.engineering': "ものづくりとせっけい",
+  'subject.planets': "わくせいのかがく",
+  'subject.music': "おんがく",
+  'subject.languages': "ことばともじ",
+  'subject.art': "アートとデザイン",
+  // Each world's schools once it teaches its own subjects (<realm>.building.<subject>; slot order).
+  'forest.building.logic': "パターンのさやの学校",
+  'forest.building.earth': "お天気の根っこホール",
+  'forest.building.biology': "自然ラボ",
+  'sea.building.measures': "はかり方ヴィラ",
+  'sea.building.geography': "地図づくりのパビリオン",
+  'sea.building.ocean': "海のラボ",
+  'desert.building.geometry': "図形の学校",
+  'desert.building.archaeology': "考古学の神殿",
+  'desert.building.chemistry': "まぜものの天文台",
+  'moon.building.spacenumbers': "うちゅうのかずドーム",
+  'moon.building.rockets': "ロケットはくぶつかん",
+  'moon.building.astronomy': "ほしのてんもんだい",
+  'mars.building.coding': "ロボットプログラミングのドーム",
+  'mars.building.engineering': "ものづくり博物館",
+  'mars.building.planets': "惑星ラボ",
+  'castle.building.music': "時計塔の音楽学校",
+  'castle.building.languages': "ことばの図書館",
+  'castle.building.art': "アート工房",
+  // The door button for a school with no hud.goInto.<subject> line of its own.
+  'hud.goIntoPlace': "🚪 {name}に入る"
+};

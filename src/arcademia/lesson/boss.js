@@ -1,12 +1,14 @@
 /**
  * The floor's puzzle boss: a grumpy (never scary) critter who only cheers
- * up when you answer their riddles. Six questions from the floor — two each
- * of math, history and physics — and a cheer-up meter; four or more right
+ * up when you answer their riddles. Six questions from the floor — two from
+ * each of the world's three subjects (math, history and physics on the
+ * mountain; content/subjects.js subjectsOf) — and a cheer-up meter; four or more right
  * and the boss is happy for good (a sticker, coins and XP). No fighting:
  * every right answer makes them smile a little more.
  */
 import { el, button, sparkle, confetti } from '../ui/dom.js';
 import { lessonsOn, quizFor, teachingRealm } from '../content/index.js';
+import { subjectsOf } from '../content/subjects.js';
 import { worldsIn } from '../quests.js';
 import { speech } from '../sound.js';
 import { t as tr } from '../i18n/index.js';
@@ -16,7 +18,7 @@ const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[
 
 export function bossQuestions(floor, seed = Date.now(), realm = 'land') {
   const out = [];
-  for (const subject of ['math', 'history', 'physics']) {
+  for (const subject of subjectsOf(realm)) {
     const pool = lessonsOn(floor, subject, realm).flatMap((l) => quizFor(l, seed).map((q) => ({ ...q, lesson: l.id, subject })));
     out.push(...shuffle(pool).slice(0, 2));
   }

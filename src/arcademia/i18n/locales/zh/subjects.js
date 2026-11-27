@@ -1,0 +1,43 @@
+/** 简体中文：每个世界的科目（content/subjects.js），以及世界换成自己的科目后各学校的名字 */
+export default {
+  // Subject names (subject.math, subject.history and subject.physics are in ui.js).
+  'subject.logic': "逻辑与规律",
+  'subject.earth': "地球与天气",
+  'subject.biology': "生物",
+  'subject.measures': "测量与钱币",
+  'subject.geography': "地理",
+  'subject.ocean': "海洋科学",
+  'subject.geometry': "几何与建筑",
+  'subject.archaeology': "考古学",
+  'subject.chemistry': "材料与混合物",
+  'subject.spacenumbers': "太空数字",
+  'subject.rockets': "火箭与力",
+  'subject.astronomy': "天文学",
+  'subject.coding': "编程与机器人",
+  'subject.engineering': "工程与设计",
+  'subject.planets': "行星科学",
+  'subject.music': "音乐",
+  'subject.languages': "语言与文字",
+  'subject.art': "艺术与设计",
+  // Each world's schools once it teaches its own subjects (<realm>.building.<subject>; slot order).
+  'forest.building.logic': "规律种荚学校",
+  'forest.building.earth': "天气树根大厅",
+  'forest.building.biology': "自然实验室",
+  'sea.building.measures': "测量水屋",
+  'sea.building.geography': "地图绘制者凉亭",
+  'sea.building.ocean': "海洋实验室",
+  'desert.building.geometry': "几何学校",
+  'desert.building.archaeology': "考古神庙",
+  'desert.building.chemistry': "混合物天文台",
+  'moon.building.spacenumbers': "太空数字圆顶",
+  'moon.building.rockets': "火箭博物馆",
+  'moon.building.astronomy': "星星天文台",
+  'mars.building.coding': "机器人编程圆顶",
+  'mars.building.engineering': "工程博物馆",
+  'mars.building.planets': "行星实验室",
+  'castle.building.music': "钟楼音乐学校",
+  'castle.building.languages': "语言图书馆",
+  'castle.building.art': "艺术工坊",
+  // The door button for a school with no hud.goInto.<subject> line of its own.
+  'hud.goIntoPlace': "🚪 走进{name}"
+};

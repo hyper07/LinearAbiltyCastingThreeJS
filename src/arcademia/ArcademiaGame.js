@@ -13,7 +13,8 @@ import { GameState } from './gamestate.js';
 import { worldsIn } from './quests.js';
 import { FLOORS } from './floors.js';
 import { MAPS, mapById } from './maps.js';
-import { LESSONS, lessonsOn, lessonsIn } from './content/index.js';
+import { LESSONS, lessonsOn, lessonsIn, guidesOn } from './content/index.js';
+import { subjectsOf, toSubject } from './content/subjects.js';
 import { floorStars, totalStars, openFloors } from './rules.js';
 import { t, num, loadLocale, setLocale, pickLocale, isLocale, localizeLesson, localeInfo } from './i18n/index.js';
 import { startScreen, openSettings } from './ui/settings.js';
@@ -167,6 +168,7 @@ export class ArcademiaGame {
     this.world = new World({
       floors: this.floors,
       kind: this.map.kind,
+      realm: this.realm,
       suit: this.map.suit ?? null,
       worlds: this.worlds,
       labels: this.labels,
@@ -335,12 +337,12 @@ export class ArcademiaGame {
     this.hud.update({ stars, open, kidFloor: this.world.kidFloor, focusFloor: this.world.focusFloor, current: this.currentLesson(), total: totalStars(stars) });
   }
 
-  /** The lesson to suggest: the first unstarred one on the kid's floor (math, history, physics in turn). */
+  /** The lesson to suggest: the first unstarred one on the kid's floor (the world's three subjects in turn: math, history, physics on the mountain). */
   currentLesson() {
     const floor = this.world?.kidFloor ?? 1;
     const here = lessonsOn(floor, null, this.realm);
     const order = [];
-    const bySubject = ['math', 'history', 'physics'].map((s) => here.filter((l) => l.subject === s));
+    const bySubject = subjectsOf(this.realm).map((s) => here.filter((l) => l.subject === s));
     for (let i = 0; i < 5; i++) for (const list of bySubject) if (list[i]) order.push(list[i]);
     const todo = order.filter((l) => !(this.progress.stars[l.id] > 0));
     const lesson = todo[0] ?? order.find((l) => (this.progress.stars[l.id] ?? 0) < 3) ?? order[0];
@@ -488,9 +490,11 @@ export class ArcademiaGame {
     if (!this.world.path) this.enter(lesson.subject, lesson.floor, lesson);
   }
 
-  /** Into a building: pick the lesson there, then run it. */
+  /** Into a building: pick the lesson there, then run it. `subject` is the subject taught there, or its school slot ('math', 'history', 'physics'). */
   async enter(subject, floor, lesson = null) {
     if (this.mode !== 'world') return;
+    subject = toSubject(this.realm, subject);
+    if (!subject) return;
     if (this.lockedSet().has(floor)) return this.gateToast(floor);
     this.world.clearKeys();
     const pick = lesson ?? (this.pendingLesson?.subject === subject && this.pendingLesson?.floor === floor ? this.pendingLesson : null);
@@ -609,7 +613,7 @@ export class ArcademiaGame {
       ['🫧', 'bubbles', (host) => bubblePop(host, { floor: n, sound: this.sound, reducedMotion: this.reducedMotion })],
       ['👾', 'monster', (host) => feedMonster(host, { floor: n, sound: this.sound })],
       ['🧺', 'launch', (host) => launch(host, { sound: this.sound })],
-      ['💬', 'who', (host) => whoSaid(host, { lessons: lessonsOn(n, 'history', this.realm), sound: this.sound })]
+      ['💬', 'who', (host) => whoSaid(host, { lessons: guidesOn(n, this.realm), sound: this.sound })]
     ];
     this.world.clearKeys();
     const box = el('div', 'arc-modal', null, { role: 'dialog', 'aria-modal': 'true', 'aria-label': t('arcade.title') });

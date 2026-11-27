@@ -1,0 +1,43 @@
+/** English: the school subjects of every world (content/subjects.js) and the schools that teach them once a world is live. */
+export default {
+  // Subject names (subject.math, subject.history and subject.physics are in ui.js).
+  'subject.logic': "Logic & Patterns",
+  'subject.earth': "Earth & Weather",
+  'subject.biology': "Biology",
+  'subject.measures': "Measures & Money",
+  'subject.geography': "Geography",
+  'subject.ocean': "Ocean Science",
+  'subject.geometry': "Geometry & Building",
+  'subject.archaeology': "Archaeology",
+  'subject.chemistry': "Materials & Mixtures",
+  'subject.spacenumbers': "Space Numbers",
+  'subject.rockets': "Rockets & Forces",
+  'subject.astronomy': "Astronomy",
+  'subject.coding': "Coding & Robots",
+  'subject.engineering': "Engineering & Design",
+  'subject.planets': "Planet Science",
+  'subject.music': "Music",
+  'subject.languages': "Languages & Writing",
+  'subject.art': "Art & Design",
+  // Each world's schools once it teaches its own subjects (<realm>.building.<subject>; slot order).
+  'forest.building.logic': "Pattern Pod School",
+  'forest.building.earth': "Weather Root Hall",
+  'forest.building.biology': "Nature Lab",
+  'sea.building.measures': "Measures Villa",
+  'sea.building.geography': "Map Makers' Pavilion",
+  'sea.building.ocean': "Ocean Lab",
+  'desert.building.geometry': "Geometry School",
+  'desert.building.archaeology': "Archaeology Temple",
+  'desert.building.chemistry': "Mixing Observatory",
+  'moon.building.spacenumbers': "Space Numbers Dome",
+  'moon.building.rockets': "Rocket Museum",
+  'moon.building.astronomy': "Star Observatory",
+  'mars.building.coding': "Robot Coding Dome",
+  'mars.building.engineering': "Engineering Museum",
+  'mars.building.planets': "Planet Lab",
+  'castle.building.music': "Clock Tower Music School",
+  'castle.building.languages': "Library of Languages",
+  'castle.building.art': "Art Workshop",
+  // The door button for a school with no hud.goInto.<subject> line of its own.
+  'hud.goIntoPlace': "🚪 Go into the {name}"
+};

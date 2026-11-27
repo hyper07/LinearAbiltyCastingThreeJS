@@ -10,11 +10,23 @@
 import './report.css';
 import { t as tr, num, date, minutes, localizeLesson } from '../i18n/index.js';
 import { LESSONS, lessonById } from '../content/index.js';
+import { LAND_SUBJECTS, SUBJECT_INFO } from '../content/subjects.js';
 
 const subject = (id) => ({ id, get name() {
   return tr(`subject.${id}`);
 } });
-const SUBJECTS = [subject('math'), subject('history'), subject('physics')];
+/**
+ * The series colours of the other worlds' subjects (content/subjects.js `color`): the mountain's
+ * three are fixed in report.css; the rest get the same three rules each, added once.
+ */
+function seriesStyle() {
+  if (typeof document === 'undefined' || document.getElementById('rep-series')) return;
+  const css = Object.values(SUBJECT_INFO).filter((x) => !LAND_SUBJECTS.includes(x.id)).map(({ id, color }) => `.rep-fill--${id}{fill:${color}}.rep-stroke--${id}{stroke:${color}}.rep-key--${id}{background:${color}}`).join('\n');
+  const el = document.createElement('style');
+  el.id = 'rep-series';
+  el.textContent = css;
+  document.head.append(el);
+}
 /** Short weekday names, Monday first, in the current language. */
 const days = () => Array.from({ length: 7 }, (_, i) => date(new Date(2024, 0, 1 + i), { weekday: 'short' }));
 /** A topic key or a lesson id, as it reads in the current language. */
@@ -87,6 +99,9 @@ function bindTip(el, tip, title, rows) {
 
 export function renderReport(host, report, { title = tr('rep.title'), share = null } = {}) {
   const DAYS = days();
+  // The mountain's three always; the other worlds' three each where the child studied there (rules.js reportSubjects).
+  const SUBJECTS = (report.subjects ?? LAND_SUBJECTS).map(subject);
+  if (SUBJECTS.length > LAND_SUBJECTS.length) seriesStyle();
   const root = h('section', 'arc-report');
   const tip = tooltip(root);
   const head = h('header', 'rep-head');
@@ -109,7 +124,7 @@ export function renderReport(host, report, { title = tr('rep.title'), share = nu
   tile(`${num(report.streak)} 🔥`, tr('rep.streak', { count: report.streak }));
   root.append(tiles);
 
-  // Legend (always, for 3 series), shared by both charts.
+  // Legend (always), shared by both charts.
   const legend = h('ul', 'rep-legend', null, { 'aria-label': tr('rep.subjects') });
   for (const s of SUBJECTS) {
     const li = h('li');
@@ -168,7 +183,7 @@ export function renderReport(host, report, { title = tr('rep.title'), share = nu
   // Accuracy: this week (filled) against last week (ring), one 0–100 % axis.
   const c2 = h('figure', 'rep-card');
   c2.append(h('figcaption', 'rep-card__title', tr('rep.accTitle')));
-  const W2 = W, rowH = 46, H2 = rowH * 3 + 30, x0 = 90, x1 = W2 - 20;
+  const W2 = W, rowH = 46, H2 = rowH * report.accuracy.length + 30, x0 = 90, x1 = W2 - 20;
   const s2 = svgEl('svg', { viewBox: `0 0 ${W2} ${H2}`, class: 'rep-chart', role: 'img', 'aria-label': tr('rep.accAria') });
   for (let k = 0; k <= 4; k++) {
     const x = x0 + ((x1 - x0) * k) / 4;

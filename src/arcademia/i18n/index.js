@@ -147,7 +147,7 @@ export const minutes = (m, lc = current) => {
 
 /** Text fields a lesson overlay may (and must) carry. Everything else (ids, numbers, emoji, models) stays English. */
 export const LESSON_TEXT_KEYS = new Set(['title', 'topicName', 'blurb', 'text', 'name', 'role', 'intro', 'ask', 'answer', 'q', 'choices', 'hint', 'explain', 'farewell', 'label', 'when']);
-const SKIP = new Set(['id', 'subject', 'floor', 'topic', 'emoji', 'look', 'portrayal', 'model', 'gen', 'kind', 'setup', 'year', 'count', 'board', 'practice']);
+const SKIP = new Set(['id', 'subject', 'activities', 'floor', 'topic', 'emoji', 'look', 'portrayal', 'model', 'gen', 'kind', 'setup', 'year', 'count', 'board', 'practice']);
 
 function overlay(base, over) {
   if (over == null) return base;

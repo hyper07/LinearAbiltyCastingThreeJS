@@ -1,63 +1,53 @@
 /**
  * Every lesson told as a little quest: who asks for help, and why. The
  * teachers are Professor Hoot (math), Tock the Time-Keeper (history) and
- * Gizmo the Inventor (physics); each floor is a world with its own story
- * and a friendly puzzle boss to cheer up at the end.
+ * Gizmo the Inventor (physics) on the mountain, and each world's own (the
+ * teacher of the school slot its subject is taught in: content/subjects.js);
+ * each floor is a world with its own story and a friendly puzzle boss to
+ * cheer up at the end.
  */
-import { teachersIn } from './world/figures.js';
-import { t as tr, localizeLesson } from './i18n/index.js';
+import { teacherOf } from './world/figures.js';
+import { t as tr, has, localizeLesson } from './i18n/index.js';
+import { activitiesOf } from './content/subjects.js';
+import { ACTIVITIES } from './content/schema.js';
 
 /** Math quests by generator: their title and intro are i18n keys quest.math.<gen>.title / .intro. */
 const MATH = new Set(['count', 'add10', 'sub10', 'tens-ones', 'add-carry', 'skip-count', 'times', 'sub-borrow', 'fractions', 'mult-2x1', 'division', 'fraction-of', 'balance', 'decimals', 'area', 'negatives', 'percent', 'two-step', 'squares']);
+
+/** A lesson's quest steps, in the current language: one or two per activity (content/schema.js ACTIVITIES). */
+export const questSteps = (lesson) => activitiesOf(lesson).flatMap((k) => ACTIVITIES[k]?.steps ?? [k]).map((k) => tr(`quest.step.${k}`));
+/** The guide's first name, for a quest intro that names them. */
+const guideName = (lesson) => lesson.dialogue.npc.name.split(/[,，、]/)[0];
 
 /** The quest framing of a lesson (`introLine`: the intro's voice line id, voice/script.js). */
 export function questFor(lesson0) {
   const lesson = localizeLesson(lesson0);
   const realm = lesson0.realm ?? 'land';
-  const t = teachersIn(realm)[lesson.subject];
-  const steps = (list) => list.map((k) => tr(`quest.step.${k}`));
-  if (realm !== 'land') return realmQuest(realm, lesson, t, steps);
-  if (lesson.subject === 'math') {
+  const teacher = teacherOf(realm, lesson.subject);
+  const steps = questSteps(lesson0);
+  if (realm === 'land' && lesson.subject === 'math') {
     const known = MATH.has(lesson.topic);
     return {
       title: known ? tr(`quest.math.${lesson.topic}.title`) : lesson.title,
       intro: known ? tr(`quest.math.${lesson.topic}.intro`) : tr('quest.math.default'),
       introLine: known ? `t.quest.math.${lesson.topic}.intro` : 't.quest.math.default',
-      teacher: t,
-      steps: steps(['story', 'learn', 'board', 'try', 'challenge'])
-    };
-  }
-  if (lesson.subject === 'history') {
-    return {
-      title: tr('quest.history.title', { title: lesson.title }),
-      intro: tr('quest.history.intro', { name: lesson.dialogue.npc.name.split(/[,，、]/)[0] }),
-      introLine: `t.quest.history.intro~${lesson.id}`,
-      teacher: t,
-      steps: steps(['story', 'learn', 'chat', 'timeline', 'treasure', 'challenge'])
-    };
-  }
-  return {
-    title: tr('quest.physics.title', { title: lesson.title }),
-    intro: tr('quest.physics.intro'),
-    introLine: 't.quest.physics.intro',
-    teacher: t,
-    steps: steps(['story', 'learn', 'guess', 'experiment', 'challenge'])
-  };
-}
-
-/** A forest, sea, desert, Moon, Mars or Sky Castle lesson's quest: the same steps, told by that realm's teachers (ui.js <realm>.quest.*). */
-function realmQuest(realm, lesson, teacher, steps) {
-  if (lesson.subject === 'math') return { title: lesson.title, intro: tr(`${realm}.quest.math`), introLine: `t.${realm}.quest.math`, teacher, steps: steps(['story', 'learn', 'board', 'try', 'challenge']) };
-  if (lesson.subject === 'history') {
-    return {
-      title: tr('quest.history.title', { title: lesson.title }),
-      intro: tr(`${realm}.quest.history`, { name: lesson.dialogue.npc.name.split(/[,，、]/)[0] }),
-      introLine: `t.${realm}.quest.history~${lesson.id}`,
       teacher,
-      steps: steps(['story', 'learn', 'chat', 'timeline', 'treasure', 'challenge'])
+      steps
     };
   }
-  return { title: tr('quest.physics.title', { title: lesson.title }), intro: tr(`${realm}.quest.physics`), introLine: `t.${realm}.quest.physics`, teacher, steps: steps(['story', 'learn', 'guess', 'experiment', 'challenge']) };
+  // The intro: quest.<subject>.intro on the mountain, <realm>.quest.<subject> in the other worlds; a
+  // lesson with a guide to chat with names them, so its line is its own (~<lesson id>).
+  const key = realm === 'land' ? `quest.${lesson.subject}.intro` : `${realm}.quest.${lesson.subject}`;
+  const guided = activitiesOf(lesson0).includes('chat') && lesson.dialogue?.npc?.name;
+  // The title: a subject's own frame where it has one (quest.history.title 'Time trip: …'), else the lesson's title.
+  const titleKey = `quest.${lesson.subject}.title`;
+  return {
+    title: has(titleKey) ? tr(titleKey, { title: lesson.title }) : lesson.title,
+    intro: guided ? tr(key, { name: guideName(lesson) }) : tr(key),
+    introLine: guided ? `t.${key}~${lesson.id}` : `t.${key}`,
+    teacher,
+    steps
+  };
 }
 
 /** Each floor's world story and its puzzle boss (friendly: you cheer them up). */

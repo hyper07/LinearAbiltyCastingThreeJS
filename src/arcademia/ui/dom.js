@@ -13,20 +13,11 @@ export function el(tag, cls = '', text = null, attrs = {}) {
 export function button(cls, text, onClick, attrs = {}) {
   return el('button', cls, text, { type: 'button', onclick: onClick, ...attrs });
 }
-export const SUBJECT_ICON = { math: '🔢', history: '🏛️', physics: '🔭' };
-import { t } from '../i18n/index.js';
+import { ALL_SUBJECTS, SUBJECT_INFO, subjectName } from '../content/subjects.js';
+/** Every subject's icon (content/subjects.js). */
+export const SUBJECT_ICON = Object.freeze(Object.fromEntries(ALL_SUBJECTS.map((id) => [id, SUBJECT_INFO[id].icon])));
 /** Subject names in the current language. */
-export const SUBJECT_LABEL = {
-  get math() {
-    return t('subject.math');
-  },
-  get history() {
-    return t('subject.history');
-  },
-  get physics() {
-    return t('subject.physics');
-  }
-};
+export const SUBJECT_LABEL = Object.defineProperties({}, Object.fromEntries(ALL_SUBJECTS.map((id) => [id, { get: () => subjectName(id), enumerable: true }])));
 export const prefersReducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** A burst of sparkles from an element (skipped for reduced motion). */

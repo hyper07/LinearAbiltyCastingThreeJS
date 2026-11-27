@@ -15,6 +15,7 @@
  */
 import * as THREE from 'three';
 import { t as tr } from '../i18n/index.js';
+import { ALL_SUBJECTS, subjectIcon } from '../content/subjects.js';
 import { PLINTH_H, PLINTH_R } from './layout.js';
 import { add, batch, box, cone, cyl, gable, ico, mat, seeded, signTexture, sphere } from './kit.js';
 import { rootPlinth, seedPod, rootHall, starSpire } from './grown.js';
@@ -545,7 +546,8 @@ export const BUILDING_NAMES = {
     return tr('building.physics');
   }
 };
-export const SUBJECT_ICONS = { math: '🔢', history: '🏛️', physics: '🔭' };
+/** Every subject's icon (content/subjects.js); a world's signs show its own three (subjectsOf). */
+export const SUBJECT_ICONS = Object.freeze(Object.fromEntries(ALL_SUBJECTS.map((id) => [id, subjectIcon(id)])));
 
 /**
  * One building on its plinth, batched.
