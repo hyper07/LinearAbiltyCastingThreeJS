@@ -8,6 +8,7 @@
  * are fetched here. Sites that block scripts (Kenney, Quaternius, itch.io) go
  * through the inbox instead — see `inbox` below and the README.
  */
+import { readFileSync } from 'node:fs';
 import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
@@ -274,7 +275,7 @@ async function ambientMaterial(asset, query, budget, resolution = '1K-JPG') {
 /* ------------------------------------------------------------------------ */
 
 /** Bump when the list changes, so libraries that have the old list fetch the new files. */
-export const EXTRAS_VERSION = 15;
+export const EXTRAS_VERSION = 16;
 
 /** Models fetched as single files from a GitHub repository at a fixed tag. */
 const EXTRA_MODELS = [
@@ -363,7 +364,10 @@ const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027'
   // Kickrani's retaining walls where a hill road stands over the drop: mossy granite blocks.
   'PavingStones138',
   // Kickrani's street trees: a ginkgo's grey furrowed bark, a plane tree's peeling camouflage bark.
-  'Bark004', 'Bark009'];
+  'Bark004', 'Bark009',
+  // The apartment kit's interiors (knowledge/apartment-study.md): light and mid oak, herringbone parquet,
+  // bathroom tile, kitchen marble, a rug and painted plaster walls.
+  'WoodFloor070', 'WoodFloor051', 'WoodFloor034', 'Tiles141', 'Marble012', 'Carpet016', 'PaintedPlaster017'];
 // (Kithvale's painted ground uses Grass004, Ground068, Ground106, PavingStones141, Rock051 and Moss002, all above.)
 
 /** polyfork models a game needs (CC BY 4.0, credited in the game), fetched by id from polyfork's CDN. */
@@ -383,8 +387,22 @@ const EXTRA_POLYFORK = [
   // Kickrani: the delivery scooters in its bike race's traffic (games/g_cv2yrhrpv2/traffic.js).
   'delivery-moped-1aa2ce',
   // Snowpuff Peaks: the props on its mountains (src/snowpuff/assets.js).
-  ...Object.values(SNOWPUFF_MODELS).map(([id]) => id)
+  ...Object.values(SNOWPUFF_MODELS).map(([id]) => id),
+  // The apartment kit: polyfork's "Open Plan" home-interior kit (63 parts: sofa, beds, kitchen runs, bath,
+  // lamps, rugs, doors), listed from knowledge/polyfork.json (knowledge/apartment-study.md §9).
+  ...polyforkKit('open-plan-b2ebd3')
 ];
+
+/** Every model id of one polyfork kit, from the knowledge base's copy of polyfork's catalogue. */
+function polyforkKit(kit) {
+  try {
+    const catalog = JSON.parse(readFileSync(new URL('../../knowledge/polyfork.json', import.meta.url), 'utf8'));
+    const col = catalog.columns.indexOf('kit');
+    return catalog.models.filter((m) => m[col] === kit).map((m) => m[0]);
+  } catch {
+    return [];
+  }
+}
 
 export async function extras({ budget }) {
   const SRC = 'extras';
@@ -526,4 +544,35 @@ export async function inbox({ budget }) {
   return assets;
 }
 
-export const SOURCES = { polyhaven, kaykit, polygonalmind, ambientcg, extras, rigged, inbox };
+/* ------------------------------------------------------------------------ */
+/* Swiss Dwellings — 45,176 real apartments as plan geometry (opt-in, 0.9 GB) */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Real apartment layouts for the apartment kit (knowledge/apartment-study.md §2, §8): rooms, walls,
+ * doors, windows, railings and fixtures as WKT polygons in metres, per site / building / floor / unit
+ * (geometries.csv), with daylight, view and noise simulations. CC BY 4.0, Archilyse AG / Zenodo.
+ * Not in the default order (too big for every machine): `npm run library:fetch -- --sources dwellings`.
+ */
+export async function dwellings({ budget }) {
+  const SRC = 'dwellings';
+  const dir = path.join(LIBRARY, 'datasets', 'swiss-dwellings');
+  const zip = path.join(LIBRARY, 'datasets', 'swiss-dwellings-v3.0.0.zip');
+  const csv = path.join(dir, 'swiss-dwellings-v3.0.0', 'geometries.csv');
+  if (await exists(csv)) {
+    log(SRC, 'already extracted');
+    return [];
+  }
+  await download('https://zenodo.org/records/7788422/files/swiss-dwellings-v3.0.0.zip?download=1', zip, budget, 931868205);
+  await extractZip(zip, dir);
+  await writeFile(
+    path.join(dir, 'CREDITS.md'),
+    '# Swiss Dwellings v3.0.0\n\nArchilyse AG and contributors, https://zenodo.org/records/7788422 (DOI 10.5281/zenodo.7788422).\n' +
+      'Licence: CC BY 4.0 — credit "Swiss Dwellings (Archilyse AG), CC BY 4.0" wherever a layout from it is shown.\n'
+  );
+  await rm(zip, { force: true });
+  log(SRC, `extracted into ${rel(dir)}`);
+  return [];
+}
+
+export const SOURCES = { polyhaven, kaykit, polygonalmind, ambientcg, extras, rigged, inbox, dwellings };

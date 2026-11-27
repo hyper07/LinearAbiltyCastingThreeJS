@@ -844,6 +844,30 @@
     "motion"
    ],
    "path": "src/shared/motion/dance.js"
+  },
+  {
+   "id": "own.shared.apartment",
+   "kind": "module",
+   "title": "Apartment kit (proof): JSON plans, Korean areas and facing, cut-away night building, level switcher, unit pins and cards",
+   "summary": "plan.js (pure): formatArea (m², 평, ft²), polygonArea/centroid/bbox, innerAreaOrthogonal, unitAreas (전용, 공급, 서비스), compassOf/unitFacing/facingName (en/ko), wallPieces(wall, height, cut) boxes with door/window holes, corridorBuilding({levels, seed}) a generated double-loaded corridor block with units, rooms, walls, openings, furniture. build.js: createApartmentView(plan, {cut}) → setLevel(id, floor|rooftop|street), setCut, highlight, unitAnchor, unitBounds, interiorShots, withFullHeight, update. lab.js + apartment-lab.html (dev only). Guide: knowledge/apartment-study.md.",
+   "tags": [
+    "apartment",
+    "floor plan",
+    "building",
+    "cutaway",
+    "levels",
+    "units",
+    "pins",
+    "card",
+    "area",
+    "평",
+    "korean",
+    "interior",
+    "night",
+    "real estate",
+    "walls"
+   ],
+   "path": "src/shared/apartment/plan.js"
   }
  ]
 }

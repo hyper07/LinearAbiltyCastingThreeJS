@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Apartment lab</title>
+<!-- Dev-only: npm run dev, then /apartment-lab.html. Not part of the build. The apartment study's proof
+     (knowledge/apartment-study.md): a JSON plan built as a cut-away night building with a level switcher,
+     unit pins, a unit card with areas in m² / 평 / ft² and rendered interior shots. Code: src/shared/apartment/. -->
+<style>
+  :root { --bg: #0d1424; --panel: rgba(14, 17, 26, 0.92); --ink: #f3f0ea; --muted: #9ea3b0; --line: rgba(255, 255, 255, 0.14); --accent: #ffcf8a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; overflow: hidden; }
+  canvas { display: block; }
+  button { font: inherit; color: var(--ink); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; letter-spacing: 0.06em; }
+  button:hover { border-color: var(--accent); }
+  button.on { background: var(--ink); color: #11141c; border-color: var(--ink); }
+  .top { position: fixed; top: 14px; right: 14px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100% - 28px); }
+  .views { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+  .views button { border: 0; font-size: 12px; text-transform: uppercase; }
+  .levels { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; }
+  .levels button { width: 52px; padding: 6px 0; font-size: 12px; background: var(--panel); }
+  .levels button.on { background: var(--ink); color: #11141c; }
+  .pin { position: fixed; left: 0; top: 0; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer; display: grid; place-items: center; }
+  .pin span { min-width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: #1b1e26; color: #fff; font-weight: 700; font-size: 13px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.18); }
+  .pin::after { content: ''; width: 0; height: 0; border: 6px solid transparent; border-top-color: #1b1e26; margin-top: -1px; }
+  .pin.on span { background: #fff; color: #11141c; }
+  .pin.on::after { border-top-color: #fff; }
+  .card { position: fixed; left: 14px; top: 14px; bottom: 14px; width: min(400px, calc(100% - 28px)); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: auto; display: none; }
+  .card.open { display: block; }
+  .card .hero { width: 100%; aspect-ratio: 3 / 2; background: #000; display: block; object-fit: cover; }
+  .card .body { padding: 16px 18px 18px; }
+  .card .kicker { color: var(--muted); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .card h2 { margin: 4px 0 2px; font-size: 24px; font-weight: 600; }
+  .card .ko { color: var(--muted); margin-bottom: 14px; }
+  .card dl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0 0 16px; }
+  .card dt { color: var(--muted); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+  .card dd { margin: 2px 0 0; font-size: 16px; }
+  .card .wide { width: 100%; background: var(--ink); color: #11141c; font-weight: 600; padding: 11px; }
+  .card .thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 14px; }
+  .card .thumbs img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .card .thumbs img.on { border-color: var(--accent); }
+  .card .close { position: absolute; right: 12px; top: 12px; width: 36px; height: 36px; padding: 0; background: rgba(0, 0, 0, 0.45); }
+  .card .note { color: var(--muted); font-size: 12px; margin-top: 12px; }
+  .hint { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); color: var(--muted); font-size: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; white-space: nowrap; max-width: calc(100% - 28px); overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+<div class="views" id="views">
+  <button data-view="floor" class="on">Floor</button>
+  <button data-view="rooftop">Rooftop</button>
+  <button data-view="street">Street</button>
+</div>
+<div class="top">
+  <button id="units">m²</button>
+</div>
+<div class="levels" id="levels"></div>
+<div id="pins"></div>
+<aside class="card" id="card">
+  <button class="close" id="close" aria-label="Close">✕</button>
+  <img class="hero" id="hero" alt="" />
+  <div class="body">
+    <div class="kicker" id="kicker"></div>
+    <h2 id="name"></h2>
+    <div class="ko" id="nameKo"></div>
+    <dl id="facts"></dl>
+    <button class="wide" id="inside">Step inside</button>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="note">A generated test building, not a real layout. Areas follow the Korean rules: exclusive (전용) inside the walls, supply (공급) with a share of the corridor and core; balconies are service area.</div>
+  </div>
+</aside>
+<div class="hint" id="hint">Drag to orbit · right-drag to pan · scroll to zoom · click a unit</div>
+<script type="module">
+  import('/src/shared/apartment/lab.js');
+</script>
+</body>
+</html>
