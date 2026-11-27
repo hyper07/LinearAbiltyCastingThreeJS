@@ -1376,7 +1376,7 @@ export class RaceTraffic {
     for (const o of this.vehicles) {
       if (o === v || Math.abs(o.box.x - x) > 15 || Math.abs(o.box.z - z) > 15) continue;
       if (overlaps(moved, o.box, -BUMP_ROOM) && !overlaps(b, o.box, -BUMP_ROOM)) return true;
-      if (overlaps(moved, o.box) && dx * dx + dz * dz < (o.box.x - b.x) ** 2 + (o.box.z - b.z) ** 2) return true;
+      if (overlaps(moved, o.box) && (o.box.x - x) ** 2 + (o.box.z - z) ** 2 < (o.box.x - b.x) ** 2 + (o.box.z - b.z) ** 2) return true;
     }
     return false;
   }
