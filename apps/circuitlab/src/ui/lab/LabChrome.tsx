@@ -26,7 +26,7 @@ export function helpPanel(): HelpPanel {
   return panel
 }
 
-export function LabCorner({ onCredits, onSaved }: { onCredits: () => void; onSaved: () => void }) {
+export function LabCorner({ onCredits, onSaved, onInspect }: { onCredits: () => void; onSaved: () => void; onInspect?: () => void }) {
   const qRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const host = qRef.current
@@ -50,6 +50,15 @@ export function LabCorner({ onCredits, onSaved }: { onCredits: () => void; onSav
         </svg>
         <span>Save / Open</span>
       </button>
+      {onInspect && (
+        <button type="button" className="lab-corner-btn" data-inspect onClick={onInspect} title="Inspect a board: every chip and part on an ESP32, Arduino or Pico, what it does and how (I)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="6.5" />
+            <path d="m16 16 5 5M8.5 11h5M11 8.5v5" />
+          </svg>
+          <span>Inspect board</span>
+        </button>
+      )}
       <div ref={qRef} className="lab-corner-q" />
       <button type="button" className="lab-corner-btn" data-credits onClick={onCredits} title="Credits and licences">
         <span>Credits</span>

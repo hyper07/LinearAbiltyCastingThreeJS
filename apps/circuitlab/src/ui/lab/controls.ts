@@ -43,6 +43,17 @@ export const CONTROLS = {
       ],
     },
     {
+      name: 'Inspect a board',
+      rows: [
+        { id: 'inspect', keys: ['I'], codes: ['KeyI'], does: 'Inspect board: every part on an ESP32, Arduino or Pico (also the Inspect board button)' },
+        { id: 'inspect-pick', keys: ['Hover', 'Click'], does: 'Hover a part for its name, click it for what it does, its specs and what it connects to', touch: 'Tap' },
+        { id: 'inspect-pull', keys: ['P'], does: 'Pull the selected part out of the board (again: put it back)' },
+        { id: 'inspect-explode', keys: ['X'], does: 'Explode: lift every part off the board' },
+        { id: 'inspect-flip', keys: ['F'], does: 'Flip the board to see the underside' },
+        { id: 'inspect-close', keys: ['Esc'], does: 'Put back / deselect, then close Inspect' },
+      ],
+    },
+    {
       name: 'Menus',
       rows: [
         { id: 'help', keys: ['H'], codes: ['KeyH'], does: 'This help', hint: true },

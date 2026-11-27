@@ -53,3 +53,20 @@ are real waveforms with exact edges for the parts that time them.
 The AI circuit designer from ohmlet is switched off: it called a model
 provider from the browser with a user key. TODO: route it through the
 platform server (`src/llm/client.ts`).
+
+## Inspect board
+
+The **Inspect board** button (top right), key **I**, or `?inspect=<board>` in the
+URL (`esp32_devkit_v1`, `esp32_devkitc_v4`, `arduino_uno_r3`, `arduino_mega2560_r3`,
+`arduino_nano_v3`, `rpi_pico`) opens a teardown of a board: every on-board part is
+pickable — hover for its name and a one-liner, click for its role on this board,
+specs, nets, how it works, facts and mix-ups. Pull a part out (P), explode the board
+(X), flip it (F), peel the layers (silkscreen, copper as net links, parts solid /
+x-ray / hidden), light up pin groups (touch, ADC, strapping… with warnings) and
+follow nets in the schematic, synced both ways.
+
+- `src/inspect/` — `boards.ts` (types and pure helpers), `inspect-scene.ts` (its own
+  three.js renderer: toon + ink outlines, picking, pull-out, layers),
+  `part-meshes.ts` (a builder per package look), `InspectBoard.tsx` (the overlay).
+- Data: `knowledge/circuit-boards.json` at the repo root (loaded lazily); how it was
+  made and how to add boards: `knowledge/board-teardown.md`.

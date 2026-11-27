@@ -38,6 +38,16 @@ export async function run(browser) {
       await frame.evaluate(() => window.circuitlab.openSheet('code'));
       t.check('the Code panel shows the sketch', await until(frame, () => /digitalWrite\(LED, HIGH\)/.test(document.querySelector('[data-code-panel] textarea')?.value ?? ''), null, 8000));
       await frame.evaluate(() => window.circuitlab.openSheet(null));
+      // Inspect board: a teardown of the lesson's board, every part pickable
+      await frame.click('[data-inspect]');
+      t.check('Inspect board opens a teardown of the board', await until(frame, () => (document.querySelector('.ib-root')?.getAttribute('data-inspect-board') ?? '') !== '' && Boolean(document.querySelector('.ib-canvas canvas')), null, 20000));
+      await frame.click('.ib-listbtn');
+      await frame.click('.ib-list button');
+      t.check('…a part opens its detail panel with its role and specs', await until(frame, () => Boolean(document.querySelector('.ib-detail h2')?.textContent) && document.querySelectorAll('.ib-specs tr').length > 0, null, 8000));
+      await frame.click('.ib-detail .ib-btn');
+      t.check('…and can be pulled out of the board', await until(frame, () => [...document.querySelectorAll('.ib-tools button')].some((b) => b.textContent === 'Put back'), null, 4000));
+      await frame.click('.ib-close');
+      t.check('…and Close returns to the lab', await until(frame, () => !document.querySelector('.ib-root'), null, 4000));
       await frame.click('[data-home]');
       t.check('Home closes the lab', await until(page, () => !document.querySelector('.circuitlab-host') && window.app?.home?.isVisible, null, 15000));
     }

@@ -14,7 +14,7 @@
  * state — never in the store.
  */
 import { PreflightHost, requestRun } from './ui/lab/PreflightPanel'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppState, GrowDirection, MoveTarget } from './state/types'
 import { boardConfigOf } from './model/types'
 import { formatHole, holePosition, moduleOfHole, offboardGeometry, parseHole } from './model/breadboard'
@@ -68,6 +68,11 @@ import { ScopeSheet } from './ui/sheets/ScopeSheet'
 import { MoreSheet } from './ui/sheets/MoreSheet'
 import { PropertiesSheet } from './ui/sheets/PropertiesSheet'
 import './app.css'
+
+// Inspect board (board teardown) loads with its data only when opened
+const InspectBoard = lazy(() => import('./inspect/InspectBoard'))
+/** Circuit Lab boards that have a teardown in knowledge/circuit-boards.json */
+const INSPECTABLE = ['esp32_devkit', 'arduino_uno', 'arduino_mega', 'arduino_nano', 'rpi_pico']
 
 // ---------------------------------------------------------------------------
 // Scene ↔ store glue (pure functions of the store state, no React state)
@@ -617,6 +622,19 @@ export default function App() {
   const [schFull, setSchFull] = useState(false)
   const illustrated = useRef<IllustratedView | null>(null)
   const cycleViewGlobal = useRef<(() => void) | null>(null)
+  // --- Inspect board: ?inspect=<board id or lab type>, the corner button or I ---
+  const [inspect, setInspect] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    const q = new URLSearchParams(window.location.search)
+    return q.has('inspect') ? q.get('inspect') || 'esp32_devkit_v1' : null
+  })
+  const openInspect = useCallback(() => {
+    const c = useStore.getState().layout.components.find((x) => INSPECTABLE.includes(x.type))
+    setInspect(c?.type ?? 'esp32_devkit_v1')
+  }, [])
+  const closeInspect = useCallback(() => setInspect(null), [])
+  const openInspectGlobal = useRef(openInspect)
+  openInspectGlobal.current = openInspect
   cycleViewGlobal.current = () => setView(view === 'photo' ? 'illustrated' : view === 'illustrated' ? 'schematic' : 'photo')
 
   // mount the 3D scene once; keep it in sync with the store
@@ -744,6 +762,11 @@ export default function App() {
         if (e.code === 'KeyV') {
           e.preventDefault()
           cycleViewGlobal.current?.()
+          return
+        }
+        if (e.code === 'KeyI') {
+          e.preventDefault()
+          openInspectGlobal.current()
           return
         }
         if (e.code === 'KeyQ' || e.code === 'KeyE') {
@@ -1221,7 +1244,12 @@ export default function App() {
         onClose={() => (view === 'schematic' ? setView('photo') : setSchInset(false))}
         onToggleFull={() => (view === 'schematic' ? setView('illustrated') : setSchFull(!schFull))}
       />
-      <LabCorner onCredits={() => setCreditsOpen(true)} onSaved={() => setSavedOpen(true)} />
+      <LabCorner onCredits={() => setCreditsOpen(true)} onSaved={() => setSavedOpen(true)} onInspect={openInspect} />
+      {inspect != null && (
+        <Suspense fallback={null}>
+          <InspectBoard initialBoard={inspect} onClose={closeInspect} />
+        </Suspense>
+      )}
       <SavedPanel open={savedOpen} onClose={closeSaved} />
       <SpecsHost />
       <MouseGuide />

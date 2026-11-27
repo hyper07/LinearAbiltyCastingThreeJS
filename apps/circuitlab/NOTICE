@@ -35,6 +35,19 @@ and in the app's Credits panel.
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 
+3. Board teardown data (Inspect board, knowledge/circuit-boards.json)
+   - Arduino Uno Rev3, Mega 2560 Rev3 and Nano 3.0 reference designs (Eagle
+     files), https://www.arduino.cc/en/hardware — CC BY-SA 2.5, (c) Arduino.
+     Part positions, rotations, sides, packages and nets were parsed from the
+     .brd files; those board entries are shared under CC BY-SA 2.5.
+   - Raspberry Pi Pico R3 design files (BOM, schematic), (c) Raspberry Pi Ltd —
+     "made available openly, with no limitations".
+   - Espressif ESP32-DevKitC V4 schematic and ESP32 datasheets — facts only.
+   - Part datasheets (Microchip, onsemi, TI, FTDI, Silicon Labs, Richtek,
+     Winbond, Bourns, Murata, AMS) — facts only.
+   The Inspect code and meshes (src/inspect/) are Circuit Lab's own. No logos
+   are drawn; only part markings that teach.
+
 Loaded at run time, not bundled
 -------------------------------
 - avr8js (Wokwi, MIT) — bundled from npm (dependency `avr8js`).
