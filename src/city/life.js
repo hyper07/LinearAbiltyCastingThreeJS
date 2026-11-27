@@ -1,13 +1,17 @@
 import * as THREE from 'three';
 import { follow, pointOn } from './drive.js';
 import { Folk } from './folk.js';
+import { narrowPoint, narrowRoad } from './alleys.js';
 
 /**
  * Street life: ordinary people on Seoul's pavements — walking, walking the
  * dog, coming back from the shops with bags, waiting in groups at the
  * crossings, standing at shop doors, on the phone. In the small streets
  * (alleys.bin) there is no pavement: they walk anywhere across it — in a race
- * along its edges, out of the riders' way. A bike race asks who is near
+ * along its edges, out of the riders' way. The narrow streets are people's
+ * only (no traffic, alleys.js isNarrow): in a race a few are always put down
+ * the narrow ones the course runs down near you (never a short cut's golmok,
+ * kept clear to race down). A bike race asks who is near
  * (`near`), rings its bell or blasts its horn at them (`shoo`: they step
  * aside), and knocks into them (`bump`).
  *
@@ -24,6 +28,8 @@ import { Folk } from './folk.js';
 
 /** How many of each, near you (the stand-abouts come in twos and threes, and some walkers in pairs). */
 export const CROWD = { walk: 22, dog: 5, shop: 8, stand: 12 };
+/** In a race, how many at least down the narrow streets the course runs down near you, and the share of new people sent there till then. */
+export const ALLEY_FOLK = { want: 6, share: 0.45 };
 const ON_FOOT = new Set(['walk', 'jog', 'dog', 'shop', 'stand']);
 /** Who becomes a real person near you: everyone on foot (nobody is drawn who isn't). */
 const REAL = new Set(['walk', 'dog', 'shop', 'stand']);
@@ -149,13 +155,49 @@ export class StreetLife {
     return (this.g.roadsNear?.(p.x, p.z, 1) ?? []).filter((r) => r.cls >= 1 && !r.bridge && r.pts.length >= 4);
   }
 
+  /**
+   * In a race, the narrow streets near you that the course runs down (people only: no traffic there) —
+   * not a short cut's golmok, kept clear to race down. Worked out once a second.
+   */
+  _narrowLanes(roads) {
+    const race = this.g.race;
+    const c = race?.course;
+    if (this.g.mode !== 'race' || !c?.points) return [];
+    if (this._lanes && this.time - this._lanes.t < 1) return this._lanes.list;
+    const p = this.g.pos;
+    const pts = c.points.filter((q) => narrowPoint(q) && Math.abs(q[0] - p.x) < FAR + 20 && Math.abs(q[1] - p.z) < FAR + 20);
+    // (a course point on the street's line: the course runs down it)
+    const onCourse = (r) => {
+      for (let i = 2; i < r.pts.length; i += 2) {
+        const ax = r.pts[i - 2];
+        const az = r.pts[i - 1];
+        const dx = r.pts[i] - ax;
+        const dz = r.pts[i + 1] - az;
+        if (Math.max(ax, ax + dx) < p.x - FAR - 22 || Math.min(ax, ax + dx) > p.x + FAR + 22 || Math.max(az, az + dz) < p.z - FAR - 22 || Math.min(az, az + dz) > p.z + FAR + 22) continue;
+        const L2 = dx * dx + dz * dz || 1;
+        for (const q of pts) {
+          const t = Math.max(0, Math.min(1, ((q[0] - ax) * dx + (q[1] - az) * dz) / L2));
+          if (Math.hypot(q[0] - ax - dx * t, q[1] - az - dz * t) < 2) return true;
+        }
+      }
+      return false;
+    };
+    const list = pts.length ? roads.filter((r) => r.small && narrowRoad(r) && !race.scRoads?.has(r) && onCourse(r)) : [];
+    this._lanes = { t: this.time, list };
+    return list;
+  }
+
   /** A new person of a kind, somewhere near, where they belong. */
   _spawn(kind) {
     const roads = this._roads();
     if (!roads.length) return;
     const p = this.g.pos;
+    // (in a race, a few always down the narrow streets the course takes near you: no traffic there, the
+    // people make them alive — at the edges, for the riders to weave past)
+    const lanes = ON_FOOT.has(kind) && Math.random() < ALLEY_FOLK.share ? this._narrowLanes(roads) : [];
+    const few = lanes.length && this.people.filter((m) => lanes.includes(m.road)).length < ALLEY_FOLK.want;
     for (let tries = 0; tries < 40; tries++) {
-      const r = pick(roads);
+      const r = pick(few ? lanes : roads);
       const n = r.pts.length / 2 - 1;
       const at = { i: Math.floor(Math.random() * n), t: Math.random(), dir: Math.random() < 0.5 ? 1 : -1 };
       const half = r.width / 2;
