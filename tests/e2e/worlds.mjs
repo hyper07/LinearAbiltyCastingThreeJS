@@ -2,8 +2,8 @@ import { boot, tally, until } from './lib.mjs';
 
 /**
  * Arcademia's study worlds (src/arcademia/maps.js): the World Portal's
- * picker, travelling to the Great Tree, the Lagoon, the Desert, the Moon and Mars and back, walking
- * their rings, bridges, boardwalks, causeways, glass tubes and red-rock ramps, a lesson in each,
+ * picker, travelling to the Great Tree, the Lagoon, the Desert, the Moon, Mars and the Sky Castle and back,
+ * walking their rings, bridges, boardwalks, causeways, glass tubes, red-rock ramps and castle streets, a lesson in each,
  * their own lessons and teachers, space suits on the space maps, and the choice kept across a reload.
  */
 export async function run(browser) {
@@ -124,7 +124,7 @@ export async function run(browser) {
     await page.click('.arc-nav__item--worlds');
     await until(page, () => Boolean(document.querySelector('.arc-modal--worlds')), null, 5000);
     const cards = await page.$$eval('.arc-worlds__card', (els) => els.map((e) => e.textContent));
-    t.check('the picker lists six worlds, the Desert, the Moon and Mars among them', cards.filter((c) => !/🔮/.test(c)).length === 6 && cards.some((c) => c.includes('🐪')) && cards.some((c) => c.includes('🌙')) && cards.some((c) => c.includes('🔴')), JSON.stringify(cards));
+    t.check('the picker lists seven worlds, the Desert, the Moon, Mars and the Sky Castle among them', cards.filter((c) => !/🔮/.test(c)).length === 7 && cards.some((c) => c.includes('🐪')) && cards.some((c) => c.includes('🌙')) && cards.some((c) => c.includes('🔴')) && cards.some((c) => c.includes('🏰') && c.includes('Sky Castle')), JSON.stringify(cards));
     await page.keyboard.press('Escape');
     await page.evaluate(() => window.arcademia.switchMap('desert'));
     await page.waitForTimeout(3000);
@@ -374,6 +374,117 @@ export async function run(browser) {
     await page.evaluate(() => window.arcademia.setNight(true));
     await page.waitForTimeout(1800);
     t.check('night falls on Mars, back out on the volcano', await page.evaluate(() => window.arcademia.mode === 'world' && window.arcademia.map.id === 'mars' && window.arcademia.world.night > 0.9));
+    await page.evaluate(() => window.arcademia.setNight(false));
+    // The Sky Castle: a white castle town winding up a floating island, medieval townsfolk, its own lessons and teachers.
+    await page.evaluate(() => window.arcademia.switchMap('castle'));
+    await page.waitForTimeout(3500);
+    const sky = await page.evaluate(() => {
+      const g = window.arcademia, w = g.world;
+      const mini = document.querySelector('.arc-mini svg');
+      const cam = w.camera.position, tg = w.controls.target;
+      return {
+        map: g.map.id, realm: g.realm, kind: w.plan.kind, places: w.places.filter((p) => p.floor === 1).length,
+        portal: w.places.some((p) => p.kind === 'worlds' && p.floor === 1), floor: w.kidFloor,
+        rings: mini?.querySelectorAll('[data-floor]').length, falls: mini?.innerHTML.includes('💧'),
+        schoolIcons: mini?.querySelectorAll('[data-place="math"], [data-place="history"], [data-place="physics"]').length, me: Boolean(mini?.querySelector('.arc-mini__me')),
+        names: [...document.querySelectorAll('.arc-pill__name')].map((e) => e.textContent).filter((s) => /Clock Tower School|Library Hall|Inventor's Workshop/.test(s)).length,
+        // Arriving, the whole island from beside it: far out, a little below the town, looking at its middle.
+        far: cam.distanceTo(tg) > 200 && cam.y < 10 && tg.y < 0,
+        quadrants: new Set(w.plan.floors.flatMap((f) => f.places).map((p) => Math.floor(((Math.atan2(p.x, p.z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)))).size,
+        suits: w.kid.suit, float: w.float, sharedClouds: w.clouds.visible,
+        townsfolk: [...new Set(w.npcs.map((n) => n.species))]
+      };
+    });
+    t.check('the Sky Castle opens on floor 1 with its World Portal and its schools named', sky.map === 'castle' && sky.realm === 'castle' && sky.kind === 'castle' && sky.floor === 1 && sky.places >= 9 && sky.portal && sky.names >= 3, JSON.stringify(sky));
+    t.check('arriving, the whole floating island is in view; the streets go all the way round; the minimap draws all seven, the waterfalls, the schools and you', sky.far && sky.quadrants === 4 && sky.rings === 7 && sky.falls && sky.schoolIcons >= 3 && sky.me, JSON.stringify(sky));
+    t.check('no space suits, ordinary gravity, its own big clouds, and its own medieval townsfolk', sky.suits === null && !sky.float && !sky.sharedClouds && ['badger', 'goat', 'goose', 'pony', 'ferret', 'lamb', 'magpie'].every((k) => sky.townsfolk.includes(k)), JSON.stringify(sky));
+    await page.evaluate(() => {
+      const w = window.arcademia.world;
+      w.teleport(1);
+      const b = w.buildings.find((x) => x.subject === 'history' && x.floor === 1);
+      window.__arrived = false;
+      w.goTo(b.at, () => (window.__arrived = true));
+    });
+    t.check('the buddy walks to the Library Hall', await until(page, () => window.__arrived, null, 30000));
+    // Tap a school on the minimap: the buddy walks there.
+    await page.evaluate(() => {
+      window.arcademia.world.teleport(1);
+      document.querySelector('.arc-mini [data-place="physics"][data-floor-of="1"]').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    t.check('tapping the Inventor\'s Workshop on the minimap walks the buddy there', await until(page, () => {
+      const w = window.arcademia.world, e = w.places.find((p) => p.floor === 1 && p.kind === 'physics');
+      return !w.path && Math.hypot(w.kidPos.x - e.at.x, w.kidPos.z - e.at.z) < 1.5;
+    }, null, 20000));
+    // WASD walks round the street; the camera turns with the buddy, stays outside, its view never blocked by a wall.
+    await page.evaluate(() => {
+      window.arcademia.world.teleport(1);
+      window.arcademia.world.home();
+      window.arcademia.root.focus();
+    });
+    await page.waitForTimeout(1500);
+    const skyBefore = await page.evaluate(() => Math.atan2(window.arcademia.world.kidPos.x, window.arcademia.world.kidPos.z));
+    await page.keyboard.down('KeyD');
+    await page.waitForTimeout(2500);
+    await page.keyboard.up('KeyD');
+    await page.waitForTimeout(400);
+    const skyWalk = await page.evaluate((a0) => {
+      const w = window.arcademia.world, c = w.camera.position, tg = w.controls.target;
+      return { turned: Math.atan2(w.kidPos.x, w.kidPos.z) - a0, floor: w.kidFloor, outside: Math.hypot(c.x, c.z) > Math.hypot(w.kidPos.x, w.kidPos.z) + 3, lift: w.plan.camLift(c.x, c.y, c.z, tg.x, tg.y, tg.z) };
+    }, skyBefore);
+    t.check('D walks the buddy round street 1 with the camera outside and the view clear', skyWalk.turned > 0.05 && skyWalk.floor === 1 && skyWalk.outside && skyWalk.lift < 0.01, JSON.stringify(skyWalk));
+    // Up the ramp, through the raised portcullis, to street 2.
+    await page.evaluate(() => {
+      const w = window.arcademia.world;
+      w.setLocked(new Set());
+      w.teleport(1);
+      const b = w.buildings.find((x) => x.subject === 'math' && x.floor === 2);
+      window.__arrived = false;
+      window.__onStairs = false;
+      const watch = setInterval(() => {
+        const hit = w.plan.locate(w.kidPos.x, w.kidPos.z, w.kidPos.y);
+        if (hit?.stair) window.__onStairs = true;
+        if (window.__arrived) clearInterval(watch);
+      }, 100);
+      w.goTo(b.at, () => (window.__arrived = true));
+    });
+    t.check('the buddy climbs the carpeted ramp to street 2', await until(page, () => window.__arrived && window.__onStairs, null, 60000));
+    const street2 = await page.evaluate(() => ({ floor: window.arcademia.world.kidFloor, y: window.arcademia.world.kidPos.y, storey: window.arcademia.world.plan.floorH }));
+    t.check('and arrives on street 2, a storey up', street2.floor === 2 && Math.abs(street2.y - street2.storey) < 0.8, JSON.stringify(street2));
+    await page.evaluate(() => {
+      const w = window.arcademia.world;
+      w.setLocked(window.arcademia.lockedSet());
+      w.teleport(1);
+    });
+    // The Sky Castle teaches its own lessons, with its own teachers, stories and puzzle bosses.
+    const royal = await page.evaluate(() => {
+      const g = window.arcademia;
+      return {
+        lessons: g.lessons.length, allCastle: g.lessons.every((l) => l.realm === 'castle'),
+        story: g.worlds[1].story, boss: g.worlds[1].boss.species, bosses: [...new Set(g.world.bosses.map((b) => b.fig.species))]
+      };
+    });
+    t.check('the Sky Castle teaches its own 42 castle lessons', royal.lessons === 42 && royal.allCastle, JSON.stringify(royal));
+    t.check('the first street has its own story and puzzle boss', /Gatehouse Market/.test(royal.story) && royal.boss === 'goose' && royal.bosses.includes('goose'), JSON.stringify(royal));
+    await page.evaluate(() => window.arcademia.enter('math', 1));
+    t.check('the Clock Tower School is taught by Miss Biscuit the corgi', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'corgi', null, 20000));
+    t.check('its way back says Castle streets', await page.evaluate(() => [...document.querySelectorAll('.arc-chip--btn, .arc-btn')].some((b) => /Castle streets/.test(b.textContent))));
+    t.check('no space suits in the castle\'s lesson rooms', await page.evaluate(() => window.arcademia.lesson.suit === null && window.arcademia.lesson.buddy.suit === null));
+    const castleListed = await page.evaluate(() => [...document.querySelectorAll('.arc-lesson, .arc-quests, body')].map((e) => e.textContent).join(' '));
+    t.check('its lesson list shows castle lessons', /Counting Towers and Flags|Buns at the Market/.test(castleListed));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.arcademia.enter('history', 1));
+    t.check('the Library Hall is kept by Professor Hartley the stag', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'stag', null, 20000));
+    t.check('its lesson list shows the castle\'s history', await page.evaluate(() => /Market Day in the Castle Town|Who Built the Castles\?/.test(document.body.textContent)));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.arcademia.enter('physics', 1));
+    t.check('the Inventor\'s Workshop is run by Dr. Sprocket the beaver', await until(page, () => window.arcademia.mode === 'lesson' && window.arcademia.lesson?.teacher?.species === 'beaver', null, 20000));
+    await page.evaluate(() => window.arcademia.leaveLesson());
+    await page.waitForTimeout(800);
+    await page.evaluate(() => window.arcademia.setNight(true));
+    await page.waitForTimeout(1800);
+    t.check('night falls over the Sky Castle, back out on its streets', await page.evaluate(() => window.arcademia.mode === 'world' && window.arcademia.map.id === 'castle' && window.arcademia.world.night > 0.9));
     await page.evaluate(() => window.arcademia.setNight(false));
     await page.evaluate(() => window.arcademia.switchMap('mountain'));
     await page.waitForTimeout(2000);

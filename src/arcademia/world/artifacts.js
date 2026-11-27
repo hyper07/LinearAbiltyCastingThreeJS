@@ -563,6 +563,198 @@ const MODELS = {
     add(g, cyl(0.025, 0.025, 0.4, 8), iron(), [-0.16, 0.6, 0.06]);
     add(g, cyl(0.025, 0.025, 0.3, 8), iron(), [0.04, 0.6, -0.08], [0, 0, 0.6]);
     for (let i = 0; i < 3; i++) add(g, sphere(0.05, 10, 8), mat('#cfefff', { opacity: 0.55, key: 'o2bubble' }), [-0.16 + i * 0.03, 0.84 + i * 0.09, 0.06]);
+  },
+
+  /* ---- the Sky Castle */
+  'market-scales': (g) => {
+    // A trader's balance scales: a post, a beam, two brass pans on chains, a few weights.
+    add(g, box(0.7, 0.06, 0.36), wood(), [0, 0.03, 0]);
+    add(g, cyl(0.03, 0.04, 0.8, 8), wood(), [0, 0.46, 0]);
+    add(g, box(0.86, 0.035, 0.035), bronze(), [0, 0.86, 0], [0, 0, 0.06]);
+    add(g, cone(0.05, 0.1, 6), gold(), [0, 0.92, 0]);
+    for (const [x, y] of [[-0.42, 0.885], [0.42, 0.835]]) {
+      for (const dz of [-0.08, 0.08]) add(g, cyl(0.006, 0.006, 0.42, 4), iron(), [x, y - 0.21, dz * 0.6], [dz * 2, 0, 0]);
+      add(g, cyl(0.15, 0.1, 0.04, 16), gold(), [x, y - 0.44, 0]);
+    }
+    add(g, cyl(0.05, 0.05, 0.06, 10), iron(), [-0.42, 0.495, 0]);
+    add(g, cyl(0.035, 0.035, 0.05, 10), iron(), [-0.38, 0.54, 0.02]);
+    for (let i = 0; i < 4; i++) add(g, sphere(0.04, 8, 6), mat('#c0392b', { rough: 0.6 }), [0.38 + (i % 2) * 0.07, 0.44 + Math.floor(i / 2) * 0.05, -0.03 + (i % 2) * 0.05]);
+  },
+  treadwheel: (g) => {
+    // A treadwheel crane: a big wooden wheel on a frame, a jib with a rope, and a stone block hanging from it.
+    add(g, box(0.9, 0.06, 0.5), wood(), [0, 0.03, 0]);
+    for (const z of [-0.12, 0.12]) {
+      add(g, new THREE.TorusGeometry(0.36, 0.025, 6, 24), wood(), [-0.1, 0.46, z]);
+      for (let i = 0; i < 4; i++) add(g, box(0.7, 0.025, 0.025), wood(), [-0.1, 0.46, z], [0, 0, (i * Math.PI) / 4]);
+    }
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      add(g, box(0.025, 0.025, 0.26), mat('#a07850', { rough: 0.85 }), [-0.1 + Math.cos(a) * 0.36, 0.46 + Math.sin(a) * 0.36, 0]);
+    }
+    add(g, cyl(0.03, 0.03, 0.34, 8), iron(), [-0.1, 0.46, 0], [Math.PI / 2, 0, 0]);
+    for (const z of [-0.2, 0.2]) add(g, box(0.05, 0.5, 0.05), wood(), [-0.1, 0.25, z]);
+    add(g, box(0.05, 0.95, 0.05), wood(), [0.28, 0.5, 0]);
+    add(g, box(0.5, 0.05, 0.05), wood(), [0.44, 0.92, 0], [0, 0, 0.35]);
+    add(g, cyl(0.006, 0.006, 0.5, 4), mat('#d8c39a'), [0.66, 0.73, 0]);
+    add(g, box(0.16, 0.12, 0.14), stone(), [0.66, 0.42, 0]);
+  },
+  shachihoko: (g) => {
+    // A golden shachihoko on a roof tile: a carp with a tiger's head, its tail curled up high.
+    add(g, box(0.7, 0.12, 0.3), mat('#4c5866', { rough: 0.6 }), [0, 0.06, 0]);
+    add(g, sphere(0.2, 14, 10), gold(), [-0.12, 0.3, 0], [0, 0, 0], [1.2, 1, 0.8]);
+    add(g, sphere(0.15, 14, 10), gold(), [0.06, 0.5, 0], [0, 0, 0.6], [1.3, 0.8, 0.75]);
+    add(g, sphere(0.11, 12, 8), gold(), [0.12, 0.72, 0], [0, 0, 0.9], [1.2, 0.8, 0.7]);
+    add(g, new THREE.TorusGeometry(0.14, 0.05, 6, 14, Math.PI * 1.2), gold(), [0.02, 0.92, 0], [0, 0, -0.3]);
+    for (const z of [-1, 1]) add(g, cone(0.07, 0.18, 4), gold(), [-0.08, 0.92 + 0.08, z * 0.04], [0, 0, 0.8]);
+    for (const z of [-1, 1]) add(g, sphere(0.035, 8, 6), mat('#2b2b3a'), [-0.24, 0.36, z * 0.12]);
+    add(g, box(0.06, 0.03, 0.18), mat('#fffaf0'), [-0.33, 0.24, 0]);
+    for (const z of [-1, 1]) add(g, cone(0.05, 0.16, 4), gold(), [0, 0.3, z * 0.16], [z * 1.2, 0, 0]);
+  },
+  hunminjeongeum: (g) => {
+    // The Hunminjeongeum book lying open: a blue cover, cream pages with columns of letters, red binding thread.
+    add(g, box(0.46, 0.03, 0.62), mat('#2f4f8a', { rough: 0.7 }), [-0.24, 0.32, 0], [0, 0, 0.12]);
+    add(g, box(0.46, 0.03, 0.62), mat('#2f4f8a', { rough: 0.7 }), [0.24, 0.32, 0], [0, 0, -0.12]);
+    add(g, box(0.43, 0.04, 0.58), cream(), [-0.23, 0.35, 0], [0, 0, 0.12]);
+    add(g, box(0.43, 0.04, 0.58), cream(), [0.23, 0.35, 0], [0, 0, -0.12]);
+    const ink = mat('#2b2420');
+    for (const sx of [-1, 1]) for (let c = 0; c < 4; c++) for (let r = 0; r < 5; r++) {
+      const x = sx * (0.08 + c * 0.08);
+      add(g, box(0.04, 0.006, 0.04), ink, [x, 0.374 + (0.23 - Math.abs(x)) * 0.12, -0.2 + r * 0.1], [0, 0, -sx * 0.12]);
+    }
+    for (let i = 0; i < 5; i++) add(g, sphere(0.012, 6, 4), mat('#c0392b'), [-0.43, 0.39, -0.24 + i * 0.12]);
+    add(g, cyl(0.24, 0.3, 0.28, 14), wood(), [0, 0.14, 0]);
+  },
+  'elephant-clock': (g) => {
+    // Al-Jazari's Elephant Clock: an elephant carrying a little tower with a dome, a bird on top, a rider in front.
+    const grey = mat('#9aa3ad', { rough: 0.6 });
+    add(g, box(0.7, 0.06, 0.4), wood(), [0, 0.03, 0]);
+    add(g, sphere(0.25, 16, 12), grey, [0, 0.36, 0], [0, 0, 0], [1.3, 0.85, 0.9]);
+    for (const [x, z] of [[-0.2, -0.12], [-0.2, 0.12], [0.2, -0.12], [0.2, 0.12]]) add(g, cyl(0.06, 0.07, 0.22, 10), grey, [x, 0.16, z]);
+    add(g, sphere(0.15, 14, 10), grey, [0.36, 0.44, 0]);
+    add(g, cyl(0.04, 0.025, 0.3, 8), grey, [0.47, 0.3, 0], [0, 0, 0.25]);
+    for (const z of [-1, 1]) add(g, sphere(0.1, 10, 8), grey, [0.32, 0.46, z * 0.13], [0, 0, 0], [0.4, 1, 1]);
+    add(g, box(0.36, 0.04, 0.32), mat('#c0392b', { rough: 0.7 }), [0, 0.56, 0]);
+    add(g, box(0.24, 0.26, 0.22), gold(), [0, 0.71, 0]);
+    for (const x of [-0.12, 0.12]) add(g, cyl(0.02, 0.02, 0.18, 6), mat('#2f8f83', { rough: 0.4, metal: 0.4 }), [x, 0.93, 0]);
+    add(g, new THREE.SphereGeometry(0.13, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat('#2f8f83', { rough: 0.4, metal: 0.4 }), [0, 1.0, 0]);
+    add(g, sphere(0.045, 8, 6), mat('#e8a02f'), [0, 1.15, 0]);
+    add(g, cone(0.02, 0.05, 4), mat('#c0392b'), [0.05, 1.15, 0], [0, 0, -Math.PI / 2]);
+    add(g, sphere(0.05, 8, 6), mat('#f4e3c8'), [0.22, 0.64, 0]);
+    add(g, cyl(0.05, 0.06, 0.08, 8), mat('#2f5fa8'), [0.22, 0.57, 0]);
+  },
+  'angkor-temple': (g) => {
+    // Angkor Wat in miniature: stepped sandstone terraces and five lotus-bud towers, the tallest in the middle.
+    const sand = mat('#b8a07a', { rough: 0.95 });
+    add(g, box(0.9, 0.08, 0.9), sand, [0, 0.04, 0]);
+    add(g, box(0.72, 0.1, 0.72), sand, [0, 0.13, 0]);
+    add(g, box(0.54, 0.1, 0.54), sand, [0, 0.23, 0]);
+    const bud = (h) => new THREE.LatheGeometry([[0, 0], [0.09, 0], [0.1, h * 0.25], [0.09, h * 0.55], [0.06, h * 0.8], [0.02, h * 0.97], [0, h]].map(([x, y]) => new THREE.Vector2(x, y)), 10);
+    add(g, bud(0.7), sand, [0, 0.28, 0], [0, 0, 0], [1.3, 1, 1.3]);
+    for (const [x, z] of [[-0.24, -0.24], [0.24, -0.24], [-0.24, 0.24], [0.24, 0.24]]) add(g, bud(0.42), sand, [x, 0.28, z]);
+    for (let i = 0; i < 5; i++) add(g, box(0.08, 0.08, 0.02), mat('#7a6a4c', { rough: 1 }), [-0.24 + i * 0.12, 0.13, 0.365]);
+  },
+  'roof-figures': (g) => {
+    // A roof ridge of yellow glazed tiles with a line of little guardians: a rider in front, animals behind.
+    const yellow = mat('#e8b42f', { rough: 0.35, metal: 0.2 });
+    add(g, box(0.9, 0.08, 0.4), mat('#a8322a', { rough: 0.7 }), [0, 0.04, 0]);
+    add(g, box(0.86, 0.12, 0.12), yellow, [0, 0.42, 0], [0, 0, -0.45]);
+    add(g, box(0.06, 0.4, 0.3), mat('#a8322a', { rough: 0.7 }), [0.36, 0.24, 0]);
+    for (let i = 0; i < 6; i++) add(g, box(0.86, 0.02, 0.06), mat('#d9a42a', { rough: 0.4 }), [0, 0.2 + i * 0.03, -0.15 + i * 0.06], [0, 0, -0.45]);
+    // The guardians sit in a line on the sloping ridge, the rider at the low end.
+    for (let i = 0; i < 5; i++) {
+      const x = 0.3 - i * 0.12, y = 0.535 - x * 0.483;
+      const c = i === 0 ? mat('#3f8f5a', { rough: 0.4 }) : yellow;
+      add(g, sphere(0.045, 8, 6), c, [x, y, 0]);
+      add(g, sphere(0.032, 8, 6), c, [x - 0.01, y + 0.06, 0]);
+      add(g, cone(0.014, 0.045, 4), c, [x - 0.01, y + 0.105, 0]);
+    }
+    // A curling ridge-end beast at the top of the ridge.
+    add(g, sphere(0.08, 10, 8), yellow, [-0.4, 0.74, 0], [0, 0, 0], [1, 1.3, 0.8]);
+    add(g, new THREE.TorusGeometry(0.07, 0.025, 6, 12, Math.PI * 1.3), yellow, [-0.38, 0.86, 0], [0, 0, -0.6]);
+  },
+  'metal-type': (g) => {
+    // Little bronze letters set in a wooden frame, ready to ink, with a printed sheet beside them.
+    add(g, box(0.62, 0.08, 0.46), wood(), [0, 0.3, 0]);
+    add(g, cyl(0.22, 0.3, 0.26, 14), wood(), [0, 0.13, 0]);
+    const type = mat('#8a6a3a', { rough: 0.35, metal: 0.6 });
+    for (let c = 0; c < 7; c++) for (let r = 0; r < 5; r++) add(g, box(0.06, 0.05, 0.06), type, [-0.24 + c * 0.08, 0.365, -0.16 + r * 0.08]);
+    for (let i = 0; i < 4; i++) add(g, box(0.035, 0.012, 0.035), mat('#2b2420'), [-0.24 + i * 0.16, 0.395, -0.16 + (i % 3) * 0.16]);
+    add(g, box(0.34, 0.01, 0.46), cream(), [0.44, 0.31, 0.08], [0, 0.25, 0.05]);
+    for (let i = 0; i < 5; i++) add(g, box(0.02, 0.004, 0.36), mat('#2b2420'), [0.34 + i * 0.05, 0.322, 0.1], [0, 0.25, 0.05]);
+  },
+  'soapstone-bird': (g) => {
+    // A soapstone bird from Great Zimbabwe, perched on top of its tall pillar.
+    const soap = mat('#8f9a86', { rough: 0.6 });
+    add(g, cyl(0.2, 0.24, 0.08, 12), stone(), [0, 0.04, 0]);
+    add(g, cyl(0.07, 0.08, 0.5, 10), soap, [0, 0.32, 0]);
+    add(g, box(0.16, 0.08, 0.14), soap, [0, 0.6, 0]);
+    add(g, sphere(0.12, 12, 8), soap, [0, 0.76, 0], [0, 0, 0], [0.8, 1.3, 0.8]);
+    add(g, sphere(0.07, 10, 8), soap, [0.02, 0.97, 0.02]);
+    add(g, cone(0.025, 0.09, 6), soap, [0.02, 0.96, 0.1], [Math.PI / 2 - 0.3, 0, 0]);
+    for (const x of [-1, 1]) add(g, box(0.03, 0.2, 0.12), soap, [x * 0.09, 0.78, -0.02], [0, 0, x * 0.1]);
+    add(g, box(0.1, 0.03, 0.12), soap, [0, 0.64, -0.12], [0.5, 0, 0]);
+  },
+  'wax-seal': (g) => {
+    // A royal wax seal hanging from a parchment charter on a silk ribbon.
+    add(g, box(0.7, 0.9, 0.02), cream(), [0, 0.55, -0.08], [-0.1, 0, 0]);
+    for (let i = 0; i < 8; i++) add(g, box(0.5, 0.012, 0.01), mat('#5a4a3a'), [0, 0.88 - i * 0.07, -0.06], [-0.1, 0, 0]);
+    for (const x of [-0.05, 0.05]) add(g, box(0.035, 0.4, 0.01), mat('#2f6a3a', { rough: 0.5 }), [x, 0.22, 0.0]);
+    add(g, cyl(0.17, 0.17, 0.06, 24), mat('#b8322a', { rough: 0.35 }), [0, 0.1, 0.03], [Math.PI / 2, 0, 0]);
+    add(g, cyl(0.12, 0.12, 0.02, 24), mat('#d04a3a', { rough: 0.3 }), [0, 0.1, 0.065], [Math.PI / 2, 0, 0]);
+    add(g, box(0.1, 0.05, 0.01), mat('#8a2a22'), [0, 0.12, 0.08]);
+    for (const x of [-0.04, 0, 0.04]) add(g, cone(0.015, 0.05, 4), mat('#8a2a22'), [x, 0.165, 0.08]);
+    add(g, box(0.06, 0.05, 0.06), stone(), [0, 0.025, 0]);
+  },
+  quill: (g) => {
+    // A quill pen standing in a dark ink pot, beside a sheet of writing.
+    add(g, box(0.5, 0.01, 0.36), cream(), [0.08, 0.005, 0.02], [0, 0.2, 0]);
+    for (let i = 0; i < 6; i++) add(g, box(0.36, 0.004, 0.012), mat('#3a2a20'), [0.1, 0.012, -0.1 + i * 0.045], [0, 0.2, 0]);
+    add(g, cyl(0.12, 0.14, 0.18, 14), mat('#1f2a3a', { rough: 0.3 }), [-0.18, 0.09, -0.05]);
+    add(g, cyl(0.06, 0.07, 0.05, 12), mat('#1f2a3a', { rough: 0.3 }), [-0.18, 0.2, -0.05]);
+    const feather = new THREE.Group();
+    feather.position.set(-0.18, 0.18, -0.05);
+    feather.rotation.set(0, 0, -0.35);
+    g.add(feather);
+    add(feather, cyl(0.008, 0.012, 0.85, 5), mat('#f4ecd8'), [0, 0.42, 0]);
+    add(feather, sphere(0.1, 10, 8), mat('#fffaf0', { rough: 0.9 }), [0.02, 0.6, 0], [0, 0, 0], [0.55, 2.6, 0.12]);
+    add(feather, sphere(0.06, 8, 6), mat('#e8dcc0', { rough: 0.9 }), [-0.03, 0.55, 0.01], [0, 0, 0.1], [0.5, 2.2, 0.1]);
+  },
+  ornithopter: (g) => {
+    // Leonardo's flapping-wing machine: a wooden frame and two great bat-like wings of linen on wooden ribs.
+    add(g, cyl(0.03, 0.04, 0.5, 8), wood(), [0, 0.25, 0]);
+    add(g, box(0.18, 0.06, 0.7), wood(), [0, 0.52, 0]);
+    add(g, box(0.06, 0.08, 0.2), wood(), [0, 0.58, -0.38], [0.3, 0, 0]);
+    for (const sx of [-1, 1]) {
+      const wing = new THREE.Group();
+      wing.position.set(sx * 0.08, 0.56, 0);
+      wing.rotation.set(0, 0, sx * 0.28);
+      g.add(wing);
+      add(wing, box(0.62, 0.025, 0.025), wood(), [sx * 0.31, 0.03, 0.18]);
+      for (let i = 0; i < 4; i++) add(wing, box(0.02, 0.02, 0.4 - i * 0.06), wood(), [sx * (0.14 + i * 0.15), 0.025, 0.0 - i * 0.02]);
+      const cloth = new THREE.Shape();
+      cloth.moveTo(0, 0.2);
+      cloth.lineTo(0.62, 0.2);
+      for (let i = 4; i >= 0; i--) cloth.lineTo(0.62 * (i / 4), -0.18 + (i % 2) * 0.08);
+      const geo = new THREE.ShapeGeometry(cloth);
+      geo.rotateX(-Math.PI / 2);
+      if (sx < 0) geo.scale(-1, 1, 1);
+      add(wing, geo, mat('#efe4c8', { rough: 0.9, side: THREE.DoubleSide }), [0, 0.02, 0]);
+    }
+  },
+  'montgolfier-balloon': (g) => {
+    // A Montgolfier balloon: a tall blue envelope with gold bands and decorations, a round gallery below it.
+    const blue = mat('#2f4f9a', { rough: 0.5 });
+    const env = new THREE.LatheGeometry([[0.06, 0.2], [0.16, 0.26], [0.3, 0.45], [0.36, 0.65], [0.33, 0.85], [0.22, 1.0], [0.0, 1.06]].map(([x, y]) => new THREE.Vector2(x, y)), 20);
+    add(g, env, blue);
+    for (const [y, r] of [[0.45, 0.3], [0.65, 0.36], [0.85, 0.33]]) add(g, new THREE.TorusGeometry(r, 0.015, 4, 24), gold(), [0, y, 0], [Math.PI / 2, 0, 0]);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      add(g, sphere(0.035, 8, 6), gold(), [Math.sin(a) * 0.365, 0.55, Math.cos(a) * 0.365]);
+    }
+    add(g, new THREE.TorusGeometry(0.1, 0.02, 4, 16), wood(), [0, 0.2, 0], [Math.PI / 2, 0, 0]);
+    for (let i = 0; i < 4; i++) add(g, cyl(0.004, 0.004, 0.14, 3), mat('#5a4a3a'), [Math.sin(i * 1.57) * 0.09, 0.13, Math.cos(i * 1.57) * 0.09]);
+    add(g, cyl(0.12, 0.1, 0.04, 14), wood(), [0, 0.06, 0]);
+    add(g, cone(0.04, 0.1, 6), mat('#ff9a3d', { emissive: '#ff7a2a', ei: 0.6 }), [0, 0.12, 0]);
   }
 };
 

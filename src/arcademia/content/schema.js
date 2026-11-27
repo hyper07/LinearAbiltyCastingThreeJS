@@ -12,8 +12,8 @@
  *   topicName how that topic reads to a parent ('Fractions', 'Ancient Egypt')
  *   blurb     one line for the lesson card
  *   realm     (optional) 'forest' (content/forest.js, the Great Tree), 'sea' (content/sea.js, the Lagoon),
- *             'desert' (content/desert.js, the Desert of the Pyramids), 'moon' (content/moon.js, the Moon)
- *             or 'mars' (content/mars.js, Mars); land if absent
+ *             'desert' (content/desert.js, the Desert of the Pyramids), 'moon' (content/moon.js, the Moon),
+ *             'mars' (content/mars.js, Mars) or 'castle' (content/castle.js, the Sky Castle); land if absent
  *   reading   2–4 cards: { title, text, emoji? } — big friendly text, one idea a card
  *   quiz      3–5 questions: { q, choices[2–4], answer (index), hint, explain }
  *             — or, for math, { gen, count } to draw them from a generator (math.js)
@@ -34,7 +34,7 @@ export const SUBJECTS = ['math', 'history', 'physics'];
 export const SUBJECT_NAMES = { math: 'Math', history: 'History', physics: 'Physics' };
 export const FLOOR_COUNT = 7;
 /** The study worlds' realms (maps.js): each has its own lessons. */
-export const REALM_IDS = ['land', 'forest', 'sea', 'desert', 'moon', 'mars'];
+export const REALM_IDS = ['land', 'forest', 'sea', 'desert', 'moon', 'mars', 'castle'];
 
 /** Costumes the history hall can dress a guide in (world/figures.js draws them). */
 export const LOOKS = [
@@ -50,7 +50,10 @@ export const LOOKS = [
   // the Moon
   'stargazer', 'flightsuit', 'mission',
   // Mars
-  'roverteam'
+  'roverteam',
+  // the Sky Castle (medieval outfits: world/figures.js GARB)
+  'baker', 'mason', 'artisan', 'seonbi', 'engineer', 'carver', 'monk', 'stonebuilder', 'nun', 'copyist', 'scholar',
+  'renaissance', 'balloonist'
 ];
 
 /** Objects the museum turntable can show (world/artifacts.js models them). */
@@ -71,7 +74,10 @@ export const ARTIFACTS = [
   'space-station', 'shuttle', 'moon-rover', 'air-filter', 'orbiter',
   // Mars
   'mars-globe', 'pastels', 'viking-lander', 'airbag-lander', 'twin-rover', 'mars-orbiter', 'rover-wheel', 'hope-probe',
-  'sample-tube', 'butterfly-rover', 'mars-helicopter', 'moxie'
+  'sample-tube', 'butterfly-rover', 'mars-helicopter', 'moxie',
+  // the Sky Castle
+  'market-scales', 'treadwheel', 'shachihoko', 'hunminjeongeum', 'elephant-clock', 'angkor-temple', 'roof-figures',
+  'metal-type', 'soapstone-bird', 'wax-seal', 'quill', 'ornithopter', 'montgolfier-balloon'
 ];
 
 /**

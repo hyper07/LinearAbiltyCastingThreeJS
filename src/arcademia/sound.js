@@ -190,6 +190,16 @@ export class Sound {
         this._noise(t, 1.8, { freq: 900 + Math.random() * 500, q: 3, gain: 0.022 });
         if (Math.random() < 0.5) this._tone([392, 440, 523, 587][Math.floor(Math.random() * 4)], t + 0.4, 2.0, { type: 'sine', gain: 0.008 });
         if (Math.random() < 0.15) this._tone(1320, t + 1.0, 0.06, { type: 'square', gain: 0.004, to: 1760 });
+      } else if (mood === 'castle') {
+        // The Sky Castle: a lute-like little run of plucked notes (D dorian), now and then a far-off bell, a bird.
+        const scale = [294, 330, 349, 392, 440, 494, 523, 587];
+        const start = Math.floor(Math.random() * 4);
+        for (let k = 0; k < 3; k++) if (Math.random() < 0.8) this._tone(scale[start + k * (Math.random() < 0.5 ? 1 : 2)] ?? 587, t + k * 0.22, 0.7, { type: 'triangle', gain: 0.011, attack: 0.004 });
+        if (Math.random() < 0.18) this._tone([523, 659][Math.floor(Math.random() * 2)], t + 0.9, 2.6, { type: 'sine', gain: 0.01 });
+        if (Math.random() < 0.3) {
+          const f = 2400 + Math.random() * 1000;
+          this._tone(f, t + 0.5, 0.09, { type: 'sine', gain: 0.012, to: f * 1.25 });
+        }
       } else if (mood === 'beeps') this._tone([660, 880, 990][Math.floor(Math.random() * 3)], t, 0.08, { type: 'square', gain: 0.01 });
       else {
         const f = 2200 + Math.random() * 1400;

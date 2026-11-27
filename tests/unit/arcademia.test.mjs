@@ -139,8 +139,8 @@ test('floors: floor 1 is open; the next opens at two thirds of the floor below',
   assert.deepEqual([...openFloors(f2)], [1], 'floor 2 done but floor 1 not: still only floor 1');
   const all = Object.fromEntries(LAND_LESSONS.map((l) => [l.id, 3]));
   assert.equal(openFloors(all).size, FLOORS.length);
-  // Each realm opens its own floors: every forest, sea, desert, Moon or Mars star opens nothing on the mountain, and the other way round.
-  for (const realm of ['forest', 'sea', 'desert', 'moon', 'mars']) {
+  // Each realm opens its own floors: every forest, sea, desert, Moon, Mars or Sky Castle star opens nothing on the mountain, and the other way round.
+  for (const realm of ['forest', 'sea', 'desert', 'moon', 'mars', 'castle']) {
     const mine = lessonsIn(realm);
     const theirs = Object.fromEntries(mine.map((l) => [l.id, 3]));
     assert.deepEqual([...openFloors(theirs)], [1], `${realm} stars do not open the mountain`);
@@ -414,7 +414,7 @@ test('great tree: rings all round the trunk, every place reachable, a locked rin
   const { planTree } = await import('../../src/arcademia/world/tree/plan.js');
   const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
   const { MAPS, TREE_FLOORS, mapById } = await import('../../src/arcademia/maps.js');
-  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree', 'lagoon', 'desert', 'moon', 'mars']);
+  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree', 'lagoon', 'desert', 'moon', 'mars', 'castle']);
   assert.equal(mapById('nope').id, 'mountain', 'an unknown map falls back to the mountain');
   assert.equal(TREE_FLOORS.length, FLOORS.length, 'the same floors (and lessons) in every world');
   const plan = planTree(TREE_FLOORS.length);
@@ -725,7 +725,7 @@ test('mars: Olympus Mons — a compact base on a terrace spiralling round a red 
   const { worldsIn } = await import('../../src/arcademia/quests.js');
   const { teachingRealm } = await import('../../src/arcademia/content/index.js');
   const { planMoon } = await import('../../src/arcademia/world/moon/plan.js');
-  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree', 'lagoon', 'desert', 'moon', 'mars']);
+  assert.deepEqual(MAPS.map((m) => m.id), ['mountain', 'tree', 'lagoon', 'desert', 'moon', 'mars', 'castle']);
   const mars = mapById('mars');
   assert.equal(mars.kind, 'mars');
   assert.equal(mars.realm, 'mars');
@@ -906,6 +906,194 @@ test('mars: the Learning Mountain keeps exactly its plan and ground', async () =
   const p = m.geometry.attributes.position.array, c = m.geometry.attributes.color.array;
   for (let i = 0; i < p.length; i += 7) t.update(p[i].toFixed(3) + c[i].toFixed(3));
   assert.equal(t.digest('hex').slice(0, 16), '0d0979a03bff04e4', 'the mountain\'s terrain mesh and colours');
+});
+
+test('sky castle: a white castle town winding up a floating island, every place reachable, a locked floor shut, the other maps unchanged', async () => {
+  const { planCastle, CASTLE, UNDER } = await import('../../src/arcademia/world/castle/plan.js');
+  const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
+  const { CASTLE_FLOORS, MARS_FLOORS, MOON_FLOORS, MAPS, mapById } = await import('../../src/arcademia/maps.js');
+  const { SPECIES } = await import('../../src/arcademia/world/creatures/species.js');
+  const { makeHat } = await import('../../src/arcademia/world/creatures/hats.js');
+  const { teachersIn, GARB } = await import('../../src/arcademia/world/figures.js');
+  const { worldsIn } = await import('../../src/arcademia/quests.js');
+  const { teachingRealm } = await import('../../src/arcademia/content/index.js');
+  const { tIn, loadLocale } = await import('../../src/arcademia/i18n/index.js');
+  for (const lang of ['ko', 'es', 'ja', 'zh']) await loadLocale(lang);
+  assert.equal(MAPS.at(-1).id, 'castle', 'the Sky Castle is the newest world');
+  const castle = mapById('castle');
+  assert.deepEqual({ ...castle, name: undefined, what: undefined }, { id: 'castle', icon: '🏰', kind: 'castle', realm: 'castle', floors: CASTLE_FLOORS, whole: 'map.castle.whole', wholeHint: 'map.castle.wholeHint', back: ['lesson.back.castle', 'lesson.backAria.castle'], name: undefined, what: undefined });
+  assert.equal(castle.suit, undefined, 'no space suits in the sky');
+  // The other worlds are untouched.
+  assert.equal(mapById('mars').floors, MARS_FLOORS);
+  assert.equal(mapById('moon').floors, MOON_FLOORS);
+  assert.equal(CASTLE_FLOORS.length, FLOORS.length, 'one street per floor');
+  // It teaches its own lessons (the castle realm), with its own teachers, not the land's.
+  assert.equal(teachingRealm('castle'), 'castle');
+  assert.ok(CASTLE_FLOORS.every((f, i) => f.n === i + 1 && f.ages === FLOORS[i].ages && f.look.royal && f.look.landmark));
+  assert.equal(new Set(CASTLE_FLOORS.map((f) => f.look.landmark)).size, 7, 'every street has its own landmark');
+  // Every name in all five languages.
+  const keys = ['map.castle', 'map.castle.what', 'map.castle.whole', 'map.castle.wholeHint', 'castle.mapAria', 'castle.keep', 'castle.waterfall', 'lesson.back.castle', 'lesson.backAria.castle',
+    ...CASTLE_FLOORS.map((f) => `castle.floor.${f.n}`), ...SUBJECTS.map((s) => `castle.building.${s}`), ...CASTLE_FLOORS.map((f) => `landmark.${f.look.landmark}`)];
+  for (const k of keys) {
+    const en = tIn('en', k);
+    assert.notEqual(en, k, `${k} in English`);
+    for (const lang of ['ko', 'es', 'ja', 'zh']) assert.ok(tIn(lang, k) !== k && tIn(lang, k) !== en, `${k} in ${lang}`);
+  }
+
+  // Its townsfolk are its own, in medieval outfits: no other map's critters, no teacher's or puzzle boss's species anywhere.
+  const locals = new Set(CASTLE_FLOORS.flatMap((f) => f.look.critters));
+  const elsewhere = new Set(MAPS.filter((m) => m.id !== 'castle').flatMap((m) => m.floors.flatMap((f) => f.look.critters ?? [])));
+  const cast = new Set(['land', 'forest', 'sea', 'desert', 'moon', 'mars'].flatMap((r) => [...Object.values(teachersIn(r)).map((t) => t.species), ...Object.values(worldsIn(r)).map((w) => w.boss.species)]));
+  assert.ok(locals.size >= 6, `${locals.size} kinds of castle townsfolk`);
+  for (const k of locals) {
+    assert.ok(SPECIES[k], `${k} has a recipe`);
+    assert.ok(!elsewhere.has(k), `${k} is new to the Sky Castle`);
+    assert.ok(!cast.has(k), `${k} is not a teacher or a boss anywhere`);
+  }
+  for (const f of CASTLE_FLOORS) {
+    assert.equal(f.look.garb.length, f.look.critters.length, `street ${f.n}: an outfit for each of its critters`);
+    for (const g of f.look.garb) {
+      assert.ok(GARB[g], `the ${g} outfit exists`);
+      assert.ok(makeHat(GARB[g].hat), `the ${g}'s ${GARB[g].hat} exists`);
+    }
+  }
+  assert.ok(new Set(CASTLE_FLOORS.flatMap((f) => f.look.garb)).size >= 7, 'many different outfits');
+
+  const plan = planCastle(CASTLE_FLOORS.length);
+  assert.equal(plan.kind, 'castle');
+  assert.equal(plan.layers, 1, 'turns of the street never lie over one another');
+  assert.ok(!plan.float, 'ordinary gravity');
+  assert.equal(plan.stairs.length, plan.floors.length - 1, 'a ramp from each floor to the next');
+  assert.ok(plan.footR < 75, `compact: the town wall is ${plan.footR.toFixed(1)} m out`);
+  plan.floors.forEach((f, k) => {
+    assert.equal(f.y, k * CASTLE.floorH, `street ${f.n} stands a storey above the last`);
+    if (k) assert.ok(f.phiS > plan.floors[k - 1].phiE, `street ${f.n} is further up the hill than street ${k}`);
+  });
+  // A floating island: the keep's courtyard on top, a meadow ring outside the town wall, air past the rim, an underside tapering to a point.
+  assert.ok(plan.rock(0, 0) > plan.floors.at(-1).y, 'the keep stands above the top street');
+  assert.equal(plan.floorAt(0, 0), 0, 'nobody walks into the keep');
+  const fa = Math.atan2(plan.start.x, plan.start.z);
+  const meadowAt = plan.footR + 5;
+  assert.ok(plan.rock(Math.sin(fa) * meadowAt, Math.cos(fa) * meadowAt) < 0, 'the meadow lies below the town wall');
+  assert.equal(plan.floorAt(Math.sin(fa) * meadowAt, Math.cos(fa) * meadowAt), 0, 'the meadow is not for walking');
+  assert.ok(plan.rock(Math.sin(fa) * (plan.rimR + 2), Math.cos(fa) * (plan.rimR + 2)) < -500, 'past the rim there is only sky');
+  assert.equal(UNDER[0][0], 1);
+  assert.ok(UNDER.every((p, i) => !i || (p[0] <= UNDER[i - 1][0] && p[1] >= UNDER[i - 1][1]) || i === UNDER.length - 1), 'the underside narrows as it goes down');
+  assert.ok(CASTLE.depth > 100, 'a deep upside-down cone');
+
+  const blockers = plan.floors.flatMap((f) => [...f.places.map((p) => ({ x: p.x, z: p.z, y: f.y, r: SUBJECTS.includes(p.kind) ? 3.25 : p.r * 0.85 })), { x: f.boss.x, z: f.boss.z, y: f.y, r: 1.1 }, { x: f.chest.x, z: f.chest.z, y: f.y, r: 0.9 }, { x: f.chest.rock.x, z: f.chest.rock.z, y: f.y, r: 1.6 }, ...f.blockers]);
+  const nav = buildLayerNav(plan, { blockers });
+  const s = plan.start;
+  const quadrant = (p) => Math.floor(((Math.atan2(p.x, p.z) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2));
+  for (const f of plan.floors) {
+    assert.equal(f.places.length, 8, `street ${f.n}: three schools and five places`);
+    for (const p of [...f.places.map((q) => q.at), f.portal.at, f.boss.at, f.chest.at]) {
+      const path = nav.findPath([s.x, s.z, s.y], [p.x, p.z, f.y]);
+      assert.ok(path, `street ${f.n}: (${p.x.toFixed(1)}, ${p.z.toFixed(1)}) reachable`);
+      assert.ok(Math.abs(path.at(-1)[2] - f.y) < 0.6, `street ${f.n}: the path ends on that street`);
+    }
+    for (const p of f.plinths) assert.ok(Math.abs(plan.height(p.x, p.z, f.y) - (f.y + 0.55)) < 0.05, `street ${f.n}: the ${p.subject} school stands on its plinth`);
+    for (const [x, z] of [...f.gemSpots, ...f.toySpots]) assert.equal(plan.floorAt(x, z), f.n, `street ${f.n}: gem or toy spot on its own street`);
+    for (const p of f.places) assert.ok(Math.hypot(p.at.x, p.at.z) > Math.hypot(p.x, p.z), `street ${f.n}: the ${p.kind} faces out`);
+    const [m, h, ph] = ['math', 'history', 'physics'].map((k) => f.plinths.find((p) => p.subject === k));
+    assert.ok(Math.hypot(m.x - h.x, m.z - h.z) < 11 && Math.hypot(ph.x - h.x, ph.z - h.z) < 11, `street ${f.n}: the schools are neighbours round the plaza`);
+  }
+  // Used all the way round the island.
+  assert.equal(new Set(plan.floors.flatMap((f) => f.places).map(quadrant)).size, 4, 'buildings on every side of the island');
+  assert.equal(new Set(plan.floors.flatMap((f) => f.plinths).map(quadrant)).size, 4, 'schools on every side of the island');
+  assert.ok(new Set(plan.floors.map((f) => quadrant(f.plaza))).size >= 3, 'the plazas face different ways');
+  const gate = plan.floors[0].worldGate;
+  assert.ok(gate && nav.findPath([s.x, s.z, s.y], [gate.at.x, gate.at.z, 0]), 'the World Portal is on floor 1, and reachable');
+  assert.ok(!plan.floors.slice(1).some((f) => f.worldGate), 'and only there');
+  const reaches = (n, from, to) => {
+    const p = n.findPath(from, to);
+    return Boolean(p && Math.abs(p.at(-1)[2] - to[2]) < 0.6 && Math.hypot(p.at(-1)[0] - to[0], p.at(-1)[1] - to[1]) < 3);
+  };
+  const shut = buildLayerNav(plan, { blockers, locked: (n) => n >= 2 });
+  const t2 = plan.floors[1].places[0].at, t1 = plan.floors[0].places[2].at;
+  assert.ok(!reaches(shut, [s.x, s.z, s.y], [t2.x, t2.z, t2.y]), 'street 2 is shut while locked');
+  assert.ok(reaches(shut, [s.x, s.z, s.y], [t1.x, t1.z, t1.y]), 'street 1 still open');
+  const half = buildLayerNav(plan, { blockers, locked: (n) => n >= 5 });
+  const t4 = plan.floors[3].places[0].at, t5 = plan.floors[4].places[0].at;
+  assert.ok(reaches(half, [s.x, s.z, s.y], [t4.x, t4.z, t4.y]), 'street 4 open up three ramps');
+  assert.ok(!reaches(half, [s.x, s.z, s.y], [t5.x, t5.z, t5.y]), 'street 5 shut');
+});
+
+test('sky castle: quick to walk — every place a few seconds from its plaza, the schools by it, the next street near', async () => {
+  const { planCastle } = await import('../../src/arcademia/world/castle/plan.js');
+  const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
+  const plan = planCastle(FLOORS.length);
+  const blockers = plan.floors.flatMap((f) => [...f.places.map((p) => ({ x: p.x, z: p.z, y: f.y, r: SUBJECTS.includes(p.kind) ? 3.25 : p.r * 0.85 })), { x: f.boss.x, z: f.boss.z, y: f.y, r: 1.1 }, { x: f.chest.x, z: f.chest.z, y: f.y, r: 0.9 }, { x: f.chest.rock.x, z: f.chest.rock.z, y: f.y, r: 1.6 }, ...f.blockers]);
+  const nav = buildLayerNav(plan, { blockers });
+  const SPEED = 4.6; // the buddy's walking speed with WASD (m/s; World.js)
+  const secs = (from, to) => {
+    const p = nav.findPath(from, to);
+    assert.ok(p, 'a way there');
+    return p.slice(1).reduce((s, q, i) => s + Math.hypot(q[0] - p[i][0], q[1] - p[i][1]), 0) / SPEED;
+  };
+  for (const f of plan.floors) {
+    const plaza = [f.spawn.x, f.spawn.z, f.y], arrive = [f.arrive.x, f.arrive.z, f.y];
+    for (const [name, at] of [...f.places.map((p) => [p.kind, p.at]), ['portal', f.portal.at], ['boss', f.boss.at], ['chest', f.chest.at], ...(f.worldGate ? [['worlds', f.worldGate.at]] : [])]) {
+      const t = secs(plaza, [at.x, at.z, f.y]);
+      assert.ok(t <= 12, `street ${f.n}: the ${name} is ${t.toFixed(1)} s from the plaza (at most 12)`);
+    }
+    for (const p of f.plinths) {
+      const door = f.places.find((q) => q.kind === p.subject).at;
+      assert.ok(secs(plaza, [door.x, door.z, f.y]) <= 4, `street ${f.n}: the ${p.subject} school is by the plaza`);
+      const from = f.k ? arrive : [f.worldGate.at.x, f.worldGate.at.z, f.y];
+      const t = secs(from, [door.x, door.z, f.y]);
+      assert.ok(t <= 12, `street ${f.n}: the ${p.subject} school is ${t.toFixed(1)} s from where you arrive`);
+    }
+    const next = plan.floors[f.k + 1];
+    if (next) {
+      const t = secs(plaza, [next.spawn.x, next.spawn.z, next.y]);
+      assert.ok(t <= 25, `street ${f.n} to ${next.n}: ${t.toFixed(1)} s plaza to plaza`);
+    }
+  }
+});
+
+test('sky castle: a step never jumps from one street to another (only the ramps go up); the ramps are wide and gentle; the camera never sits in a wall', async () => {
+  const { planCastle, CASTLE } = await import('../../src/arcademia/world/castle/plan.js');
+  const { buildLayerNav } = await import('../../src/arcademia/world/tree/nav.js');
+  const plan = planCastle(FLOORS.length);
+  const nav = buildLayerNav(plan, {});
+  const { w, d, cell, x0, z0, open, floorOf, h } = nav;
+  let jumps = 0, cliffs = 0, onRamps = 0;
+  for (let j = 1; j < d - 1; j++) for (let i = 1; i < w - 1; i++) {
+    const a = j * w + i;
+    if (!open[a]) continue;
+    if (!floorOf[a]) onRamps++;
+    const ax = x0 + (i + 0.5) * cell, az = z0 + (j + 0.5) * cell;
+    for (const [di, dj] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
+      const b = (j + dj) * w + i + di;
+      if (!open[b]) continue;
+      if (!nav.canStep(ax, az, ax + di * cell, az + dj * cell, h[a])) continue;
+      if (floorOf[a] && floorOf[b] && floorOf[a] !== floorOf[b]) jumps++;
+      if (Math.abs(h[a] - h[b]) > 1.2) cliffs++;
+    }
+  }
+  assert.equal(jumps, 0, 'steps straight from one street onto another');
+  assert.equal(cliffs, 0, 'steps up or down a wall');
+  assert.ok(onRamps > 400, 'the ramps are walkable');
+  for (const st of plan.stairs) {
+    assert.ok(st.width >= 14, 'a ramp is the street\'s whole width');
+    assert.ok(plan.riOf(st.pa) * (st.pb - st.pa) >= 13.9, `ramp ${st.from}: gentle`);
+    const path = nav.findPath([st.a.x, st.a.z, st.a.y], [st.b.x, st.b.z, st.b.y]);
+    assert.ok(path && Math.abs(path.at(-1)[2] - st.b.y) < 0.6, `ramp ${st.from} to ${st.to} climbs a storey`);
+    const mid = plan.pt((st.pa + st.pb) / 2, CASTLE.W / 2);
+    assert.equal(plan.floorAt(mid.x, mid.z), 0, 'a ramp belongs to no street');
+    assert.ok(Math.abs(plan.height(mid.x, mid.z, (st.a.y + st.b.y) / 2) - (st.a.y + st.b.y) / 2) < 0.2, `ramp ${st.from}: half-way up half a storey`);
+  }
+  // The follow camera: in a wall or behind it, it is lifted until the buddy is in clear view; far views are left alone.
+  const f = plan.floors[2], kid = f.spawn;
+  const inner = plan.pt(f.plaza.phi, -6);
+  assert.ok(plan.camLift(inner.x, f.y + 3, inner.z, kid.x, f.y + 1, kid.z) > 5, 'a camera inside the wall behind is lifted out');
+  const out = plan.pt(f.plaza.phi, CASTLE.W + 12);
+  assert.equal(plan.camLift(out.x, f.y + 8, out.z, kid.x, f.y + 1, kid.z), 0, 'the usual view from outside is clear');
+  const a = plan.arrival;
+  assert.equal(plan.camLift(a.target[0] + a.offset[0], a.target[1] + a.offset[1], a.target[2] + a.offset[2], ...a.target), 0, 'the arrival view of the whole island is not pushed up');
+  assert.ok(Math.hypot(a.offset[0], a.offset[2]) > plan.rimR * 3 && a.target[1] < 0, 'it looks at the whole island from beside it, its underside in view');
+  assert.equal(plan.followRound, true, 'the camera turns with the buddy round the hill');
 });
 
 test('desert realm: its own 42 lessons, teachers, stories, puzzle bosses and voices', async () => {
@@ -1105,4 +1293,96 @@ test('mars realm: its own 42 lessons, teachers, stories, puzzle bosses, museum o
   assert.ok(lines.some((l) => l.char === 'woolly' && l.id.startsWith('t.mars.quest.history~h1-mars-')), 'Professor Woolly tells the Mars Museum quests');
   assert.ok(lines.some((l) => l.char === 'digby' && l.id.startsWith('l.p1-mars-')), 'Dr. Digby reads Mars\'s physics');
   assert.ok(lines.some((l) => l.char === 'mars-boss-1' && l.id === 't.mars.world.1.line'), 'the first terrace\'s boss has its line');
+});
+
+test('sky castle realm: its own 42 lessons, teachers, stories, puzzle bosses, guides, museum objects and voices', async () => {
+  const { CASTLE_LESSONS, teachingRealm } = await import('../../src/arcademia/content/index.js');
+  const { ARTIFACTS, LOOKS } = await import('../../src/arcademia/content/schema.js');
+  const { ARTIFACT_MODELS } = await import('../../src/arcademia/world/artifacts.js');
+  const { teachersIn, makeCreature, GARB } = await import('../../src/arcademia/world/figures.js');
+  const { worldsIn, questFor } = await import('../../src/arcademia/quests.js');
+  const { SPECIES } = await import('../../src/arcademia/world/creatures/species.js');
+  const { makeHat } = await import('../../src/arcademia/world/creatures/hats.js');
+  const { REALM_TEACHER_OF, characterIds, buildScript } = await import('../../src/arcademia/voice/script.js');
+  const { CAST, CAST_BY_LANG } = await import('../../src/arcademia/voice/generated.js');
+  const { MAPS, CASTLE_FLOORS } = await import('../../src/arcademia/maps.js');
+  const { tIn, loadLocale } = await import('../../src/arcademia/i18n/index.js');
+  for (const lang of ['ko', 'es', 'ja', 'zh']) await loadLocale(lang);
+  // 42 well-formed lessons, two per subject on every street, all its own.
+  assert.equal(CASTLE_LESSONS.length, 42);
+  assert.deepEqual(CASTLE_LESSONS.flatMap((l) => lessonProblems(l, { gens: GENERATORS })), []);
+  assert.ok(CASTLE_LESSONS.every((l) => l.realm === 'castle' && /-castle-/.test(l.id)));
+  assert.equal(lessonsIn('castle'), CASTLE_LESSONS);
+  assert.equal(teachingRealm('castle'), 'castle', 'the Sky Castle teaches its own lessons now, not the land\'s');
+  for (const f of FLOORS) for (const s of SUBJECTS) assert.equal(CASTLE_LESSONS.filter((l) => l.floor === f.n && l.subject === s).length, 2, `street ${f.n} ${s}`);
+  assert.equal(new Set(LESSONS.map((l) => l.id)).size, LESSONS.length, 'lesson ids are unique across every realm');
+  // Its topics are new: no other realm's lesson has the same title, and its history topics are taught nowhere else.
+  const elsewhereLessons = LESSONS.filter((l) => l.realm !== 'castle');
+  for (const l of CASTLE_LESSONS) assert.ok(!elsewhereLessons.some((o) => o.title === l.title), `${l.id}: its title is its own`);
+  for (const l of CASTLE_LESSONS.filter((x) => x.subject === 'history')) assert.ok(!elsewhereLessons.some((o) => o.topic === l.topic), `${l.id}: ${l.topic} is taught only here`);
+  // Math checks are written castle word problems on the land's generators for that floor.
+  for (const l of CASTLE_LESSONS.filter((x) => x.subject === 'math')) {
+    assert.ok(Array.isArray(l.quiz), `${l.id}: a written check`);
+    assert.ok(LESSONS.some((o) => !o.realm && o.subject === 'math' && o.floor === l.floor && o.topic === l.topic), `${l.id}: ${l.topic} is a floor-${l.floor} generator`);
+  }
+  // Its guides are dressed (medieval outfits for the new looks) and its museum objects are modelled.
+  for (const l of CASTLE_LESSONS.filter((x) => x.subject === 'history')) {
+    const look = l.dialogue.npc.look;
+    assert.ok(LOOKS.includes(look), `${l.id}: look ${look}`);
+    if (GARB[look]?.hat) assert.ok(makeHat(GARB[look].hat), `${l.id}: the ${look}'s ${GARB[look].hat} exists`);
+    assert.ok(makeCreature({ species: 'fox', costume: look, lod: 'low' }), `${l.id}: the ${look} guide can be dressed`);
+    assert.ok(ARTIFACT_MODELS.includes(l.artifact.model), `${l.id}: a model for ${l.artifact.model}`);
+  }
+  for (const a of ARTIFACTS) assert.ok(ARTIFACT_MODELS.includes(a), `the museum can show ${a}`);
+  // Its teachers are new animals: no other world's teachers or puzzle bosses, and nobody's townsfolk on any map.
+  const mine = teachersIn('castle');
+  const others = ['land', 'forest', 'sea', 'desert', 'moon', 'mars'].flatMap((r) => [...Object.values(teachersIn(r)).map((t) => t.species), ...Object.values(worldsIn(r)).map((w) => w.boss.species)]);
+  const townsfolk = new Set(MAPS.flatMap((m) => m.floors.flatMap((f) => f.look.critters ?? [])));
+  assert.deepEqual(Object.values(mine).map((t) => t.species), ['corgi', 'stag', 'beaver']);
+  for (const s of SUBJECTS) {
+    const t = mine[s];
+    assert.ok(SPECIES[t.species], `${t.species} has a recipe`);
+    assert.ok(!others.includes(t.species) && !townsfolk.has(t.species), `${t.species} is new to the Sky Castle's teachers`);
+    assert.ok(t.name && t.name !== `castle.teacher.${s}`, `the ${s} teacher has a name`);
+    for (const lang of ['ko', 'es', 'ja', 'zh']) assert.notEqual(tIn(lang, `castle.teacher.${s}`), `castle.teacher.${s}`);
+    // Each is dressed for the castle: its own hat, and an outfit painted over its body.
+    const wear = SPECIES[t.species]().hat.wear;
+    assert.ok(wear && makeHat(wear), `the ${s} teacher wears a ${wear}`);
+    assert.ok(SPECIES[t.species]().paint.some((p) => p.s === 'disc'), `the ${s} teacher wears a belted outfit`);
+  }
+  // Its quests are told by its own teachers; each street has its own story and puzzle boss, a castle critter (or a little dragon at the top).
+  const h1 = CASTLE_LESSONS.find((l) => l.subject === 'history');
+  assert.equal(questFor(h1).teacher.species, mine.history.species);
+  assert.match(questFor(CASTLE_LESSONS[0]).intro, /Clock Tower/);
+  const w = worldsIn('castle');
+  const locals = new Set(CASTLE_FLOORS.flatMap((f) => f.look.critters));
+  for (const f of FLOORS) {
+    assert.ok(SPECIES[w[f.n].boss.species], `street ${f.n}'s boss has a recipe`);
+    assert.ok(locals.has(w[f.n].boss.species) || (f.n === 7 && w[f.n].boss.species === 'dragon'), `street ${f.n}'s boss is a castle critter`);
+    assert.ok(w[f.n].story && !w[f.n].story.startsWith('castle.world'), `street ${f.n} has a story`);
+    assert.notEqual(w[f.n].story, worldsIn('land')[f.n].story, `street ${f.n}'s story is its own, not the land's`);
+    assert.ok(w[f.n].boss.name && w[f.n].boss.line, `street ${f.n} has a boss name and line`);
+    for (const lang of ['ko', 'es', 'ja', 'zh']) for (const k of ['story', 'boss', 'line']) assert.notEqual(tIn(lang, `castle.world.${f.n}.${k}`), `castle.world.${f.n}.${k}`);
+  }
+  assert.equal(new Set(Object.values(w).map((x) => x.boss.species)).size, 7, 'seven different bosses');
+  assert.match(w[1].story, /Gatehouse Market/, 'the arrival toast is the first street\'s own story');
+  for (const lang of ['en', 'ko', 'es', 'ja', 'zh']) for (const s of SUBJECTS) {
+    assert.notEqual(tIn(lang, `castle.hello.${s}`), `castle.hello.${s}`);
+    assert.notEqual(tIn(lang, `castle.quest.${s}`), `castle.quest.${s}`);
+  }
+  // Voices: its teachers and bosses are in the script, each with a designed voice (bosses never scary).
+  const ids = characterIds();
+  for (const id of [...Object.values(REALM_TEACHER_OF.castle), ...FLOORS.map((f) => `castle-boss-${f.n}`)]) {
+    assert.ok(ids.includes(id), `${id} in the voice script`);
+    assert.ok(CAST[id]?.design, `${id} has a voice design`);
+    if (id.startsWith('castle-boss-')) assert.match(CAST[id].design, /never (scary|menacing)/, `${id} must not be scary`);
+  }
+  for (const id of Object.values(REALM_TEACHER_OF.castle)) assert.ok(CAST_BY_LANG.ko[id], `${id} has a Korean voice`);
+  const seeds = Object.values(CAST).map((v) => v.seed);
+  assert.equal(new Set(seeds).size, seeds.length, 'every designed voice has its own seed');
+  const lines = buildScript('en');
+  assert.ok(lines.some((l) => l.char === 'biscuit' && l.id === 't.castle.hello.math'), 'Miss Biscuit greets in her own words');
+  assert.ok(lines.some((l) => l.char === 'hartley' && l.id.startsWith('t.castle.quest.history~h1-castle-')), 'Professor Hartley tells the Library Hall quests');
+  assert.ok(lines.some((l) => l.char === 'sprocket' && l.id.startsWith('l.p1-castle-')), 'Dr. Sprocket reads the castle\'s physics');
+  assert.ok(lines.some((l) => l.char === 'castle-boss-1' && l.id === 't.castle.world.1.line'), 'the first street\'s boss has its line');
 });

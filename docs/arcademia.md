@@ -22,7 +22,7 @@ weekly report behind a PIN, and a read-only link they can open on their own phon
 
 ## Study worlds
 
-There are six study worlds, and each teaches **its own lessons with its own teachers**, so a child
+There are seven study worlds, and each teaches **its own lessons with its own teachers**, so a child
 who finishes one world has a new one to explore (a world still being written borrows the mountain's
 lessons and teachers until its own exist: `content/index.js` `teachingRealm`). Each world has seven floors for ages 6–13 with its
 own stories and puzzle bosses, and its own stars and unlocking. Coins, stickers, hats, gems and the
@@ -35,6 +35,7 @@ buddy are shared everywhere.
 | The Lagoon 🏝️ | sea | Captain Pip 🐧 · Grandma Inka 🐙 · Dr. Splash 🦭 | Sea Math, Sea Explorers, the Ocean Lab: navigators, lighthouses, ocean science, floating, tides and the deep sea (`content/sea.js`) |
 | The Desert of the Pyramids 🐪 | desert | Miss Lotus 🦛 · Uncle Reed (an ibis) · Dr. Sandy (a sand cat) | the Pyramid School, the Temple School and the Sun Observatory: 42 desert and Ancient Egypt lessons — hieroglyph numbers, cubits and the Nile's fields; farmers, scribes, Imhotep, Hatshepsut, Petra, the Rosetta Stone, Ibn Battuta, Alexandria, Timbuktu, Tutankhamun and Abu Simbel; shade, singing dunes, wet sand under sledges, the shadoof, mirages, hot-air balloons, sandstorms and Eratosthenes (`content/desert.js`) |
 | Mars 🔴 | mars | Miss Ruby (an otter) 🦦 · Professor Woolly (an alpaca) 🦙 · Dr. Digby (a star-nosed mole) | the Red Dome School, the Mars Museum and the Weather Lab on Olympus Mons: 42 Mars and planet lessons — counting rover wheels, rock samples in tens, the six times table, fractions of a space pizza, feeling about 3/8 as heavy, sols about 40 minutes longer, greenhouse areas, a Mars year of about 1.9 Earth years, below-zero nights, Mars percentages, rover-route equations and square solar fields; the red wandering star, Phobos and Deimos and Angeline Stickney, Schiaparelli's canal mix-up, Mariner 4's hand-coloured first picture, Viking, Sojourner, Spirit and Opportunity, Mangalyaan, Curiosity's sky crane, the UAE's Hope, Perseverance's sample tubes, Tianwen-1 and Zhurong, Ingenuity and MOXIE; why Mars is red, sols and blue sunsets, quiet thin air, falling in gentler gravity, ice caps and long-ago water, keeping warm, greenhouses and mirrors, rovers in soft sand, solar power and dust, robot arms and levers, flying in thin air, radio delay, Olympus Mons and Valles Marineris, and launch windows (`content/mars.js`) |
+| The Sky Castle 🏰 | castle | Miss Biscuit (a corgi) 🐶 · Professor Hartley (a stag) 🦌 · Dr. Sprocket (a beaver) 🦫 | the Clock Tower School, the Library Hall and the Inventor's Workshop: 42 castle, medieval and sky lessons — counting towers and flags, buns at the market, Roman numerals on the clock, bell chimes in 2s, 5s and 10s, floor-tile arrays and tessellations, half past and quarter past, feet, thumbs and yards, sharing the feast, walls and herb gardens, banners in tenths, colder up high, fair percentages, clockwork equations and Fibonacci's squares; market day, castle builders and the treadwheel crane, Himeji the White Heron Castle, King Sejong's Hangul, al-Jazari's Elephant Clock, Angkor Wat, the Forbidden City, Jikji, Great Zimbabwe, Hildegard of Bingen, Magna Carta, Fatima al-Fihri and the first universities, Leonardo's flying machines and the first balloon flights of 1783; could an island float, coloured light through stained glass, big and little bells, the blacksmith's magnet, melting and casting bells, carts and friction on the castle hill, the counterweight drawbridge, lightning rods, the pendulum clock, messenger pigeons and speed, rainbows by the waterfalls, parachutes and drag, air pressure and boiling up high, and water mills and energy (`content/castle.js`) |
 | The Moon 🌙 | moon | Miss Mochi (a moon rabbit) 🐰 · Captain Ginger (a red panda) · Dr. Comet (a koala) 🐨 | the Dome School, the Moon Museum and the Star Observatory: 42 Moon and space lessons — counting craters, rocket countdowns, fractions of the Moon, a sixth of your weight, moon-month decimals, hot days and freezing nights, mission equations; moon-rabbit tales and full-moon festivals, Galileo, Sputnik, Gagarin, Tereshkova, Katherine Johnson, Apollo 11, Hubble, the ISS, Sally Ride, the Chang'e missions, Apollo 13 and today's explorers (Danuri, Chandrayaan-3, SLIM, Artemis); phases, moon boots, silent space, the hammer and the feather, craters, polar ice, earthshine, levers, rockets, the long lunar day, eclipses and tides, moonbase power, pendulums and orbits (`content/moon.js`) |
 
 **The Great Tree** has a ring of treehouses all the way round a giant trunk for every floor: Root
@@ -195,6 +196,57 @@ Pathfinder's airbags, a twin rover, Mangalyaan, Curiosity's Morse-code wheel, th
 sample tube, Zhurong, Ingenuity and MOXIE. The terrace puzzle bosses are Mars's own critters: Toffee the
 Capybara, Bolt the Rover-Bot, Frosty the Chinchilla, Mossy the Sloth, Peep the Pika, Swirly the Dust
 Devil (a dusty puff) and Sir Rollo the Armadillo.
+
+**The Sky Castle** is a floating island high in a deep blue sky, crowned by a white-stone castle
+town (`world/castle/plan.js`, `scene.js`, `buildings.js`). Like Mars, one street of terraces winds up
+the castle hill (about two and a half turns, the same compact base and walking rules: every place within
+12 s of its floor's plaza, the schools 3 s, plaza to plaza about 23 s, measured by a unit test), so the
+floors face every side of the island: Gatehouse Market by the rim, Ribbon Lane, Dragon Court, Bell Tower
+Walk, Sundial Garden, Balloon Bastion and the Crown Garden round the keep. Between the turns stand white
+retaining walls of block masonry (a stone shader draws the courses), their tops planted with hedges,
+flowers and little trees, ivy spilling down, windows, balconies and banners in their faces. In front of a
+street's buildings the walls carry low round bastions the follow camera looks over; in front of the ramps
+and street ends rise turrets with teal conical roofs and gold finials, and the keep crowns the summit (a
+great round tower, slim tall towers, a ring of spires and halls round its courtyard). The ramps are wide
+stone steps with a red carpet up the middle, between two gate towers whose portcullis is down while the
+floor above is locked. Outside the town wall a ring of meadow and orchards with cottages runs to the rim,
+where two streams pour off the edge as waterfalls into the clouds. Below the rim the underside is an
+upside-down cone of layered blue-grey stone ledges, mossy near the top, hung with vines and roots. Big
+soft cumulus clouds drift round and below it, little islets bob nearby (two tied to the rim with rope
+bridges), and far below lie green hills, a river, forests, old stone ruins and blue mountains. Arriving,
+the camera shows the whole island from beside it and holds that picture until you move (`plan.arrival`,
+`hold`). Night brings stars, the moon, lanterns, glowing windows and stained glass. Blossom petals and
+feathers drift over the streets; the music is a lute-like run of plucked notes with far-off bells
+(`castle` mood).
+The buildings are its own (`world/castle/buildings.js`, original designs):
+- **Clock Tower School:** a little stone hall under a gabled roof, a square tower with a big clock face whose hands turn, an open belfry and a spire; a turret with a turning gold astrolabe.
+- **Library Hall:** a steep-roofed hall, its gable to the street with a round stained-glass window, tall stained-glass windows by a double door, an open book, banners, a bell spire and a corner turret.
+- **Inventor's Workshop:** a round stone tower with a half-timbered top storey and a conical roof, windmill sails turning on its front, a swinging timber crane and gold gears.
+- The small places stand under round striped pavilion tents.
+
+The landmarks are a wishing-well fountain, a ribbon maypole, a friendly stone dragon fountain, a bell
+tower, a sundial garden, a balloon dock and the crown garden. The townsfolk are the castle's own, in
+medieval outfits (`figures.js` `GARB`, painted on with `species.js` `garbPaint`, a hat each in
+`creatures/hats.js`): badgers, kid goats, geese, ponies, ferrets, lambs and magpies as bakers, minstrels
+with feathered caps, squires in tabards and soft padded helmets, ladies in gowns and hennins, jesters,
+copyists in monk-like hoods, goodwives in linen coifs and wayfarers in red hoods. The minimap is Mars's
+tap-to-walk spiral map in sky colours, with the keep and the waterfalls (`hud.js` `_spiralMap`).
+
+The Sky Castle's teachers are its own animals, dressed for the castle (`world/creatures/species.js`, the
+outfit painted on with `garbPaint`, a hat each in `creatures/hats.js`): **Miss Biscuit**, a ginger-and-white
+corgi clockmaker in a teal tunic and a leather apron, a jeweller's loupe on her headband and a little gear on
+the side (the Clock Tower School); **Professor Hartley**, a grandpa stag with small antlers, round glasses, a
+long indigo scholar's robe with a gold collar and a velvet cap with a tassel (the Library Hall); and
+**Dr. Sprocket**, a beaver inventor in a rust tunic and leather apron, with brass goggles pushed up on a leather
+cap, which she keeps on in the workshop instead of lab goggles (the Inventor's Workshop). The history guides
+wear medieval and world outfits (`figures.js` `GARB`): a baker, a stonemason, a Japanese plasterer in a
+headband, a Joseon scholar in a gat, an engineer in a turban, a stone carver, a monk, a stone builder of Great
+Zimbabwe, an abbess in a wimple, a scribe, a scholar of Fez, a Renaissance painter in a soft cap and a
+balloon-maker of 1783 in a tricorn; the museum shows a trader's scales, a treadwheel crane, a golden
+shachihoko, the Hunminjeongeum, the Elephant Clock, Angkor Wat, roof guardians, metal type, a soapstone bird,
+a royal wax seal, a quill and ink pot, Leonardo's flapping-wing machine and a Montgolfier balloon. The street
+puzzle bosses are the castle's own critters: Gertie the Goose, Lulu the Lamb, Glint the Magpie, Nibbles the
+Goat, Fidget the Ferret, Clover the Pony and, keeping the Crown Garden, Sprout the Little Dragon.
 
 **Space suits.** On the space maps (the Moon and Mars, `maps.js` `suit`) everyone wears a space suit:
 the buddy, the townsfolk, the puzzle bosses, and the teachers and guides in the lesson rooms
@@ -584,8 +636,9 @@ Hoot is "resting" and shows the same prebuilt help — the whole game works with
 | Lessons: format and checks; math generators and chalkboard scripts; history; physics | `src/arcademia/content/` |
 | Stars, unlocks, caps, the weekly report (shared with the server) | `src/arcademia/rules.js` |
 | The mountain plan: terraces, places, stairs, stream, heights, walking grid | `src/arcademia/world/layout.js` |
-| Study worlds: the list, the Great Tree's, the Lagoon's, the Desert's, the Moon's and Mars's floors | `src/arcademia/maps.js` |
+| Study worlds: the list, the Great Tree's, the Lagoon's, the Desert's, the Moon's, Mars's and the Sky Castle's floors | `src/arcademia/maps.js` |
 | Mars: plan (the spiral terrace, its floors and ramps, the rock, the camera lift), 3D scene, printed habitats, landmarks, the rocket, rover and drone | `src/arcademia/world/mars/plan.js`, `scene.js`, `buildings.js` |
+| The Sky Castle: plan (the winding street, its floors and ramps, the island, the camera lift), 3D scene (walls, turrets, keep, underside, clouds, islets, the land below), buildings, landmarks, pavilion tents, the portcullis | `src/arcademia/world/castle/plan.js`, `scene.js`, `buildings.js` |
 | Each world's lessons, teachers and stories (realms) | `src/arcademia/content/forest.js`, `content/sea.js`, `content/desert.js`, `content/moon.js`, `content/mars.js`, `figures.js` `teachersIn`, `quests.js` `worldsIn` |
 | The Lagoon: plan (islands, boardwalks, villas), 3D scene, resort buildings and landmarks | `src/arcademia/world/lagoon/plan.js`, `scene.js`, `src/arcademia/world/resort.js` |
 | The Desert: plan (oases, causeways, the Nile, Giza), 3D scene, sandstone buildings, landmarks, sphinxes | `src/arcademia/world/desert/plan.js`, `scene.js`, `buildings.js` |

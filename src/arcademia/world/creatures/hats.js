@@ -10,6 +10,10 @@
  *   the Moon     the townsfolk's round bubble helmet and comms headset; its teachers' crescent
  *                hair clip, star-badge captain's cap and astronaut visor; the stargazers' starry cap
  *   Mars         the townsfolk's dust goggles with a bandana
+ *   Sky Castle   the townsfolk's medieval hats: a baker's cap, a minstrel's feathered cap, a squire's soft
+ *                padded helmet, a lady's hennin with a veil, a jester's belled cap, a copyist's hood, a
+ *                linen coif, a wayfarer's hood and capelet; its teachers' clockmaker's loupe, scholar's velvet cap and
+ *                inventor's goggles on a leather cap; its guides' gat, headband, Renaissance cap and wimple
  *   space suits  the clear bubble helmet, oxygen pack and chest light every creature wears on the space maps
  *
  * makeHat(id) builds one for a head of radius 1 standing on the head's top
@@ -693,6 +697,232 @@ function costume(id) {
       const glow = new THREE.Mesh(new THREE.CircleGeometry(0.16, 18), propMaterial('#fff6c8', { emissive: '#ffe58a', ei: 1.0 }));
       glow.position.z = 0.105;
       lamp.add(glow);
+      break;
+    }
+    // The Sky Castle's townsfolk (figures.js GARB): medieval hats and hoods.
+    case 'bakercap': {
+      // A puffy white baker's cap, flopping a little to one side.
+      P(new THREE.CylinderGeometry(0.86, 0.9, 0.34, 28), M('#fffaf2'), [0, -0.3, 0]);
+      const puff = P(S(0.9, 22, 14), M('#ffffff', { gloss: 0.1 }), [0.12, 0.05, -0.04], [0, 0, -0.25], [1.05, 0.62, 1.0]);
+      void puff;
+      P(new THREE.TorusGeometry(0.88, 0.05, 6, 32), M('#e8b45a'), [0, -0.3, 0], [Math.PI / 2, 0, 0], null, 0);
+      break;
+    }
+    case 'minstrel': {
+      // A soft round cap tilted over one ear, a gold band and a long curling feather.
+      P(S(0.96, 24, 12), M('#3a6fd0'), [0.08, -0.22, 0], [0, 0, -0.18], [1.08, 0.42, 1.04]);
+      P(new THREE.TorusGeometry(0.9, 0.07, 6, 32), M('#ffd23f', { gloss: 0.6 }), [0, -0.36, 0], [Math.PI / 2, 0, -0.18], null, 0.01);
+      const feather = new THREE.Group();
+      feather.position.set(-0.55, -0.15, -0.2);
+      feather.rotation.set(-0.5, 0.3, 0.55);
+      const vane = mesh(new THREE.SphereGeometry(0.5, 14, 10), propMaterial('#ff6f5f', { gloss: 0.2 }), { outline: 0.012 });
+      vane.scale.set(0.24, 1.6, 0.06);
+      vane.position.y = 0.7;
+      feather.add(vane);
+      const tip = mesh(new THREE.SphereGeometry(0.2, 10, 8), propMaterial('#ffd23f'), { outline: 0.01 });
+      tip.scale.set(0.5, 1.0, 0.2);
+      tip.position.y = 1.45;
+      feather.add(tip);
+      g.add(feather);
+      break;
+    }
+    case 'softhelm': {
+      // A friendly padded cloth helmet (no visor, no point): quilted silver-blue, a fat red plume.
+      cap(1.07, '#c9d4e2', -0.7, { gloss: 0.35 }).rotation.x = -0.3;
+      for (let i = 0; i < 6; i++) P(new THREE.TorusGeometry(1.0, 0.035, 4, 32, Math.PI), M('#a9b6c8'), [0, -0.7, 0], [-0.3, (i / 6) * Math.PI, 0], null, 0);
+      P(new THREE.TorusGeometry(1.05, 0.09, 8, 36), M('#3a6fd0'), [0, -0.66, -0.2], [Math.PI / 2 - 0.3, 0, 0], null, 0.01);
+      const plume = pompom(0.32, '#e0574f');
+      plume.position.set(0, 0.28, -0.05);
+      plume.scale.set(0.9, 1.3, 1.3);
+      g.add(plume);
+      P(S(0.09, 10, 8), M('#ffd23f', { metal: 1 }), [0, 0.06, 0]);
+      break;
+    }
+    case 'hennin': {
+      // A tall cone hat tipped back, a gold band, a soft veil trailing from its tip.
+      const hat = new THREE.Group();
+      hat.rotation.x = -0.42;
+      hat.position.set(0, -0.32, -0.1);
+      const coneM = mesh(new THREE.ConeGeometry(0.62, 2.1, 28, 1, true), propMaterial('#ff8fb8', { gloss: 0.35, side: THREE.DoubleSide }), { outline: 0.016 });
+      coneM.position.y = 1.02;
+      hat.add(coneM);
+      const band = mesh(new THREE.TorusGeometry(0.62, 0.07, 6, 30), propMaterial('#f2c14e', { gloss: 0.6, metal: 0.6 }), { outline: 0.01 });
+      band.rotation.x = Math.PI / 2;
+      hat.add(band);
+      const veil = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.9, 18, 1, true, Math.PI * 0.6, Math.PI * 0.8), new THREE.MeshBasicMaterial({ color: '#fff4fb', transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+      veil.position.set(0, 1.15, -0.32);
+      veil.rotation.x = Math.PI + 0.55;
+      hat.add(veil);
+      g.add(hat);
+      break;
+    }
+    case 'jester': {
+      // Three floppy points in two colours, a gold bell on each tip, a band.
+      P(new THREE.CylinderGeometry(0.88, 0.94, 0.4, 28), M('#7b5fd0'), [0, -0.28, 0]);
+      const cols = ['#ffd23f', '#7b5fd0', '#e0574f'];
+      [-1, 0, 1].forEach((k, i) => {
+        const pts = [[0, 0, 0], [k * 0.45, 0.55, -0.08 * Math.abs(k)], [k * 1.0, 0.65, -0.05], [k * 1.3, 0.25 + (k ? 0 : 0.6), 0.05]].map((v) => new THREE.Vector3(...v));
+        if (!k) pts.splice(2, 2, new THREE.Vector3(0.1, 1.05, -0.2), new THREE.Vector3(0.45, 1.2, -0.45));
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const tube = new THREE.TubeGeometry(curve, 16, 1, 10, false);
+        const pos = tube.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3();
+        for (let a = 0; a <= 16; a++) {
+          curve.getPointAt(a / 16, c);
+          for (let b = 0; b <= 10; b++) {
+            const id = a * 11 + b;
+            v.fromBufferAttribute(pos, id).sub(c).multiplyScalar(0.38 * (1 - (a / 16) * 0.8)).add(c);
+            pos.setXYZ(id, v.x, v.y, v.z);
+          }
+        }
+        tube.computeVertexNormals();
+        const m = mesh(tube, propMaterial(cols[i], { gloss: 0.3 }), { outline: 0.014 });
+        m.position.y = -0.2;
+        g.add(m);
+        const end = pts.at(-1);
+        P(S(0.13, 12, 8), M('#f2c14e', { metal: 1, gloss: 0.8 }), [end.x, end.y - 0.2, end.z]);
+      });
+      break;
+    }
+    case 'scribehood': {
+      // A copyist's monk-like hood of brown wool: over the crown, down to the shoulders, open in front, a point at the back.
+      const brown = '#8a6a4a';
+      const crown = lathe([[0.001, 1.05], [0.48, 0.98], [0.9, 0.66], [1.1, 0.14]], 36);
+      const drape = new THREE.LatheGeometry([[1.2, -1.1], [1.15, -0.45], [1.1, 0.14]].map(([x, y]) => new THREE.Vector2(x, y)), 30, 0.95, Math.PI * 2 - 1.9);
+      for (const geo of [crown, drape]) {
+        const c = mesh(geo, propMaterial(brown, { gloss: 0.05, side: THREE.DoubleSide }), { outline: 0.016 });
+        c.position.y = -0.8;
+        g.add(c);
+      }
+      P(new THREE.ConeGeometry(0.32, 0.9, 14), M(brown), [0, -0.1, -0.85], [-1.2, 0, 0]);
+      P(new THREE.TorusGeometry(1.08, 0.07, 6, 36, Math.PI * 1.2), M('#6b4f36'), [0, -0.68, 0], [Math.PI / 2, 0, Math.PI * 0.9], null, 0.01);
+      break;
+    }
+    case 'coif': {
+      // A white linen coif close round the head, a little ribbon bow at the back.
+      // Tipped back off the face, like a bonnet.
+      cap(1.06, '#fffaf2', -0.78, { gloss: 0.1 }).rotation.x = -0.5;
+      P(new THREE.TorusGeometry(1.03, 0.06, 6, 36), M('#ffffff'), [0, -0.72, -0.36], [Math.PI / 2 - 0.5, 0, 0], null, 0.01);
+      for (const sx of [-1, 1]) P(S(0.16, 10, 8), M('#5f9f6a'), [sx * 0.18, -0.55, -1.02], [0, 0, 0], [1.3, 0.7, 0.5], 0.01);
+      P(S(0.09, 8, 6), M('#5f9f6a'), [0, -0.55, -1.04]);
+      break;
+    }
+    case 'hood': {
+      // A wayfarer's red hood with a shoulder capelet, open in front, its long point flopping down the back.
+      const red = '#d8484a';
+      const crown = lathe([[0.001, 1.04], [0.47, 0.97], [0.9, 0.64], [1.1, 0.14]], 36);
+      const cape = new THREE.LatheGeometry([[1.75, -1.35], [1.45, -1.05], [1.18, -0.5], [1.1, 0.14]].map(([x, y]) => new THREE.Vector2(x, y)), 34, 0.9, Math.PI * 2 - 1.8);
+      for (const geo of [crown, cape]) {
+        const c = mesh(geo, propMaterial(red, { gloss: 0.1, side: THREE.DoubleSide }), { outline: 0.016 });
+        c.position.y = -0.8;
+        g.add(c);
+      }
+      const tail = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[0, 0.1, -0.7], [0, 0.0, -1.25], [0.15, -0.6, -1.45]].map((v) => new THREE.Vector3(...v))), 12, 0.13, 8, false);
+      g.add(mesh(tail, propMaterial(red, { gloss: 0.1 }), { outline: 0.012 }));
+      P(new THREE.TorusGeometry(1.12, 0.06, 6, 36), M('#f2c14e', { metal: 1 }), [0, -0.66, 0.02], [Math.PI / 2 - 0.1, 0, 0], null, 0);
+      break;
+    }
+    // The Sky Castle's teachers: a clockmaker's loupe, a scholar's velvet cap, an inventor's goggles on a leather cap.
+    case 'loupe': {
+      // A leather headband with a jeweller's loupe flipped up over the right eye, and a little brass gear on the side.
+      P(new THREE.TorusGeometry(0.98, 0.07, 8, 36), M('#7a4a2e'), [0, -0.42, 0], [Math.PI / 2 - 0.3, 0, 0], null, 0.01);
+      const loupe = new THREE.Group();
+      loupe.position.set(0.4, -0.2, 0.86);
+      loupe.rotation.set(-0.75, 0.2, 0);
+      g.add(loupe);
+      const tube = mesh(new THREE.CylinderGeometry(0.15, 0.19, 0.3, 18), propMaterial('#2b2b3a', { gloss: 0.5 }), { outline: 0.01 });
+      tube.rotation.x = Math.PI / 2;
+      loupe.add(tube);
+      const ring = mesh(new THREE.TorusGeometry(0.19, 0.035, 8, 20), propMaterial('#d7b45a', { metal: 1 }), { outline: 0.006 });
+      ring.position.z = 0.15;
+      loupe.add(ring);
+      const glass = new THREE.Mesh(new THREE.CircleGeometry(0.16, 18), new THREE.MeshPhysicalMaterial({ color: '#bfeaff', roughness: 0.05, clearcoat: 1 }));
+      glass.position.z = 0.155;
+      loupe.add(glass);
+      const gear = new THREE.Group();
+      gear.position.set(-0.9, -0.48, 0.32);
+      gear.rotation.set(0, -1.2, Math.PI / 2);
+      g.add(gear);
+      gear.add(mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.06, 16), propMaterial('#d7b45a', { metal: 1 }), { outline: 0.008 }));
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const tooth = mesh(new THREE.BoxGeometry(0.07, 0.06, 0.07), propMaterial('#d7b45a', { metal: 1 }), { outline: 0 });
+        tooth.position.set(Math.cos(a) * 0.17, 0, Math.sin(a) * 0.17);
+        tooth.rotation.y = -a;
+        gear.add(tooth);
+      }
+      break;
+    }
+    case 'scholarcap': {
+      // A soft velvet scholar's cap, deep indigo, with a gold button and a tassel hanging over one side.
+      P(new THREE.CylinderGeometry(0.6, 0.64, 0.22, 28), M('#2f2a5a', { gloss: 0.15 }), [0, -0.1, 0]);
+      P(S(0.66, 24, 12), M('#3a3470', { gloss: 0.15 }), [0, 0.04, 0], [0, 0, 0], [1, 0.42, 1]);
+      P(new THREE.TorusGeometry(0.62, 0.05, 6, 30), M('#d7b45a', { metal: 0.8 }), [0, -0.2, 0], [Math.PI / 2, 0, 0], null, 0);
+      P(S(0.09, 12, 8), M('#f2c14e', { metal: 0.8 }), [0, 0.32, 0]);
+      const cord = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[0, 0.32, 0], [0.4, 0.26, 0.1], [0.66, 0.0, 0.18], [0.74, -0.32, 0.22]].map((v) => new THREE.Vector3(...v))), 12, 0.025, 6, false);
+      g.add(mesh(cord, propMaterial('#f2c14e', { metal: 0.6 }), { outline: 0 }));
+      P(new THREE.CylinderGeometry(0.05, 0.1, 0.24, 10), M('#f2c14e', { metal: 0.6 }), [0.75, -0.44, 0.22], [0, 0, 0], null, 0.008);
+      break;
+    }
+    case 'tinkergoggles': {
+      // A brown leather cap with ear flaps, brass goggles pushed up on the brow, rivets round the band.
+      // The cap sits high and tipped back, so the eyes show under its brim.
+      cap(1.04, '#7a4a2e', -0.6, { gloss: 0.2 }).rotation.x = -0.3;
+      for (const sx of [-1, 1]) P(S(0.28, 12, 10), M('#6b3f26', { gloss: 0.2 }), [sx * 0.98, -0.72, -0.2], [0, 0, 0], [0.4, 0.9, 0.75], 0.012);
+      P(new THREE.TorusGeometry(1.0, 0.06, 8, 36), M('#4a3326'), [0, -0.44, -0.04], [Math.PI / 2 - 0.3, 0, 0], null, 0.01);
+      for (const sx of [-1, 1]) {
+        P(new THREE.CylinderGeometry(0.2, 0.23, 0.16, 20), M('#d7b45a', { metal: 1 }), [sx * 0.3, -0.08, 0.86], [Math.PI / 2 - 0.85, 0, 0]);
+        P(new THREE.CircleGeometry(0.155, 20), new THREE.MeshPhysicalMaterial({ color: '#ffd9a0', roughness: 0.05, clearcoat: 1 }), [sx * 0.3, -0.02, 0.92], [-0.85, 0, 0], null, 0);
+      }
+      P(new THREE.BoxGeometry(0.2, 0.05, 0.05), M('#d7b45a', { metal: 1 }), [0, -0.06, 0.93], [-0.85, 0, 0], null, 0.006);
+      for (let i = 0; i < 6; i++) {
+        const a = Math.PI * (0.25 + i * 0.3);
+        P(S(0.04, 6, 4), M('#d7b45a', { metal: 1 }), [Math.cos(a) * 1.0, -0.4, -Math.sin(a) * 0.98], [0, 0, 0], null, 0);
+      }
+      break;
+    }
+    // The Sky Castle's history guides (figures.js GARB): a Joseon scholar's gat, a craftsman's headband, a Renaissance cap, a nun's wimple.
+    case 'gat': {
+      // A Joseon scholar's black horsehair gat: a tall crown, a wide flat brim, a headband under it and a beaded strap.
+      const black = M('#1d1d26', { gloss: 0.35 });
+      P(new THREE.TorusGeometry(0.98, 0.07, 6, 36), M('#2b2b3a'), [0, -0.4, 0], [Math.PI / 2 - 0.15, 0, 0], null, 0.01);
+      P(new THREE.CylinderGeometry(0.46, 0.5, 0.62, 24), black, [0, 0.2, 0]);
+      P(new THREE.CylinderGeometry(1.5, 1.5, 0.04, 40), black, [0, -0.12, 0]);
+      for (const sx of [-1, 1]) for (let i = 0; i < 6; i++) {
+        const k = i / 5;
+        P(S(0.06, 8, 6), M(i % 2 ? '#3a5fa0' : '#f2c14e', { gloss: 0.6 }), [sx * (0.78 - k * 0.32), -0.2 - k * 1.25, 0.2 + k * 0.5], [0, 0, 0], null, 0.006);
+      }
+      break;
+    }
+    case 'hachimaki': {
+      // A white cotton headband knotted at the back, its two ends fluttering.
+      P(new THREE.TorusGeometry(1.0, 0.09, 8, 36), M('#ffffff', { gloss: 0.1 }), [0, -0.42, 0], [Math.PI / 2 - 0.15, 0, 0], null, 0.01);
+      P(S(0.14, 10, 8), M('#ffffff', { gloss: 0.1 }), [0, -0.3, -1.0]);
+      for (const sx of [-1, 1]) P(new THREE.BoxGeometry(0.14, 0.42, 0.04), M('#ffffff', { gloss: 0.1 }), [sx * 0.12, -0.55, -1.06], [0.2, 0, sx * 0.35], null, 0.008);
+      break;
+    }
+    case 'beret': {
+      // A Renaissance painter's soft dark cap, puffed and tipped to one side.
+      P(S(1.0, 24, 14), M('#2f2a35', { gloss: 0.1 }), [0.1, -0.08, -0.02], [0, 0, -0.18], [1.08, 0.42, 1.04]);
+      P(new THREE.TorusGeometry(0.9, 0.08, 8, 32), M('#3d3646'), [0, -0.3, 0], [Math.PI / 2, 0, 0], null, 0.01);
+      break;
+    }
+    case 'wimple': {
+      // A nun's (an abbess's) black veil over a white band, worn tipped back so the whole face (and a frog's eyes) show.
+      const back = new THREE.Group();
+      back.position.set(0, -0.15, -0.3);
+      back.rotation.x = -0.55;
+      g.add(back);
+      const crown = lathe([[0.001, 1.05], [0.48, 0.98], [0.9, 0.66], [1.1, 0.14]], 36);
+      const veil = new THREE.LatheGeometry([[1.24, -0.95], [1.16, -0.42], [1.1, 0.14]].map(([x, y]) => new THREE.Vector2(x, y)), 30, 0.95, Math.PI * 2 - 1.9);
+      for (const geo of [crown, veil]) {
+        const c = mesh(geo, propMaterial('#26232e', { gloss: 0.08, side: THREE.DoubleSide }), { outline: 0.016 });
+        c.position.y = -0.8;
+        back.add(c);
+      }
+      const band = mesh(new THREE.TorusGeometry(1.1, 0.1, 8, 36), propMaterial('#ffffff', { gloss: 0.1 }), { outline: 0.01 });
+      band.position.y = -0.66;
+      band.rotation.x = Math.PI / 2;
+      back.add(band);
       break;
     }
     default:

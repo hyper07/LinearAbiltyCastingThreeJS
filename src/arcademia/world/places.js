@@ -15,6 +15,7 @@ import { SEA_LANDMARKS } from './resort.js';
 import { DESERT_LANDMARKS } from './desert/buildings.js';
 import { MOON_LANDMARKS } from './moon/buildings.js';
 import { MARS_LANDMARKS } from './mars/buildings.js';
+import { CASTLE_LANDMARKS } from './castle/buildings.js';
 
 const small = (look) => palette(look, 'math');
 /** A low round stone base for the smaller places. */
@@ -247,7 +248,7 @@ export function worldGate() {
 /* ---------------------------------------------------------------- landmarks */
 
 export function landmark(kind, look) {
-  return (LANDMARKS[kind] ?? SEA_LANDMARKS[kind] ?? DESERT_LANDMARKS[kind] ?? MOON_LANDMARKS[kind] ?? MARS_LANDMARKS[kind] ?? LANDMARKS.windmill)(look);
+  return (LANDMARKS[kind] ?? SEA_LANDMARKS[kind] ?? DESERT_LANDMARKS[kind] ?? MOON_LANDMARKS[kind] ?? MARS_LANDMARKS[kind] ?? CASTLE_LANDMARKS[kind] ?? LANDMARKS.windmill)(look);
 }
 
 const LANDMARKS = {
@@ -630,7 +631,8 @@ export const TOYS_BY_THEME = {
   cloud: ['balloons', 'balloons', 'bouncer', 'bell'],
   harbor: ['pond', 'bell', 'balloons', 'pot'],
   moon: ['bouncer', 'bell', 'balloons', 'spinner'],
-  mars: ['bouncer', 'bell', 'balloons', 'pot']
+  mars: ['bouncer', 'bell', 'balloons', 'pot'],
+  castle: ['bell', 'balloons', 'spinner', 'bouncer']
 };
 
 /** A hidden gem: a spinning, glowing crystal to find and collect. */

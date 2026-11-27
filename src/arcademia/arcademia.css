@@ -141,7 +141,7 @@
 .arc-mini__dot--physics { fill: var(--arc-physics); }
 .arc-mini__n { font-size: 9px; font-weight: 800; fill: var(--arc-ink); }
 .arc-mini__kid { font-size: 11px; }
-.arc-mini--mars { width: 240px; padding: 6px; }
+.arc-mini--mars, .arc-mini--castle { width: 240px; padding: 6px; }
 .arc-mini__zoom { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border: 1px solid var(--arc-line); border-radius: 50%; background: var(--arc-card); color: var(--arc-ink); font-size: 18px; font-weight: 800; line-height: 1; cursor: pointer; box-shadow: var(--arc-shadow); }
 .arc-mini__zoom:hover { background: #fff3cf; }
 .arc-mini__floor:hover path:last-of-type { filter: brightness(1.06); }
@@ -158,6 +158,7 @@
 .arc-mini__me { pointer-events: none; }
 .arc-mini__up { transform: rotate(var(--up, 0deg)); transform-box: fill-box; transform-origin: center; }
 .arc-mini--mars svg { border-radius: 14px; background: #eaa978; }
+.arc-mini--castle svg { border-radius: 14px; background: #8fcbf2; }
 .arc-mini__me-ring { fill: rgba(255, 255, 255, 0.35); stroke: #fff; stroke-width: 1.2; }
 .arc-mini__me-arrow { fill: #ffd23f; stroke: #3b3340; stroke-width: 1.2; stroke-linejoin: round; }
 
@@ -215,7 +216,7 @@
   .arc-quest { left: 8px; right: 8px; bottom: 8px; width: auto; padding: 12px 14px; }
   .arc-quest__title { font-size: 17px; }
   .arc-mini { right: auto; left: 10px; top: 62px; bottom: auto; width: 116px; padding: 5px; }
-  .arc-mini--mars { width: 156px; }
+  .arc-mini--mars, .arc-mini--castle { width: 156px; }
   .arc-help { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {

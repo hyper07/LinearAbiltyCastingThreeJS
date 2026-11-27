@@ -13,6 +13,8 @@
  *              its teachers Miss Mochi (moon rabbit), Captain Ginger (red panda), Dr. Comet (koala)
  *   Mars       pika, capybara, sloth, armadillo, chinchilla, little rover-bot;
  *              its teachers Miss Ruby (otter), Professor Woolly (alpaca), Dr. Digby (star-nosed mole)
+ *   Sky Castle badger, kid goat, goose, pony, ferret, lamb, magpie (in medieval outfits);
+ *              its teachers Miss Biscuit (corgi), Professor Hartley (stag), Dr. Sprocket (beaver)
  *
  * Units: about one metre tall, feet at y = 0, facing +z.
  */
@@ -1256,6 +1258,298 @@ export const SPECIES = {
       face: { eyeX: 0.12, eyeY: 0.74, eyeR: 0.05, mouthY: 0.47, cheekX: 0.21, cheekY: 0.6, glasses: true },
       hat: { lift: 0, wear: 'headlamp' }
     };
+  },
+
+  /* The Sky Castle's townsfolk (they wear medieval outfits there: figures.js GARB, garbPaint below). */
+
+  /** The Sky Castle: a badger — silver-grey, a white stripe from nose to crown, dark bands past the eyes, white cheeks. */
+  badger() {
+    const b = chibiBody({ belly: '#5a5560', bodyR: [0.21, 0.2, 0.19] });
+    return {
+      color: '#8f8a96', fur: 0.9, gloss: 0.2,
+      bones: skeleton({ earL: ['head', -0.22, 0.88, -0.04], earR: ['head', 0.22, 0.88, -0.04] }),
+      parts: [
+        head([0, 0.67, 0], [0.34, 0.28, 0.3]),
+        E([0, 0.6, 0.22], [0.13, 0.09, 0.12], { k: 0.08, bone: 'head', col: '#ffffff' }),
+        ...both(S([-0.23, 0.89, -0.04], 0.075, { k: 0.05, bone: 'earL' })),
+        ...b.parts,
+        S([0, 0.22, -0.2], 0.07, { k: 0.04, bone: 'tail' })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.15, 0.78, 0.17], [0.06, 0.15, 0.16], { col: '#3a3540', soft: 0.01, rot: [0, 0, -0.25] })),
+        E([0, 0.76, 0.2], [0.065, 0.24, 0.22], { col: '#ffffff', soft: 0.01 }),
+        ...both(E([-0.26, 0.64, 0.1], [0.1, 0.1, 0.12], { col: '#ffffff', soft: 0.01 })),
+        ...both(S([-0.23, 0.92, -0.01], 0.045, { col: '#ffffff' })),
+        E([0, 0.625, 0.34], [0.045, 0.03, 0.03], { col: INK, soft: 0.004 })
+      ],
+      face: { eyeX: 0.13, eyeY: 0.69, eyeR: 0.062, mouthY: 0.55, cheekX: 0.22, cheekY: 0.6 },
+      hat: { lift: 0 }
+    };
+  },
+  /** The Sky Castle: a kid goat — creamy white, little curled horns, floppy ears out to the sides, a tuft of beard. */
+  goat() {
+    const b = chibiBody({ belly: '#ffffff', bodyR: [0.2, 0.2, 0.18] });
+    return {
+      color: '#f3ece0', fur: 0.9, gloss: 0.2,
+      bones: skeleton({ earL: ['head', -0.27, 0.74, 0], earR: ['head', 0.27, 0.74, 0] }),
+      parts: [
+        head([0, 0.68, 0], [0.32, 0.28, 0.29]),
+        E([0, 0.6, 0.21], [0.13, 0.1, 0.12], { k: 0.08, bone: 'head', col: '#fffaf2' }),
+        ...both(T([-0.12, 0.9, 0.0], [-0.2, 1.05, -0.12], 0.05, 0.025, { k: 0.03, bone: 'head', col: '#d8c39a' })),
+        ...both(E([-0.33, 0.73, 0.0], [0.11, 0.045, 0.06], { k: 0.03, bone: 'earL', rot: [0, 0, 0.35] })),
+        T([0, 0.47, 0.22], [0, 0.38, 0.25], 0.04, 0.012, { k: 0.02, bone: 'head', col: '#e6dcc8' }),
+        ...b.parts,
+        S([0, 0.3, -0.19], 0.06, { k: 0.04, bone: 'tail' })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.33, 0.73, 0.03], [0.07, 0.025, 0.03], { col: '#ffc7c0', rot: [0, 0, 0.35] })),
+        E([0, 0.625, 0.33], [0.035, 0.025, 0.03], { col: '#c98f8a', soft: 0.004 }),
+        E([0, 0.86, 0.14], [0.13, 0.05, 0.08], { col: '#e6dccb', soft: 0.03 })
+      ],
+      face: { eyeX: 0.13, eyeY: 0.72, eyeR: 0.064, mouthY: 0.555, cheekX: 0.21, cheekY: 0.61 },
+      hat: { lift: 0.02 }
+    };
+  },
+  /** The Sky Castle: a goose — snowy white with soft grey wings, an orange beak and feet, a round little head. */
+  goose() {
+    const b = chibiBody({ belly: '#ffffff', arms: false });
+    return {
+      color: '#fbf8f2', gloss: 0.3,
+      bones: skeleton({ armL: ['chest', -0.2, 0.38, -0.02], armR: ['chest', 0.2, 0.38, -0.02], head: ['chest', 0, 0.5, 0] }),
+      parts: [
+        head([0, 0.7, 0], [0.3, 0.27, 0.28]),
+        E([0, 0.62, 0.27], [0.12, 0.05, 0.13], { k: 0.03, bone: 'head', col: '#ff9f43' }),
+        S([0, 0.665, 0.25], 0.045, { k: 0.02, bone: 'head', col: '#ffb35c' }),
+        C([0, 0.42, 0.02], [0, 0.52, 0.02], 0.13, { k: 0.08, bone: 'chest' }),
+        ...b.parts.filter((p) => p.bone !== 'legL' && p.bone !== 'legR'),
+        ...both(C([-0.1, 0.18, 0.02], [-0.11, 0.07, 0.04], 0.035, { k: 0.04, bone: 'legL', col: '#ff9f43' }), E([-0.11, 0.035, 0.08], [0.08, 0.03, 0.11], { k: 0.03, bone: 'legL', col: '#ff9f43' })),
+        ...both(E([-0.2, 0.33, -0.02], [0.06, 0.13, 0.13], { k: 0.05, bone: 'armL', rot: [0, 0, -0.3], col: '#dcdde4' })),
+        T([0, 0.3, -0.18], [0, 0.4, -0.29], 0.09, 0.02, { k: 0.05, bone: 'tail', col: '#dcdde4' })
+      ],
+      paint: [...b.paint],
+      face: { eyeX: 0.12, eyeY: 0.73, eyeR: 0.062, mouthY: null, cheekX: 0.2, cheekY: 0.65 },
+      hat: { lift: 0.02 }
+    };
+  },
+  /** The Sky Castle: a pony — honey brown, a chocolate mane in soft tufts down the crown, a cream muzzle, upright ears, a swishy tail. */
+  pony() {
+    const b = chibiBody({ belly: '#f2d9b4', bodyR: [0.21, 0.21, 0.19], socks: '#7a4a30' });
+    const MANE = '#7a4a30';
+    return {
+      color: '#d9a06a', fur: 0.7, gloss: 0.25,
+      bones: skeleton({ earL: ['head', -0.15, 0.9, -0.04], earR: ['head', 0.15, 0.9, -0.04], tail: ['hips', 0, 0.24, -0.18], tail2: ['tail', 0, 0.2, -0.32] }),
+      parts: [
+        head([0, 0.68, 0], [0.31, 0.28, 0.3]),
+        E([0, 0.58, 0.2], [0.15, 0.12, 0.15], { k: 0.08, bone: 'head', col: '#f5dfc0' }),
+        ...both(T([-0.15, 0.88, -0.04], [-0.19, 1.06, -0.06], 0.065, 0.02, { k: 0.04, bone: 'earL' })),
+        ...[[0, 0.96, 0.12, 0.09], [0.05, 0.98, 0.02, 0.085], [-0.04, 0.95, -0.08, 0.085], [0.03, 0.88, -0.18, 0.08], [0, 0.78, -0.25, 0.075]].map(([x, y, z, r]) => S([x, y, z], r, { k: 0.05, bone: 'head', col: MANE })),
+        ...b.parts,
+        C([0, 0.24, -0.18], [0, 0.2, -0.32], 0.07, { k: 0.06, bone: 'tail', col: MANE }),
+        C([0, 0.2, -0.32], [0, 0.08, -0.38], 0.08, { k: 0.06, bone: 'tail2', col: MANE })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.17, 0.98, -0.02], [0.03, 0.06, 0.02], { col: '#f2c0a0' })),
+        ...both(S([-0.05, 0.58, 0.345], 0.022, { col: '#8a5a3a', soft: 0.004 }))
+      ],
+      face: { eyeX: 0.13, eyeY: 0.73, eyeR: 0.066, mouthY: 0.52, cheekX: 0.22, cheekY: 0.62 },
+      hat: { lift: 0.03 }
+    };
+  },
+  /** The Sky Castle: a ferret — sable brown, a cream face with a dark bandit mask, small round ears, a long fluffy tail. */
+  ferret() {
+    const b = chibiBody({ belly: '#f0e2c8', bodyR: [0.19, 0.21, 0.2], legR: 0.065, socks: '#4a3428' });
+    return {
+      color: '#8a6a52', fur: 1, gloss: 0.2,
+      bones: skeleton({ earL: ['head', -0.21, 0.85, -0.04], earR: ['head', 0.21, 0.85, -0.04], tail: ['hips', 0, 0.2, -0.18], tail2: ['tail', 0.06, 0.26, -0.42] }),
+      parts: [
+        head([0, 0.66, 0.02], [0.32, 0.26, 0.31]),
+        E([0, 0.58, 0.24], [0.13, 0.09, 0.12], { k: 0.08, bone: 'head', col: '#f6ead6' }),
+        ...both(S([-0.21, 0.86, -0.04], 0.07, { k: 0.05, bone: 'earL', col: '#f0e2c8' })),
+        ...b.parts,
+        C([0, 0.2, -0.18], [0.06, 0.26, -0.42], 0.08, { k: 0.07, bone: 'tail' }),
+        C([0.06, 0.26, -0.42], [0.1, 0.38, -0.56], 0.085, { k: 0.06, bone: 'tail2', col: '#5a4232' })
+      ],
+      paint: [
+        ...b.paint,
+        E([0, 0.7, 0.2], [0.3, 0.1, 0.18], { col: '#f3e6cf', soft: 0.02 }),
+        ...both(E([-0.13, 0.715, 0.24], [0.1, 0.065, 0.1], { col: '#4a3428', soft: 0.015 })),
+        E([0, 0.605, 0.355], [0.035, 0.025, 0.03], { col: '#ff9aa8', soft: 0.004 })
+      ],
+      face: { eyeX: 0.13, eyeY: 0.71, eyeR: 0.066, mouthY: 0.54, cheekX: 0.22, cheekY: 0.6 },
+      hat: { lift: 0 }
+    };
+  },
+  /** The Sky Castle: a lamb — a cloud of cream curls on the crown and round the neck, a soft peach face, floppy ears. */
+  lamb() {
+    const WOOL = '#fffaf0';
+    const b = chibiBody({ belly: WOOL, bodyR: [0.22, 0.21, 0.2], socks: '#e9c9b6' });
+    const curls = [];
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2;
+      curls.push(S([Math.sin(a) * 0.16, 0.92 + Math.cos(a * 2) * 0.02, -0.02 + Math.cos(a) * 0.12], 0.085, { k: 0.04, bone: 'head', col: WOOL }));
+    }
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      curls.push(S([Math.sin(a) * 0.2, 0.46, Math.cos(a) * 0.17], 0.075, { k: 0.04, bone: 'chest', col: WOOL }));
+    }
+    return {
+      color: '#f6e3d6', fur: 1, gloss: 0.15,
+      bones: skeleton({ earL: ['head', -0.28, 0.76, 0], earR: ['head', 0.28, 0.76, 0] }),
+      parts: [
+        head([0, 0.68, 0], [0.31, 0.27, 0.28]),
+        ...curls,
+        E([0, 0.94, 0.1], [0.14, 0.07, 0.1], { k: 0.05, bone: 'head', col: WOOL }),
+        ...both(E([-0.33, 0.73, 0.0], [0.11, 0.05, 0.07], { k: 0.03, bone: 'earL', rot: [0, 0, 0.5] })),
+        ...b.parts,
+        S([0, 0.26, -0.2], 0.08, { k: 0.04, bone: 'tail', col: WOOL })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.33, 0.73, 0.03], [0.07, 0.028, 0.03], { col: '#ffb8b0', rot: [0, 0, 0.5] })),
+        E([0, 0.6, 0.3], [0.04, 0.026, 0.03], { col: '#d98a8a', soft: 0.004 })
+      ],
+      face: { eyeX: 0.12, eyeY: 0.7, eyeR: 0.066, mouthY: 0.55, cheekX: 0.21, cheekY: 0.6 },
+      hat: { lift: 0.05 }
+    };
+  },
+  /** The Sky Castle: a magpie — glossy black head and back, a white chest and shoulder patches, wings tipped in blue-green, a long tail. */
+  magpie() {
+    const b = chibiBody({ belly: '#ffffff', arms: false });
+    return {
+      color: '#2f3040', gloss: 0.45,
+      bones: skeleton({ armL: ['chest', -0.2, 0.38, -0.02], armR: ['chest', 0.2, 0.38, -0.02] }),
+      parts: [
+        head([0, 0.68, 0], [0.3, 0.27, 0.28]),
+        T([0, 0.62, 0.22], [0, 0.6, 0.38], 0.06, 0.012, { k: 0.02, bone: 'head', col: '#3a3440' }),
+        ...b.parts.filter((p) => p.bone !== 'legL' && p.bone !== 'legR'),
+        ...both(C([-0.1, 0.18, 0.02], [-0.11, 0.07, 0.04], 0.03, { k: 0.04, bone: 'legL', col: '#4a4652' }), E([-0.11, 0.035, 0.08], [0.07, 0.028, 0.1], { k: 0.03, bone: 'legL', col: '#4a4652' })),
+        ...both(E([-0.2, 0.33, -0.02], [0.06, 0.14, 0.13], { k: 0.05, bone: 'armL', rot: [0, 0, -0.3] })),
+        T([0, 0.3, -0.18], [0, 0.5, -0.42], 0.07, 0.035, { k: 0.04, bone: 'tail', col: '#2f5a6a' })
+      ],
+      paint: [
+        ...b.paint,
+        E([0, 0.3, 0.12], [0.17, 0.17, 0.12], { col: '#ffffff', soft: 0.01 }),
+        ...both(E([-0.22, 0.4, 0.0], [0.05, 0.07, 0.09], { col: '#ffffff', soft: 0.01 })),
+        ...both(E([-0.22, 0.24, -0.06], [0.07, 0.07, 0.1], { col: '#2f6a7a', soft: 0.02 }))
+      ],
+      face: { eyeX: 0.12, eyeY: 0.71, eyeR: 0.064, mouthY: null, cheekX: 0.2, cheekY: 0.63 },
+      hat: { lift: 0.02 }
+    };
+  },
+
+  /* The Sky Castle's teachers, dressed for the castle (their outfits painted on with garbPaint below). */
+
+  /**
+   * The Sky Castle's math teacher, Miss Biscuit: a corgi — ginger and white, big upright ears, a white blaze and
+   * muzzle, white socks and a fluffy white bottom; a clockmaker in a teal tunic and a leather apron with a gold
+   * watch-key, and a jeweller's loupe on her headband (hats.js 'loupe').
+   */
+  corgi() {
+    const WHITE = '#fffaf2';
+    const b = chibiBody({ belly: WHITE, socks: WHITE, bodyR: [0.21, 0.2, 0.2] });
+    return {
+      color: '#e8964a', fur: 0.9, gloss: 0.25,
+      bones: skeleton({ earL: ['head', -0.19, 0.88, -0.03], earR: ['head', 0.19, 0.88, -0.03], tail: ['hips', 0, 0.22, -0.2] }),
+      parts: [
+        head([0, 0.68, 0], [0.35, 0.29, 0.3]),
+        ...both(E([-0.17, 0.59, 0.14], [0.15, 0.11, 0.14], { k: 0.08, bone: 'head', col: WHITE })),
+        E([0, 0.6, 0.24], [0.11, 0.075, 0.1], { k: 0.08, bone: 'head', col: WHITE }),
+        // Big upright ears with rounded tips.
+        ...both(T([-0.19, 0.88, -0.03], [-0.31, 1.15, -0.05], 0.13, 0.045, { k: 0.07, bone: 'earL' })),
+        ...b.parts,
+        S([0, 0.24, -0.2], 0.09, { k: 0.05, bone: 'tail', col: WHITE })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.23, 0.97, 0.05], [0.06, 0.11, 0.05], { col: PINK, rot: [0, 0, 0.35] })),
+        E([0, 0.8, 0.26], [0.04, 0.12, 0.06], { col: WHITE, soft: 0.01 }),
+        E([0, 0.64, 0.335], [0.045, 0.03, 0.03], { col: INK, soft: 0.004 }),
+        ...garbPaint({ tunic: '#2f8f8a', belt: '#6b4a33', apron: '#a0683f' }),
+        S([0.08, 0.23, 0.245], 0.022, { col: '#f2c14e', soft: 0.003 })
+      ],
+      face: { eyeX: 0.13, eyeY: 0.72, eyeR: 0.072, mouthY: 0.56, cheekX: 0.22, cheekY: 0.6 },
+      hat: { lift: 0, wear: 'loupe' }
+    };
+  },
+  /**
+   * The Sky Castle's history teacher, Professor Hartley: a grandpa stag — warm brown, a cream muzzle and throat,
+   * leafy ears, small branching antlers, round glasses; a librarian-scholar in a long indigo robe with a gold
+   * collar, and a velvet scholar's cap with a tassel (hats.js 'scholarcap').
+   */
+  stag() {
+    const CREAMY = '#f3e6d0';
+    const ANTLER = '#ead7b0';
+    const b = chibiBody({ belly: CREAMY, bodyR: [0.21, 0.21, 0.19] });
+    const antler = [];
+    for (const sx of [-1, 1]) {
+      const base = [sx * 0.2, 0.9, -0.04], mid = [sx * 0.3, 1.06, -0.06], tip = [sx * 0.34, 1.2, -0.04];
+      antler.push(
+        T(base, mid, 0.032, 0.026, { k: 0.015, bone: 'head', col: ANTLER }),
+        T(mid, tip, 0.026, 0.016, { k: 0.012, bone: 'head', col: ANTLER }),
+        T(mid, [sx * 0.42, 1.12, -0.02], 0.022, 0.014, { k: 0.01, bone: 'head', col: ANTLER }),
+        T([sx * 0.26, 1.0, -0.05], [sx * 0.24, 1.12, 0.03], 0.02, 0.013, { k: 0.01, bone: 'head', col: ANTLER })
+      );
+    }
+    return {
+      color: '#a8714a', fur: 0.85, gloss: 0.2,
+      bones: skeleton({ earL: ['head', -0.27, 0.8, -0.03], earR: ['head', 0.27, 0.8, -0.03] }),
+      parts: [
+        head([0, 0.68, 0], [0.32, 0.28, 0.29]),
+        E([0, 0.6, 0.21], [0.125, 0.095, 0.12], { k: 0.08, bone: 'head', col: CREAMY }),
+        // Leafy ears out to the sides.
+        ...both(E([-0.34, 0.82, -0.02], [0.12, 0.05, 0.065], { k: 0.03, bone: 'earL', rot: [0, 0, -0.35] })),
+        ...antler,
+        ...b.parts,
+        S([0, 0.26, -0.2], 0.06, { k: 0.04, bone: 'tail', col: CREAMY })
+      ],
+      paint: [
+        ...b.paint,
+        ...both(E([-0.34, 0.83, 0.02], [0.08, 0.03, 0.03], { col: '#f2c9b0', rot: [0, 0, -0.35] })),
+        E([0, 0.635, 0.325], [0.05, 0.032, 0.03], { col: INK, soft: 0.004 }),
+        ...garbPaint({ tunic: '#3a3f8f', belt: '#c9963f', collar: '#f2c14e', long: true }),
+        // A little open book embroidered on the robe.
+        B([0, 0.28, 0.24], [0.05, 0.035, 0.02], 0.008, { col: '#fff6e0', soft: 0.003 })
+      ],
+      face: { eyeX: 0.125, eyeY: 0.72, eyeR: 0.064, mouthY: 0.55, cheekX: 0.21, cheekY: 0.61, glasses: true },
+      hat: { lift: 0, wear: 'scholarcap' }
+    };
+  },
+  /**
+   * The Sky Castle's physics teacher, Dr. Sprocket: a beaver — chestnut fur, round cheeks, a tan muzzle with two
+   * big front teeth, little round ears and a flat paddle tail; an inventor in a rust tunic and a leather apron,
+   * with a leather cap and brass goggles pushed up on it (hats.js 'tinkergoggles').
+   */
+  beaver() {
+    const MUZZLE = '#d9b48a';
+    const b = chibiBody({ belly: MUZZLE, bodyR: [0.22, 0.21, 0.2] });
+    return {
+      color: '#8a5a3a', fur: 0.9, gloss: 0.25,
+      bones: skeleton({ earL: ['head', -0.25, 0.86, -0.04], earR: ['head', 0.25, 0.86, -0.04], tail: ['hips', 0, 0.12, -0.2] }),
+      parts: [
+        head([0, 0.67, 0], [0.34, 0.28, 0.3]),
+        ...both(E([-0.15, 0.6, 0.15], [0.14, 0.11, 0.13], { k: 0.08, bone: 'head', col: '#a87452' })),
+        E([0, 0.6, 0.23], [0.115, 0.08, 0.1], { k: 0.08, bone: 'head', col: MUZZLE }),
+        // Two big front teeth.
+        ...both(B([-0.022, 0.53, 0.3], [0.019, 0.034, 0.012], 0.006, { k: 0.004, bone: 'head', col: '#fffaf0' })),
+        ...both(S([-0.25, 0.86, -0.04], 0.06, { k: 0.03, bone: 'earL' })),
+        ...b.parts,
+        // A flat paddle tail.
+        E([0, 0.07, -0.34], [0.12, 0.035, 0.18], { k: 0.04, bone: 'tail', col: '#5a3f30' })
+      ],
+      paint: [
+        ...b.paint,
+        E([0, 0.645, 0.325], [0.05, 0.03, 0.03], { col: INK, soft: 0.004 }),
+        ...both(S([-0.25, 0.865, 0.0], 0.032, { col: '#d9a58a', soft: 0.006 })),
+        ...garbPaint({ tunic: '#c9643a', belt: '#4a3326', apron: '#7a4a2e' }),
+        // A tiny brass cog stitched on the apron pocket.
+        S([-0.06, 0.2, 0.245], 0.024, { col: '#d7b45a', soft: 0.003 })
+      ],
+      face: { eyeX: 0.13, eyeY: 0.72, eyeR: 0.068, mouthY: 0.57, cheekX: 0.22, cheekY: 0.61 },
+      hat: { lift: 0, wear: 'tinkergoggles' }
+    };
   }
 };
 
@@ -1268,4 +1562,20 @@ export function costumePaint(color) {
     E([0, 0.27, 0], [0.24, 0.17, 0.22], { col: color, soft: 0.01 }),
     { s: 'disc', c: [0, 0.44, 0.0], r: [0.17, 0.03], rot: [Math.PI / 2, 0, 0], col: color, soft: 0.006 }
   ];
+}
+
+/**
+ * A medieval outfit for the Sky Castle's townsfolk (figures.js GARB): a tunic (a long gown if `long`) over the
+ * body and the tops of the arms and legs, a belt with a gold buckle, and an apron, a tabard, a two-colour
+ * jester's motley or a collar if asked for.
+ */
+export function garbPaint({ tunic, belt, apron = null, tabard = null, motley = null, collar = null, long = false }) {
+  const out = [E([0, long ? 0.2 : 0.26, 0], [0.26, long ? 0.25 : 0.2, 0.25], { col: tunic, soft: 0.01 })];
+  if (motley) out.push(E([0.14, long ? 0.2 : 0.26, 0], [0.135, long ? 0.25 : 0.2, 0.25], { col: motley, soft: 0.004 }));
+  if (tabard) out.push(B([0, 0.27, 0.12], [0.1, 0.18, 0.12], 0.03, { col: tabard, soft: 0.004 }), B([0, 0.27, -0.12], [0.1, 0.18, 0.12], 0.03, { col: tabard, soft: 0.004 }));
+  if (apron) out.push(E([0, 0.21, 0.15], [0.13, 0.15, 0.1], { col: apron, soft: 0.004 }));
+  out.push({ s: 'disc', c: [0, 0.25, 0], r: [0.235, 0.024], rot: [Math.PI / 2, 0, 0], col: belt, soft: 0.004 });
+  out.push(S([0, 0.25, 0.19], 0.032, { col: '#f2c14e', soft: 0.003 }));
+  if (collar) out.push({ s: 'disc', c: [0, 0.44, 0.0], r: [0.17, 0.035], rot: [Math.PI / 2, 0, 0], col: collar, soft: 0.006 });
+  return out;
 }

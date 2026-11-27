@@ -456,7 +456,7 @@ export class ArcademiaGame {
     // Its voice line (voice/script.js): npc.6 names the floor's boss, npc.gems the gems left.
     // Off the mountain the tip about the boss names that world's boss: it has no recorded line, text only.
     const line = gems ? `t.npc.gems~${Math.min(3, left)}` : i === 6 ? (this.realm !== 'land' ? null : `t.npc.6~${n.floor}`) : `t.npc.${i}`;
-    this.hud.toast(tip, { icon: { bunny: '🐰', mouse: '🐭', duck: '🦆', fox: '🦊', hedgehog: '🦔', frog: '🐸', penguin: '🐧', bear: '🐻', puff: '☁️', crab: '🦀', robot: '🤖', tardigrade: '🧸', lunamoth: '🦋', axolotl: '🦎', hamster: '🐹', robopup: '🤖', moonjelly: '🪼', pika: '🐭', capybara: '🦫', sloth: '🦥', armadillo: '🦔', chinchilla: '🐭', roverbot: '🤖' }[n.species] ?? '💬', ms: 4200 });
+    this.hud.toast(tip, { icon: { bunny: '🐰', mouse: '🐭', duck: '🦆', fox: '🦊', hedgehog: '🦔', frog: '🐸', penguin: '🐧', bear: '🐻', puff: '☁️', crab: '🦀', robot: '🤖', tardigrade: '🧸', lunamoth: '🦋', axolotl: '🦎', hamster: '🐹', robopup: '🤖', moonjelly: '🪼', pika: '🐭', capybara: '🦫', sloth: '🦥', armadillo: '🦔', chinchilla: '🐭', roverbot: '🤖', badger: '🦡', goat: '🐐', goose: '🪿', pony: '🐴', ferret: '🐾', lamb: '🐑', magpie: '🐦' }[n.species] ?? '💬', ms: 4200 });
     if (this.voiceOn() && line) speech.say(line, { char: 'townsfolk', face: n.fig });
   }
 

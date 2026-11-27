@@ -32,7 +32,7 @@
  */
 import * as THREE from 'three';
 import { t } from '../i18n/index.js';
-import { SPECIES, costumePaint } from './creatures/species.js';
+import { SPECIES, costumePaint, garbPaint } from './creatures/species.js';
 import { compile, sculpt, trace } from './creatures/sculpt.js';
 import { creatureMaterial, outlineMaterial, inkFor, propMaterial } from './creatures/materials.js';
 import { buildFace } from './creatures/face.js';
@@ -71,7 +71,7 @@ function modelFor(species, costume) {
   const key = `${species}|${costume ?? ''}`;
   if (!models.has(key)) {
     const recipe = (SPECIES[species] ?? SPECIES.fox)();
-    if (costume) recipe.paint = [...(recipe.paint ?? []), ...costumePaint(COSTUME_COLORS[costume] ?? '#2f5d6b')];
+    if (costume) recipe.paint = [...(recipe.paint ?? []), ...(GARB[costume] ? garbPaint(GARB[costume]) : costumePaint(COSTUME_COLORS[costume] ?? '#2f5d6b'))];
     const model = compile(recipe);
     // The head: its biggest shape on the head bone; its top, where hats sit.
     const headPart = model.parts.filter((p) => p.bone === 'head' && (p.s === 'ell' || p.s === 'sph' || p.s === 'box')).sort((a, b) => (b.r?.[0] ?? b.r) - (a.r?.[0] ?? a.r))[0];
@@ -303,7 +303,7 @@ export function makeCreature({ species = 'fox', color = null, hat = 'none', cost
   }
   // Hats: on the head's top point, scaled to the head.
   // A teacher may wear its own hat unless given another (Hoot's mortarboard, Miss Lotus's lotus flower).
-  let hatId = costume ? COSTUME_HATS[costume] : hat && hat !== 'none' ? hat : species === 'owl' ? 'mortarboard' : recipe.hat?.wear ?? null;
+  let hatId = costume ? GARB[costume]?.hat ?? COSTUME_HATS[costume] : hat && hat !== 'none' ? hat : species === 'owl' ? 'mortarboard' : recipe.hat?.wear ?? null;
   // In a space suit only a small hat fits under the glass (the old helmets are the suit's now).
   if (suit && !HATS_IN_HELMET.has(hatId)) hatId = null;
   const hatObj = makeHat(hatId);
@@ -551,6 +551,38 @@ const COSTUME_COLORS = {
   stargazer: '#3b4f9a', flightsuit: '#3f6fd6', mission: '#f4f6fa',
   roverteam: '#d9744a'
 };
+/**
+ * The Sky Castle's townsfolk in medieval outfits (`costume`: a whole outfit, painted on, with its hat):
+ * a baker in an apron and a puffy cap, a minstrel with a feathered cap, a squire in a tabard and a soft
+ * padded helmet, a lady in a gown and a tall hennin with a veil, a jester in motley with a belled cap, a
+ * copyist in a monk-like hood, a goodwife in a linen coif and apron, a wayfarer in a hood and capelet.
+ */
+export const GARB = {
+  baker: { tunic: '#e8b45a', belt: '#8a5a3a', apron: '#ffffff', hat: 'bakercap' },
+  minstrel: { tunic: '#d64a5a', belt: '#5a3a2a', collar: '#ffd23f', hat: 'minstrel' },
+  squire: { tunic: '#c9d1dc', belt: '#6b4a33', tabard: '#3a6fd0', hat: 'softhelm' },
+  lady: { tunic: '#ff9ec7', belt: '#f2c14e', collar: '#ffffff', long: true, hat: 'hennin' },
+  jester: { tunic: '#7b5fd0', motley: '#ffd23f', belt: '#e0574f', collar: '#ffffff', hat: 'jester' },
+  copyist: { tunic: '#8a6a4a', belt: '#e8d8a8', long: true, hat: 'scribehood' },
+  goodwife: { tunic: '#5f9f6a', belt: '#8a5a3a', apron: '#fff6e6', hat: 'coif' },
+  wayfarer: { tunic: '#3f7f8a', belt: '#6b4a33', hat: 'hood' },
+  // The Sky Castle's history guides (schema.js LOOKS; the baker and the copyist above guide too): a stonemason in
+  // a leather apron and a linen coif, a Japanese plasterer in an indigo coat and a headband, a Joseon scholar in a
+  // pale robe and a black horsehair gat, an engineer in a turban, a stone carver in saffron, a monk in grey, a
+  // stone builder with a bead collar, a nun (Hildegard, an abbess) in a dark habit and a wimple, a scholar of Fez in a headscarf,
+  // a Renaissance painter in a soft cap, and a balloon-maker of 1783 in a tricorn.
+  mason: { tunic: '#9a8f7c', belt: '#5a3f2a', apron: '#a0683f', hat: 'coif' },
+  artisan: { tunic: '#2f4f7a', belt: '#f4efe6', collar: '#ffffff', hat: 'hachimaki' },
+  seonbi: { tunic: '#e3efe9', belt: '#3a5fa0', collar: '#ffffff', long: true, hat: 'gat' },
+  engineer: { tunic: '#2f7f8a', belt: '#d7b45a', collar: '#f2c14e', long: true, hat: 'turban' },
+  carver: { tunic: '#d98a3a', belt: '#a83a3a' },
+  monk: { tunic: '#8c8c88', belt: '#9a5a3a', long: true },
+  stonebuilder: { tunic: '#c9853a', belt: '#7a3a2a', collar: '#e0574f' },
+  nun: { tunic: '#3d3a48', belt: '#8a7a5a', collar: '#ffffff', long: true, hat: 'wimple' },
+  scholar: { tunic: '#3f6f9a', belt: '#d7b45a', collar: '#ffffff', long: true, hat: 'headscarf' },
+  renaissance: { tunic: '#8a3a4a', belt: '#5a3a2a', collar: '#d7b45a', hat: 'beret' },
+  balloonist: { tunic: '#3a5fb0', belt: '#f2c14e', collar: '#ffffff', hat: 'tricorn' }
+};
 /** The teachers: owl for math, tortoise for history, raccoon for physics. */
 export const TEACHERS = {
   math: { species: 'owl', emoji: '🦉', get name() { return t('teacher.math'); } },
@@ -591,8 +623,19 @@ export const MARS_TEACHERS = {
   history: { species: 'alpaca', emoji: '🦙', get name() { return t('mars.teacher.history'); } },
   physics: { species: 'mole', emoji: '🔦', get name() { return t('mars.teacher.physics'); } }
 };
-/** A realm's teachers ('land', 'forest', 'sea', 'desert', 'moon' or 'mars'). */
-export const teachersIn = (realm = 'land') => ({ sea: SEA_TEACHERS, forest: FOREST_TEACHERS, desert: DESERT_TEACHERS, moon: MOON_TEACHERS, mars: MARS_TEACHERS })[realm] ?? TEACHERS;
+/**
+ * The Sky Castle's teachers, each dressed for the castle: Miss Biscuit the corgi, a clockmaker in a leather apron
+ * with a loupe on her headband (the Clock Tower School); Professor Hartley the stag, a librarian-scholar in a long
+ * robe, round glasses and a velvet scholar's cap (the Library Hall); Dr. Sprocket the beaver, an inventor in a
+ * leather apron with brass goggles on her cap (the Inventor's Workshop).
+ */
+export const CASTLE_TEACHERS = {
+  math: { species: 'corgi', emoji: '🐶', get name() { return t('castle.teacher.math'); } },
+  history: { species: 'stag', emoji: '🦌', get name() { return t('castle.teacher.history'); } },
+  physics: { species: 'beaver', emoji: '🦫', get name() { return t('castle.teacher.physics'); } }
+};
+/** A realm's teachers ('land', 'forest', 'sea', 'desert', 'moon', 'mars' or 'castle'). */
+export const teachersIn = (realm = 'land') => ({ sea: SEA_TEACHERS, forest: FOREST_TEACHERS, desert: DESERT_TEACHERS, moon: MOON_TEACHERS, mars: MARS_TEACHERS, castle: CASTLE_TEACHERS })[realm] ?? TEACHERS;
 /** A guide's species, from their look (the same look, the same critter). */
 export function guideSpecies(look) {
   const list = ['bear', 'fox', 'mouse', 'hedgehog', 'frog', 'duck', 'bunny', 'owl'];

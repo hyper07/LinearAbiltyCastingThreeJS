@@ -22,6 +22,7 @@ import { deckPlinth, villa, pavilion, reefLab } from './resort.js';
 import { stonePlinth, pyramidSchool, templeSchool, sunObservatory } from './desert/buildings.js';
 import { lunarPlinth, domeSchool, museumModule, moonObservatory } from './moon/buildings.js';
 import { marsPlinth, printDome, marsMuseum, weatherLab } from './mars/buildings.js';
+import { castlePlinth, clockTower, libraryHall, inventorWorkshop } from './castle/buildings.js';
 
 /** Window glass: dark blue by day, warm and glowing at night (World sets emissiveIntensity). */
 export const windowMat = new THREE.MeshStandardMaterial({ color: '#5c7f99', roughness: 0.25, metalness: 0.1, emissive: new THREE.Color('#ffc46b'), emissiveIntensity: 0, flatShading: true });
@@ -529,7 +530,7 @@ function treehouse(g, P, floor, subject) {
   return y0 + H + 4.8;
 }
 
-const SHAPES = { printdome: printDome, marsmuseum: marsMuseum, weatherlab: weatherLab, domeschool: domeSchool, museummodule: museumModule, moonobservatory: moonObservatory, pyramidschool: pyramidSchool, templeschool: templeSchool, sunobservatory: sunObservatory, villa, pavilion, reeflab: reefLab, seedpod: seedPod, roothall: rootHall, starspire: starSpire, treehouse, house: schoolhouse, hall, tower: observatory, pyramid, mushroom: mushroomHouse, igloo, cloudhouse: cloudHouse, shell, lighthouse, dome: moonDome };
+const SHAPES = { clocktower: clockTower, libraryhall: libraryHall, workshop: inventorWorkshop, printdome: printDome, marsmuseum: marsMuseum, weatherlab: weatherLab, domeschool: domeSchool, museummodule: museumModule, moonobservatory: moonObservatory, pyramidschool: pyramidSchool, templeschool: templeSchool, sunobservatory: sunObservatory, villa, pavilion, reeflab: reefLab, seedpod: seedPod, roothall: rootHall, starspire: starSpire, treehouse, house: schoolhouse, hall, tower: observatory, pyramid, mushroom: mushroomHouse, igloo, cloudhouse: cloudHouse, shell, lighthouse, dome: moonDome };
 const BUILDERS = { math: schoolhouse, history: hall, physics: observatory };
 export { door, window, lanternPost as lantern, palette, bench };
 /** The schools' names in the current language (ui.js building.*). */
@@ -555,7 +556,7 @@ export function buildBuilding(subject, floor, at) {
   const g = new THREE.Group();
   g.position.set(at.x, at.y - 0.55 + 0.0, at.z);
   // The Great Tree grows its own: a mossy disc of living wood instead of the stone drum.
-  g.add(floor.look.grown ? rootPlinth(P, floor.look) : floor.look.resort ? deckPlinth(P, floor.look) : floor.look.sandstone ? stonePlinth(P, floor.look) : floor.look.lunar ? lunarPlinth(P, floor.look) : floor.look.martian ? marsPlinth(P, floor.look) : plinth(P, floor.look));
+  g.add(floor.look.grown ? rootPlinth(P, floor.look) : floor.look.resort ? deckPlinth(P, floor.look) : floor.look.sandstone ? stonePlinth(P, floor.look) : floor.look.lunar ? lunarPlinth(P, floor.look) : floor.look.martian ? marsPlinth(P, floor.look) : floor.look.royal ? castlePlinth(P, floor.look) : plinth(P, floor.look));
   const shape = floor.look.shapes?.[subject];
   const top = (SHAPES[shape] ?? BUILDERS[subject])(g, P, floor, subject);
   batch(g);

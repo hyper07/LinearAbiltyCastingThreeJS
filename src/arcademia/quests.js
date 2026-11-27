@@ -45,7 +45,7 @@ export function questFor(lesson0) {
   };
 }
 
-/** A forest, sea, desert, Moon or Mars lesson's quest: the same steps, told by that realm's teachers (ui.js <realm>.quest.*). */
+/** A forest, sea, desert, Moon, Mars or Sky Castle lesson's quest: the same steps, told by that realm's teachers (ui.js <realm>.quest.*). */
 function realmQuest(realm, lesson, teacher, steps) {
   if (lesson.subject === 'math') return { title: lesson.title, intro: tr(`${realm}.quest.math`), introLine: `t.${realm}.quest.math`, teacher, steps: steps(['story', 'learn', 'board', 'try', 'challenge']) };
   if (lesson.subject === 'history') {
@@ -133,5 +133,18 @@ export const MARS_WORLDS = {
   6: world(6, { species: 'puff', color: '#f0b48a', emoji: '🌪️' }, 'mars.world'),
   7: world(7, { species: 'armadillo', color: '#e8bfa6', emoji: '🛡️' }, 'mars.world')
 };
-/** A realm's worlds ('land', 'forest', 'sea', 'desert', 'moon' or 'mars'). */
-export const worldsIn = (realm = 'land') => ({ sea: SEA_WORLDS, forest: FOREST_WORLDS, desert: DESERT_WORLDS, moon: MOON_WORLDS, mars: MARS_WORLDS })[realm] ?? WORLDS;
+/**
+ * The Sky Castle: each street's story and its puzzle boss (ui.js castle.world.<n>.*), the castle's own critters
+ * (and a little green dragon keeping the Crown Garden at the top).
+ */
+export const CASTLE_WORLDS = {
+  1: world(1, { species: 'goose', color: '#fbf8f2', emoji: '🪿' }, 'castle.world'),
+  2: world(2, { species: 'lamb', color: '#f6e3d6', emoji: '🐑' }, 'castle.world'),
+  3: world(3, { species: 'magpie', color: '#2f3040', emoji: '✨' }, 'castle.world'),
+  4: world(4, { species: 'goat', color: '#f3ece0', emoji: '🐐' }, 'castle.world'),
+  5: world(5, { species: 'ferret', color: '#8a6a52', emoji: '🧺' }, 'castle.world'),
+  6: world(6, { species: 'pony', color: '#d9a06a', emoji: '🐴' }, 'castle.world'),
+  7: world(7, { species: 'dragon', color: '#7ee08a', emoji: '🐉' }, 'castle.world')
+};
+/** A realm's worlds ('land', 'forest', 'sea', 'desert', 'moon', 'mars' or 'castle'). */
+export const worldsIn = (realm = 'land') => ({ sea: SEA_WORLDS, forest: FOREST_WORLDS, desert: DESERT_WORLDS, moon: MOON_WORLDS, mars: MARS_WORLDS, castle: CASTLE_WORLDS })[realm] ?? WORLDS;

@@ -5,7 +5,8 @@
  * Learning Mountain stacks them as terraces, the Great Tree as rings of
  * treehouses round a giant trunk, the Lagoon as islands, the Desert as oasis
  * towns along the Nile, the Moon as moonbases in craters, Mars as the
- * terraces of a giant red volcano (Olympus Mons).
+ * terraces of a giant red volcano (Olympus Mons), the Sky Castle as the
+ * streets of a white castle town on a floating island.
  *
  * To add a world: give it an entry here with its floors' looks (the shape of
  * floors.js — `look` drives the buildings, landmark, critters, particles and
@@ -178,11 +179,34 @@ export const MARS_FLOORS = [
 ].map((f, i) => ({ ...f, n: i + 1, ages: FLOORS[i].ages }));
 for (const f of MARS_FLOORS) Object.defineProperty(f, 'name', { get: () => t(`mars.floor.${f.n}`), enumerable: true });
 
+/** The Sky Castle's streets: white and cream stone, teal conical roofs with gold finials, pavilion tents (world/castle/). */
+const ROYAL = {
+  royal: true, theme: 'castle', shapes: { math: 'clocktower', history: 'libraryhall', physics: 'workshop' },
+  stone: '#e9e1d0', trim: '#fffaf0', wall: '#f6f1e6', path: '#efe6d3', grass: '#8fd06a', grassDark: '#7fc460', rock: ['#b9c3cf', '#a9b4c2', '#c9d1dc'], tree: 'round', leaf: '#5fbf6a'
+};
+/**
+ * The Sky Castle: seven streets winding up a white castle town on a floating island, from the gatehouse
+ * market by the rim to the crown garden round the keep. Its realm is 'castle': its own lessons
+ * (content/castle.js), teachers (figures.js CASTLE_TEACHERS) and stories (quests.js CASTLE_WORLDS).
+ * The townsfolk are its own — badgers, goats, geese, ponies, ferrets, lambs and magpies — each floor's
+ * critters in medieval outfits (`garb`, one to each critter in turn: figures.js GARB).
+ */
+export const CASTLE_FLOORS = [
+  { icon: '⛲', look: { ...ROYAL, roof: { math: '#2fb3a6', history: '#3a8fd0', physics: '#26a29a' }, landmark: 'wishingwell', flowers: ['#ff8fa3', '#ffd166', '#ffffff'], banner: '#e0574f', critters: ['lamb', 'goose', 'badger'], garb: ['baker', 'goodwife', 'squire'], particles: 'blossom', mood: 'castle' } },
+  { icon: '🎀', look: { ...ROYAL, roof: { math: '#3cc4c0', history: '#2fb3a6', physics: '#3a8fd0' }, landmark: 'maypole', flowers: ['#ff9ed2', '#c39bff', '#ffffff'], banner: '#ff6f9a', critters: ['goat', 'ferret', 'lamb'], garb: ['minstrel', 'jester', 'lady'], particles: 'blossom', mood: 'castle' } },
+  { icon: '🐉', look: { ...ROYAL, roof: { math: '#26a29a', history: '#4fc9c0', physics: '#2f9fb8' }, landmark: 'stonedragon', flowers: ['#ffd23f', '#ff9f4a', '#ffffff'], banner: '#3f9a5a', critters: ['badger', 'magpie', 'pony'], garb: ['squire', 'copyist', 'wayfarer'], particles: 'feathers', mood: 'castle' } },
+  { icon: '🔔', look: { ...ROYAL, roof: { math: '#2f9fb8', history: '#26a29a', physics: '#3cc4c0' }, landmark: 'belltower', flowers: ['#7cc6ff', '#ffffff', '#ffd23f'], banner: '#3a6fd0', critters: ['goose', 'pony', 'goat'], garb: ['lady', 'squire', 'goodwife'], particles: 'feathers', mood: 'castle' } },
+  { icon: '☀️', look: { ...ROYAL, roof: { math: '#4fc9c0', history: '#3a8fd0', physics: '#2fb3a6' }, landmark: 'sundial', flowers: ['#ffd23f', '#ff8a5c', '#ffffff'], banner: '#e8a02f', critters: ['ferret', 'lamb', 'magpie'], garb: ['wayfarer', 'baker', 'minstrel'], particles: 'blossom', mood: 'castle' } },
+  { icon: '🎈', look: { ...ROYAL, roof: { math: '#2fb3a6', history: '#4fc9c0', physics: '#2f9fb8' }, landmark: 'kitedock', flowers: ['#ff9ec7', '#7cc6ff', '#ffffff'], banner: '#8a5fd0', critters: ['pony', 'goat', 'ferret'], garb: ['wayfarer', 'minstrel', 'jester'], particles: 'feathers', mood: 'castle' } },
+  { icon: '👑', look: { ...ROYAL, roof: { math: '#3a8fd0', history: '#2fb3a6', physics: '#26a29a' }, landmark: 'crowngarden', flowers: ['#ffd23f', '#c39bff', '#ffffff'], banner: '#c9963f', critters: ['magpie', 'badger', 'goose'], garb: ['copyist', 'squire', 'lady'], particles: 'sparkles', mood: 'castle' } }
+].map((f, i) => ({ ...f, n: i + 1, ages: FLOORS[i].ages }));
+for (const f of CASTLE_FLOORS) Object.defineProperty(f, 'name', { get: () => t(`castle.floor.${f.n}`), enumerable: true });
+
 /**
  * The worlds; names come from the current language (ui.js map.<id>, map.<id>.what).
  * `realm`: whose lessons, teachers, floors and stars — every world has its own (the mountain:
- * land, the Great Tree: forest, the Lagoon: sea, the Desert: desert, the Moon: moon, Mars: mars), so each map
- * teaches something new.
+ * land, the Great Tree: forest, the Lagoon: sea, the Desert: desert, the Moon: moon, Mars: mars, the Sky
+ * Castle: castle), so each map teaches something new.
  * `suit`: on the space maps everyone — the buddy, the townsfolk, the puzzle bosses, the teachers and
  * guides in the lesson rooms — wears a space suit ('moon' or 'mars': world/figures.js).
  */
@@ -192,7 +216,8 @@ export const MAPS = [
   { id: 'lagoon', icon: '🏝️', kind: 'lagoon', realm: 'sea', floors: SEA_FLOORS, whole: 'map.lagoon.whole', wholeHint: 'map.lagoon.wholeHint', back: ['lesson.back.lagoon', 'lesson.backAria.lagoon'] },
   { id: 'desert', icon: '🐪', kind: 'desert', realm: 'desert', floors: DESERT_FLOORS, whole: 'map.desert.whole', wholeHint: 'map.desert.wholeHint', back: ['lesson.back.desert', 'lesson.backAria.desert'] },
   { id: 'moon', icon: '🌙', kind: 'moon', realm: 'moon', floors: MOON_FLOORS, whole: 'map.moon.whole', wholeHint: 'map.moon.wholeHint', back: ['lesson.back.moon', 'lesson.backAria.moon'], suit: 'moon' },
-  { id: 'mars', icon: '🔴', kind: 'mars', realm: 'mars', floors: MARS_FLOORS, whole: 'map.mars.whole', wholeHint: 'map.mars.wholeHint', back: ['lesson.back.mars', 'lesson.backAria.mars'], suit: 'mars' }
+  { id: 'mars', icon: '🔴', kind: 'mars', realm: 'mars', floors: MARS_FLOORS, whole: 'map.mars.whole', wholeHint: 'map.mars.wholeHint', back: ['lesson.back.mars', 'lesson.backAria.mars'], suit: 'mars' },
+  { id: 'castle', icon: '🏰', kind: 'castle', realm: 'castle', floors: CASTLE_FLOORS, whole: 'map.castle.whole', wholeHint: 'map.castle.wholeHint', back: ['lesson.back.castle', 'lesson.backAria.castle'] }
 ];
 for (const m of MAPS) {
   Object.defineProperty(m, 'name', { get: () => t(`map.${m.id}`), enumerable: true });

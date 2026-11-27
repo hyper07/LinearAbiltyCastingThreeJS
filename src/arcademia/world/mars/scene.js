@@ -43,7 +43,7 @@ const STRATA = ['#a8523a', '#c4683f', '#dc955c', '#8f4430', '#b85f3e', '#e2a46a'
 const strata = (x, y, z) => STRATA[((Math.floor((y + 60 + fbm(x * 0.05, z * 0.05) * 1.6) / 1.35) % STRATA.length) + STRATA.length) % STRATA.length];
 
 /** A triangle mesh from a grid of points (rows of [x, y, z]), one flat colour a facet. */
-function gridMesh(rows, colourOf, { closed = false, params = null } = {}) {
+export function gridMesh(rows, colourOf, { closed = false, params = null } = {}) {
   const pos = [], col = [];
   const c = new THREE.Color();
   const tri = (i0, j0, i1, j1, i2, j2) => {
@@ -74,13 +74,13 @@ function gridMesh(rows, colourOf, { closed = false, params = null } = {}) {
   geo.computeVertexNormals();
   return geo;
 }
-const facet = (p, q, s) => {
+export const facet = (p, q, s) => {
   const mx = (p[0] + q[0] + s[0]) / 3, my = (p[1] + q[1] + s[1]) / 3, mz = (p[2] + q[2] + s[2]) / 3;
   const spread = Math.max(p[1], q[1], s[1]) - Math.min(p[1], q[1], s[1]);
   const span = Math.max(Math.hypot(p[0] - q[0], p[2] - q[2]), Math.hypot(p[0] - s[0], p[2] - s[2]), Math.hypot(q[0] - s[0], q[2] - s[2]));
   return { mx, my, mz, steep: spread / (span || 1) };
 };
-const toonMesh = (geo, name) => {
+export const toonMesh = (geo, name) => {
   const m = new THREE.Mesh(geo, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp() }));
   m.receiveShadow = true;
   m.name = name;
@@ -216,7 +216,7 @@ function rampTop(plan, s) {
 /* ---------------------------------------------------------------- railings, lamps, lit edges, chevrons */
 
 /** Merged meshes, one per colour (or material), from placed geometries. */
-function parts() {
+export function parts() {
   const map = new Map();
   return {
     put(color, geo, m) {
@@ -235,9 +235,9 @@ function parts() {
     }
   };
 }
-const Mx = (x, y, z, ry = 0, s = 1, rx = 0) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, 0)), new THREE.Vector3(s, s, s));
+export const Mx = (x, y, z, ry = 0, s = 1, rx = 0) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, 0)), new THREE.Vector3(s, s, s));
 /** A thin bar (w × h section) from a to b. */
-function bar(P, color, a, b, w = 0.08, h = w) {
+export function bar(P, color, a, b, w = 0.08, h = w) {
   const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
   const len = A.distanceTo(B);
   if (len < 1e-3) return;
@@ -318,7 +318,7 @@ function rampMarks(P, glow, plan, s, blinkers, group) {
 
 const signCache = new Map();
 /** A sign board's picture: icons, a number, an arrow (→ is up the mountain), on a cream card with a coloured edge. */
-function signTexture(text, color) {
+export function signTexture(text, color) {
   const key = `${text}|${color}`;
   if (signCache.has(key)) return signCache.get(key);
   const c = document.createElement('canvas');
@@ -366,7 +366,7 @@ function signpost(group, P, plan, phi, y, boards, { o = M.W - 0.75, top = null }
   }
 }
 /** A round floor badge: the floor's icon over its number. */
-function discTexture(text, color) {
+export function discTexture(text, color) {
   const key = `disc|${text}|${color}`;
   if (signCache.has(key)) return signCache.get(key);
   const c = document.createElement('canvas');
@@ -559,7 +559,7 @@ function farPlain(plan) {
 
 /* ---------------------------------------------------------------- the sky: the Sun, Phobos and Deimos */
 
-function glowTexture(stops) {
+export function glowTexture(stops) {
   const c = document.createElement('canvas');
   c.width = c.height = 256;
   const g = c.getContext('2d');

@@ -18,9 +18,9 @@
  *
  * Characters: the teachers (hoot, tock, gizmo; each realm's own: nutmeg, bramble,
  * ribbit, pip, inka, splash, lotus, reed, sandy, mochi, ginger, comet, ruby, woolly,
- * digby), one history guide per history lesson (guide-<lesson id>), the floor bosses
- * (boss-1 … boss-7, and each realm's: forest-boss-n, sea-boss-n, desert-boss-n,
- * moon-boss-n, mars-boss-n),
+ * digby, biscuit, hartley, sprocket), one history guide per history lesson (guide-<lesson id>),
+ * the floor bosses (boss-1 … boss-7, and each realm's: forest-boss-n, sea-boss-n,
+ * desert-boss-n, moon-boss-n, mars-boss-n, castle-boss-n),
  * the townsfolk (townsfolk) and the buddies (buddy-fox, buddy-robot,
  * buddy-dragon, buddy-puff, buddy-bunny).
  *
@@ -60,8 +60,10 @@ export const DESERT_TEACHER_OF = { math: 'lotus', history: 'reed', physics: 'san
 export const MOON_TEACHER_OF = { math: 'mochi', history: 'ginger', physics: 'comet' };
 /** Mars's teachers: Miss Ruby, Professor Woolly, Dr. Digby. */
 export const MARS_TEACHER_OF = { math: 'ruby', history: 'woolly', physics: 'digby' };
+/** The Sky Castle's teachers: Miss Biscuit, Professor Hartley, Dr. Sprocket. */
+export const CASTLE_TEACHER_OF = { math: 'biscuit', history: 'hartley', physics: 'sprocket' };
 /** Each realm's teachers, by subject. */
-export const REALM_TEACHER_OF = { land: TEACHER_OF, forest: FOREST_TEACHER_OF, sea: SEA_TEACHER_OF, desert: DESERT_TEACHER_OF, moon: MOON_TEACHER_OF, mars: MARS_TEACHER_OF };
+export const REALM_TEACHER_OF = { land: TEACHER_OF, forest: FOREST_TEACHER_OF, sea: SEA_TEACHER_OF, desert: DESERT_TEACHER_OF, moon: MOON_TEACHER_OF, mars: MARS_TEACHER_OF, castle: CASTLE_TEACHER_OF };
 const SUBJECT_OF = Object.fromEntries(Object.values(REALM_TEACHER_OF).flatMap((m) => Object.entries(m).map(([subject, id]) => [id, subject])));
 /** Who voices a lesson: its realm's teacher for its subject. */
 export const teacherOf = (lesson) => (REALM_TEACHER_OF[lesson?.realm ?? 'land'] ?? TEACHER_OF)[lesson?.subject];
@@ -91,6 +93,9 @@ const DIRECTION = {
   ruby: 'Miss Ruby, a bright, bubbly otter who teaches math in the Red Dome School on Mars, a red Mars pebble in her hair clip and a pencil over her ear. Playful and warm, loves counting pebbles, always patient and encouraging.',
   woolly: 'Professor Woolly, a gentle grandpa alpaca in round glasses who tells the story of Mars exploration in the Mars Museum. Calm, kind and a little dreamy, a storyteller full of wonder, with a soft chuckle.',
   digby: 'Dr. Digby, an enthusiastic star-nosed mole in round glasses and a miner’s headlamp who runs the Weather Lab on Mars. Curious and cheerful, loves digging into rocks and ice, always clear when explaining.',
+  biscuit: 'Miss Biscuit, a bright, bouncy corgi who teaches math in the Clock Tower School of the Sky Castle, a clockmaker in a leather apron with a loupe on her headband. Cheerful and tidy, counts in a tick-tock rhythm, always patient and encouraging.',
+  hartley: 'Professor Hartley, a kindly grandpa stag in round glasses, a velvet cap and a long scholar’s robe, who keeps the Library Hall of the Sky Castle. Warm, unhurried and a little grand, a storyteller opening old books, with a soft chuckle.',
+  sprocket: 'Dr. Sprocket, an inventive young beaver in a leather apron with brass goggles on her cap, who runs the Inventor’s Workshop in the Sky Castle. Busy, cheerful and a bit excitable, loves building and testing, always clear when explaining.',
   townsfolk: 'The friendly little critters around the mountain (bunnies, mice, ducks, frogs). Light and chatty; a stage whisper for secrets.',
   'buddy-fox': 'The fox cub, the child’s buddy. Cheeky, bouncy and proud of them.',
   'buddy-robot': 'The little robot, the child’s buddy. Cheerful and a tiny bit precise. Your own real voice with no effects added.',
@@ -129,7 +134,10 @@ export function voiceCharacters(lang = 'en') {
     { id: 'comet', group: 'teacher', species: 'koala', emoji: '🐨', name: tIn(lang, 'moon.teacher.physics'), subject: 'physics', realm: 'moon' },
     { id: 'ruby', group: 'teacher', species: 'otter', emoji: '🦦', name: tIn(lang, 'mars.teacher.math'), subject: 'math', realm: 'mars' },
     { id: 'woolly', group: 'teacher', species: 'alpaca', emoji: '🦙', name: tIn(lang, 'mars.teacher.history'), subject: 'history', realm: 'mars' },
-    { id: 'digby', group: 'teacher', species: 'mole', emoji: '🔦', name: tIn(lang, 'mars.teacher.physics'), subject: 'physics', realm: 'mars' }
+    { id: 'digby', group: 'teacher', species: 'mole', emoji: '🔦', name: tIn(lang, 'mars.teacher.physics'), subject: 'physics', realm: 'mars' },
+    { id: 'biscuit', group: 'teacher', species: 'corgi', emoji: '🐶', name: tIn(lang, 'castle.teacher.math'), subject: 'math', realm: 'castle' },
+    { id: 'hartley', group: 'teacher', species: 'stag', emoji: '🦌', name: tIn(lang, 'castle.teacher.history'), subject: 'history', realm: 'castle' },
+    { id: 'sprocket', group: 'teacher', species: 'beaver', emoji: '🦫', name: tIn(lang, 'castle.teacher.physics'), subject: 'physics', realm: 'castle' }
   ];
   for (const l of historyLessons()) {
     const d = localizeLesson(l, lang).dialogue;
@@ -147,6 +155,8 @@ export function voiceCharacters(lang = 'en') {
   for (let n = 1; n <= FLOOR_COUNT; n++) out.push({ id: `moon-boss-${n}`, group: 'boss', emoji: MOON_BOSS_EMOJI[n - 1], name: tIn(lang, `moon.world.${n}.boss`), floor: n, realm: 'moon', direction: bossDirection(tIn('en', `moon.world.${n}.boss`)) });
   const MARS_BOSS_EMOJI = ['🦫', '🤖', '❄️', '🦥', '📢', '🌪️', '🛡️'];
   for (let n = 1; n <= FLOOR_COUNT; n++) out.push({ id: `mars-boss-${n}`, group: 'boss', emoji: MARS_BOSS_EMOJI[n - 1], name: tIn(lang, `mars.world.${n}.boss`), floor: n, realm: 'mars', direction: bossDirection(tIn('en', `mars.world.${n}.boss`)) });
+  const CASTLE_BOSS_EMOJI = ['🪿', '🐑', '✨', '🐐', '🧺', '🐴', '🐉'];
+  for (let n = 1; n <= FLOOR_COUNT; n++) out.push({ id: `castle-boss-${n}`, group: 'boss', emoji: CASTLE_BOSS_EMOJI[n - 1], name: tIn(lang, `castle.world.${n}.boss`), floor: n, realm: 'castle', direction: bossDirection(tIn('en', `castle.world.${n}.boss`)) });
   out.push({ id: 'townsfolk', group: 'townsfolk', emoji: '🐰', name: tIn(lang, 'credits.townsfolk') });
   const BUDDY_EMOJI = { fox: '🦊', robot: '🤖', dragon: '🐲', puff: '☁️', bunny: '🐰' };
   for (const b of BUDDY_IDS) out.push({ id: `buddy-${b}`, group: 'buddy', species: b, emoji: BUDDY_EMOJI[b], name: tIn(lang, `buddy.${b}`) });
@@ -195,7 +205,7 @@ export function buildScript(lang = 'en') {
   const key = (k, variant = null) => `t.${k}${variant != null ? `~${variant}` : ''}`;
 
   // ---- barks: teachers
-  for (const char of ['hoot', 'tock', 'gizmo', 'nutmeg', 'bramble', 'ribbit', 'pip', 'inka', 'splash', 'lotus', 'reed', 'sandy', 'mochi', 'ginger', 'comet', 'ruby', 'woolly', 'digby']) {
+  for (const char of ['hoot', 'tock', 'gizmo', 'nutmeg', 'bramble', 'ribbit', 'pip', 'inka', 'splash', 'lotus', 'reed', 'sandy', 'mochi', 'ginger', 'comet', 'ruby', 'woolly', 'digby', 'biscuit', 'hartley', 'sprocket']) {
     const subject = SUBJECT_OF[char];
     // Each realm's teachers greet in their own words (lesson.js lesson.hello.* / <realm>.hello.*).
     const realm = Object.keys(REALM_TEACHER_OF).find((r) => REALM_TEACHER_OF[r][subject] === char);
@@ -249,6 +259,13 @@ export function buildScript(lang = 'en') {
   add('digby', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
   add('digby', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
   add('digby', key('mars.quest.physics'), 'bark', 0, T('mars.quest.physics'), 'Lesson start: every Weather Lab quest on Mars begins with this.');
+  add('biscuit', key('lesson.yourTurn'), 'bark', 0, T('lesson.yourTurn'), 'Practice: the first problem after the chalkboard example.');
+  add('biscuit', key('lesson.oneMore'), 'bark', 0, T('lesson.oneMore'), 'Practice: the second problem.');
+  add('biscuit', key('castle.quest.math'), 'bark', 0, T('castle.quest.math'), 'Lesson start: every Clock Tower School quest in the Sky Castle begins with this.');
+  add('hartley', key('lesson.tlSay'), 'bark', 0, T('lesson.tlSay'), 'Timeline: the cards are jumbled for the child to put in order.');
+  add('sprocket', key('lesson.guessSay'), 'bark', 0, T('lesson.guessSay'), 'Experiment: asking the child to guess before the test.');
+  add('sprocket', key('lesson.testSay'), 'bark', 0, T('lesson.testSay'), 'Experiment: the test is starting.');
+  add('sprocket', key('castle.quest.physics'), 'bark', 0, T('castle.quest.physics'), 'Lesson start: every Inventor\'s Workshop quest in the Sky Castle begins with this.');
   // ---- barks: buddies
   const BUDDY_BARKS = [
     ['hello', 'Greeting: the child starts playing.'],
@@ -295,6 +312,10 @@ export function buildScript(lang = 'en') {
     add(rb, key(`mars.world.${n}.line`), 'story', n, T(`mars.world.${n}.line`), `The puzzle boss of Mars's terrace ${n} greets the child before the riddles.`);
     add(rb, key('puzzle.won'), 'bark', n, T('puzzle.won'), 'The child cheered the boss up (4 or more right).');
     add(rb, key('puzzle.lost'), 'bark', n, T('puzzle.lost'), 'Not enough right answers this time.');
+    const cb = `castle-boss-${n}`;
+    add(cb, key(`castle.world.${n}.line`), 'story', n, T(`castle.world.${n}.line`), `The puzzle boss of the Sky Castle's street ${n} greets the child before the riddles.`);
+    add(cb, key('puzzle.won'), 'bark', n, T('puzzle.won'), 'The child cheered the boss up (4 or more right).');
+    add(cb, key('puzzle.lost'), 'bark', n, T('puzzle.lost'), 'Not enough right answers this time.');
   }
 
   // ---- lessons, floor by floor

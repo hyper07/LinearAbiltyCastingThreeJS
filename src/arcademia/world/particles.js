@@ -3,7 +3,8 @@
  * floor the camera is on and changes with its theme — falling petals in
  * the meadow, sand swirls in the desert, glowing spores in the mushroom
  * grove, snow on the peaks, sparkles in the clouds, sea spray at the
- * harbor, twinkles on the moon, sparkling moon dust on the Moon's bases, red dust motes on Mars. All the motion is in the shader.
+ * harbor, twinkles on the moon, sparkling moon dust on the Moon's bases, red dust motes on Mars, blossom petals and
+ * feathers drifting over the Sky Castle. All the motion is in the shader.
  */
 import * as THREE from 'three';
 
@@ -18,7 +19,10 @@ const MODES = {
   /** The Moon: fine dust sparkling in the sunlight, hanging low over the decks. */
   moondust: { color: '#eef2ff', size: 3.5, mode: 3, glow: 1 },
   /** Mars: fine red dust motes drifting sideways on the breeze, low over the terraces. */
-  reddust: { color: '#e9a27a', size: 4, mode: 1, glow: 0 }
+  reddust: { color: '#e9a27a', size: 4, mode: 1, glow: 0 },
+  /** The Sky Castle: pink blossom petals drifting down over the streets, and soft white feathers. */
+  blossom: { color: '#ffc4d8', size: 7, mode: 0, glow: 0 },
+  feathers: { color: '#fffaf2', size: 8, mode: 0, glow: 0 }
 };
 
 export function buildParticles(n = 900) {
@@ -69,7 +73,7 @@ export function buildParticles(n = 900) {
       uniforms.uSize.value = m.size;
       uniforms.uGlow.value = m.glow;
       uniforms.uMin.value.set(f.cx - f.rx, f.y + 0.2, f.cz - 10);
-      uniforms.uSpan.value.set(f.rx * 2, look.particles === 'snow' || look.particles === 'petals' ? 22 : 8, f.rz + 14);
+      uniforms.uSpan.value.set(f.rx * 2, ['snow', 'petals', 'blossom', 'feathers'].includes(look.particles) ? 22 : 8, f.rz + 14);
       material.blending = m.glow ? THREE.AdditiveBlending : THREE.NormalBlending;
     },
     update(dt) {

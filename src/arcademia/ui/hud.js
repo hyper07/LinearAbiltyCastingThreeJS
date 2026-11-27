@@ -13,6 +13,7 @@ import { t, num, localizeLesson } from '../i18n/index.js';
 import { OASES, GIZA, riverLine, DESERT } from '../world/desert/plan.js';
 import { CRATERS, MOON, LANDMARKS as MOON_SIGHTS } from '../world/moon/plan.js';
 import { planMars, SIGHTS } from '../world/mars/plan.js';
+import { planCastle } from '../world/castle/plan.js';
 
 export class Hud {
   constructor(root, actions, { floors = FLOORS, map = null, lessons = LAND_LESSONS, realm = 'land' } = {}) {
@@ -223,6 +224,7 @@ export class Hud {
     if (this.map?.kind === 'desert') return this._riverMap({ stars, open, kidFloor, focusFloor });
     if (this.map?.kind === 'moon') return this._craterMap({ stars, open, kidFloor, focusFloor });
     if (this.map?.kind === 'mars') return this._volcanoMap({ stars, open, kidFloor, focusFloor });
+    if (this.map?.kind === 'castle') return this._castleMap({ stars, open, kidFloor, focusFloor });
     const tree = this.map?.kind === 'tree';
     const W = 168, H = 150, rowH = (H - 20) / n;
     const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('hud.mapAria', { n: kidFloor })}">`];
@@ -377,30 +379,69 @@ export class Hud {
    * and the small places as icons (tap one and the buddy walks there), the caldera, the giants on the
    * plain, and you — an arrow that turns the way you face (tickMap).
    */
-  _volcanoMap({ stars, open, kidFloor, focusFloor }) {
+  _volcanoMap(state) {
+    const plan = (this._marsPlan ??= planMars(this.floors.length));
+    // The giants stand out on the plain, past the map's edge: drawn at its rim.
+    const rim = (x, z, P) => P(...[x, z].map((v) => v * Math.min(1, (plan.footR + 8) / Math.hypot(x, z))));
+    return this._spiralMap(state, {
+      plan, key: 'mars', cls: 'arc-mini--mars', redraw: () => this._volcanoMap(state),
+      ground: '#eaa978', hill: '#c0603f', top: '#a24c33', core: { r: 5.5, fill: '#6e3226', title: 'mars.caldera' },
+      band: '#f7d6b1', bandLocked: '#c9bcb2', ramp: '#ffe9c9', rampLocked: '#b6a9a0', road: '#fff1de', roadLocked: '#d8cec6', badge: '#c0603f', badgeLocked: '#9a8f88', edge: '#7d736d', dot: '#b2a69d',
+      sights: (P) => [[...rim(SIGHTS.rocket.x, SIGHTS.rocket.z, P), '🚀', 'mars.rocket', 12], [...rim(SIGHTS.village.x, SIGHTS.village.z, P), '🏠', 'mars.village', 11]]
+    });
+  }
+
+  /**
+   * The Sky Castle from above: the island (its meadow ring), the streets winding up to the keep, each
+   * floor's stretch (greyed while locked; tap it to go there), the ramps as arrows, the schools as big
+   * badges and the small places as icons (tap one and the buddy walks there), the waterfalls, and you.
+   */
+  _castleMap(state) {
+    const plan = (this._castlePlan ??= planCastle(this.floors.length));
+    return this._spiralMap(state, {
+      plan, key: 'castle', cls: 'arc-mini--castle', redraw: () => this._castleMap(state),
+      ground: '#8fcbf2', hill: '#e2d8c4', top: '#d6c9b0', core: { r: 4.2, fill: '#2fb3a6', title: 'castle.keep' },
+      island: { r: plan.rimR - 2.4, fill: '#8fd06a' },
+      band: '#fbf3e2', bandLocked: '#cfc9be', ramp: '#f3dcb4', rampLocked: '#bdb5a8', road: '#ffffff', roadLocked: '#ddd7cc', badge: '#2fb3a6', badgeLocked: '#9a958c', edge: '#7d786f', dot: '#b2ada3',
+      sights: (P) => plan.streams.map((s) => {
+        const d = plan.lipR(s.a);
+        return [...P(Math.sin(s.a) * d, Math.cos(s.a) * d), '💧', 'castle.waterfall', 10];
+      })
+    });
+  }
+
+  /**
+   * A world wound round a hill (Mars's volcano, the Sky Castle): the street spiralling up it, each floor's
+   * stretch of it (greyed while locked; tap it to go there), the ramps as arrows pointing up, the schools as
+   * big coloured badges and the small places as icons (tap one and the buddy walks there), what stands round
+   * it, and you — an arrow that turns the way you face (tickMap).
+   */
+  _spiralMap({ stars, open, kidFloor, focusFloor }, o) {
     const FL = this.floors;
-    const plan = (this._marsPlan ??= planMars(FL.length));
+    const { plan } = o;
     const W = 220, H = 204, cx = W / 2, cy = H / 2 + 2;
     const k = 96 / (plan.footR + 4);
     const P = (x, z) => [+(cx + x * k).toFixed(1), +(cy + z * k).toFixed(1)];
-    const line = (a, b, o) => {
+    const line = (a, b, off) => {
       const pts = [];
       const n = Math.max(2, Math.ceil((b - a) / 0.04));
       for (let i = 0; i <= n; i++) {
-        const p = plan.pt(a + ((b - a) * i) / n, o);
+        const p = plan.pt(a + ((b - a) * i) / n, off);
         pts.push(P(p.x, p.z).join(' '));
       }
       return `M${pts.join(' L')}`;
     };
     const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-    const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('mars.mapAria', { n: kidFloor }))}"><g class="arc-mini__world">`];
-    svg.push(`<rect x="-300" y="-300" width="${W + 600}" height="${H + 600}" fill="#eaa978"/><circle cx="${cx}" cy="${cy}" r="${((plan.footR + 3) * k).toFixed(1)}" fill="#c0603f"/>`);
-    svg.push(`<circle cx="${cx}" cy="${cy}" r="${((plan.riOf(plan.PHI) + 0.5) * k).toFixed(1)}" fill="#a24c33"/><circle cx="${cx}" cy="${cy}" r="${(5.5 * k).toFixed(1)}" fill="#6e3226"><title>${esc(t('mars.caldera'))}</title></circle>`);
+    const svg = [`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t(`${o.key}.mapAria`, { n: kidFloor }))}"><g class="arc-mini__world">`];
+    svg.push(`<rect x="-300" y="-300" width="${W + 600}" height="${H + 600}" fill="${o.ground}"/>`);
+    if (o.island) svg.push(`<circle cx="${cx}" cy="${cy}" r="${(o.island.r * k).toFixed(1)}" fill="${o.island.fill}"/>`);
+    svg.push(`<circle cx="${cx}" cy="${cy}" r="${((plan.footR + 3) * k).toFixed(1)}" fill="${o.hill}"/>`);
+    svg.push(`<circle cx="${cx}" cy="${cy}" r="${((plan.riOf(plan.PHI) + 0.5) * k).toFixed(1)}" fill="${o.top}"/><circle cx="${cx}" cy="${cy}" r="${(o.core.r * k).toFixed(1)}" fill="${o.core.fill}"><title>${esc(t(o.core.title))}</title></circle>`);
     const bandW = (14.5 * k).toFixed(1), mid = 14.5 / 2;
     // The ramps: a pale strip with an arrow up its middle (grey while the floor above is locked).
     plan.stairs.forEach((s) => {
       const locked = !open.has(s.to);
-      svg.push(`<path d="${line(s.pa, s.pb, mid)}" fill="none" stroke="${locked ? '#b6a9a0' : '#ffe9c9'}" stroke-width="${bandW}"/>`);
+      svg.push(`<path d="${line(s.pa, s.pb, mid)}" fill="none" stroke="${locked ? o.rampLocked : o.ramp}" stroke-width="${bandW}"/>`);
       const m = (s.pa + s.pb) / 2, a = plan.pt(m - 0.04, mid), b = plan.pt(m + 0.04, mid);
       const [ax, ay] = P(a.x, a.z), [bx, by] = P(b.x, b.z), ang = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI;
       const [mx, my] = P(plan.pt(m, mid).x, plan.pt(m, mid).z);
@@ -412,10 +453,10 @@ export class Hud {
       const locked = !open.has(f.n);
       svg.push(`<g class="arc-mini__tier arc-mini__floor${locked ? ' is-locked' : ''}${f.n === focusFloor ? ' is-focus' : ''}" data-floor="${f.n}"><title>${esc(t('hud.navFloor', { n: f.n, name: f.name }))}</title>`);
       if (f.n === focusFloor) svg.push(`<path d="${line(g.phiS, g.phiE, mid)}" fill="none" stroke="#ffc83d" stroke-width="${(14.5 * k + 3).toFixed(1)}" stroke-linecap="round"/>`);
-      svg.push(`<path d="${line(g.phiS, g.phiE, mid)}" fill="none" stroke="${locked ? '#c9bcb2' : '#f7d6b1'}" stroke-width="${bandW}"/>`);
-      svg.push(`<path d="${line(g.phiS, g.phiE, 11.6)}" fill="none" stroke="${locked ? '#d8cec6' : '#fff1de'}" stroke-width="${(3.2 * k).toFixed(1)}" stroke-dasharray="2 1.4"/>`);
+      svg.push(`<path d="${line(g.phiS, g.phiE, mid)}" fill="none" stroke="${locked ? o.bandLocked : o.band}" stroke-width="${bandW}"/>`);
+      svg.push(`<path d="${line(g.phiS, g.phiE, 11.6)}" fill="none" stroke="${locked ? o.roadLocked : o.road}" stroke-width="${(3.2 * k).toFixed(1)}" stroke-dasharray="2 1.4"/>`);
       const st = plan.pt(plan.phiAlong(i, 2.4), mid), [nx, ny] = P(st.x, st.z);
-      svg.push(`<g transform="translate(${nx} ${ny})"><g class="arc-mini__up"><circle r="5.6" fill="${locked ? '#9a8f88' : '#fff'}" stroke="${locked ? '#7d736d' : '#c0603f'}" stroke-width="1.2"/><text y="2.6" text-anchor="middle" class="arc-mini__n" style="font-size:7.5px">${locked ? '🔒' : f.n}</text></g></g></g>`);
+      svg.push(`<g transform="translate(${nx} ${ny})"><g class="arc-mini__up"><circle r="5.6" fill="${locked ? o.badgeLocked : '#fff'}" stroke="${locked ? o.edge : o.badge}" stroke-width="1.2"/><text y="2.6" text-anchor="middle" class="arc-mini__n" style="font-size:7.5px">${locked ? '🔒' : f.n}</text></g></g></g>`);
     });
     // The places on each floor: schools big, the rest as icons; tap one to walk there.
     FL.forEach((f, i) => {
@@ -424,8 +465,8 @@ export class Hud {
       const icon = (kind, x, z, text, name, size = 8.5) => {
         const [px, py] = P(x, z);
         // A locked floor's small places are only grey dots (its badge says it is locked).
-        if (locked) return svg.push(`<circle cx="${px}" cy="${py}" r="1.6" fill="#b2a69d"/>`);
-        svg.push(`<g class="arc-mini__place" data-place="${kind}" data-floor-of="${f.n}" transform="translate(${px} ${py})"><title>${esc(name)}</title><g class="arc-mini__up"><circle r="${(size * 0.62).toFixed(1)}" fill="#fff8ef" stroke="#c0603f" stroke-width="0.8"/><text y="${(size * 0.34).toFixed(1)}" text-anchor="middle" style="font-size:${size}px">${text}</text></g></g>`);
+        if (locked) return svg.push(`<circle cx="${px}" cy="${py}" r="1.6" fill="${o.dot}"/>`);
+        svg.push(`<g class="arc-mini__place" data-place="${kind}" data-floor-of="${f.n}" transform="translate(${px} ${py})"><title>${esc(name)}</title><g class="arc-mini__up"><circle r="${(size * 0.62).toFixed(1)}" fill="#fff8ef" stroke="${o.badge}" stroke-width="0.8"/><text y="${(size * 0.34).toFixed(1)}" text-anchor="middle" style="font-size:${size}px">${text}</text></g></g>`);
       };
       for (const p of g.places) {
         if (['math', 'history', 'physics'].includes(p.kind)) {
@@ -433,26 +474,23 @@ export class Hud {
           const done = list.length && list.every((l) => (stars[l.id] ?? 0) > 0);
           const [px, py] = P(p.x, p.z);
           if (locked) svg.push(`<circle class="arc-mini__school arc-mini__school--${p.kind} is-locked" cx="${px}" cy="${py}" r="3.4"/>`);
-          else svg.push(`<g class="arc-mini__place arc-mini__school arc-mini__school--${p.kind}${done ? ' is-done' : ''}" data-place="${p.kind}" data-floor-of="${f.n}" transform="translate(${px} ${py})"><title>${esc(t(`mars.building.${p.kind}`))}</title><g class="arc-mini__up"><circle r="6.4"/><text y="2.9" text-anchor="middle" style="font-size:8px">${SUBJECT_ICON[p.kind]}</text></g></g>`);
+          else svg.push(`<g class="arc-mini__place arc-mini__school arc-mini__school--${p.kind}${done ? ' is-done' : ''}" data-place="${p.kind}" data-floor-of="${f.n}" transform="translate(${px} ${py})"><title>${esc(t(`${o.key}.building.${p.kind}`))}</title><g class="arc-mini__up"><circle r="6.4"/><text y="2.9" text-anchor="middle" style="font-size:8px">${SUBJECT_ICON[p.kind]}</text></g></g>`);
         } else if (p.kind === 'landmark') icon('landmark', p.x, p.z, f.icon, t(`landmark.${f.look.landmark}`), 8.5);
         else icon(p.kind, p.x, p.z, { shop: '🎩', arcade: '🕹️', museum: '🌈', board: '📋' }[p.kind], t(`place.${p.kind}`), 6.5);
       }
       icon('portal', g.portal.x, g.portal.z, '🌀', t('place.portal'), 6.5);
       if (g.worldGate) icon('worlds', g.worldGate.x, g.worldGate.z, '🌍', t('place.worlds'), 7.5);
     });
-    // The giants stand out on the plain, past the map's edge: drawn at its rim.
-    const rim = (x, z) => P(...[x, z].map((v) => v * Math.min(1, (plan.footR + 8) / Math.hypot(x, z))));
-    const [rx, ry] = rim(SIGHTS.rocket.x, SIGHTS.rocket.z), [vx, vy] = rim(SIGHTS.village.x, SIGHTS.village.z);
-    svg.push(`<g transform="translate(${rx} ${ry})"><g class="arc-mini__up"><text y="4" text-anchor="middle" font-size="12"><title>${esc(t('mars.rocket'))}</title>🚀</text></g></g><g transform="translate(${vx} ${vy})"><g class="arc-mini__up"><text y="4" text-anchor="middle" font-size="11"><title>${esc(t('mars.village'))}</title>🏠</text></g></g>`);
+    for (const [sx, sy, icon, title, size] of o.sights(P)) svg.push(`<g transform="translate(${sx} ${sy})"><g class="arc-mini__up"><text y="4" text-anchor="middle" font-size="${size}"><title>${esc(t(title))}</title>${icon}</text></g></g>`);
     // You: an arrow the way you face, with a soft ring (tickMap moves it).
     svg.push('<g class="arc-mini__me"><circle r="7" class="arc-mini__me-ring"/><path d="M0 6 L-4.2 -4 L0 -1.8 L4.2 -4 Z" class="arc-mini__me-arrow"/></g>');
     svg.push('</g></svg>');
     this.mini.innerHTML = svg.join('');
-    this.mini.classList.add('arc-mini--mars');
-    // Near (round you, big icons: the default) or the whole volcano: the corner button switches.
+    this.mini.classList.add(o.cls);
+    // Near (round you, big icons: the default) or the whole hill: the corner button switches.
     const zoomBtn = button('arc-mini__zoom', this._marsWhole ? '+' : '−', () => {
       this._marsWhole = !this._marsWhole;
-      this._volcanoMap({ stars, open, kidFloor, focusFloor });
+      o.redraw();
     }, { 'aria-label': t(this._marsWhole ? 'hud.zoomIn' : 'hud.zoomOut'), title: t(this._marsWhole ? 'hud.zoomIn' : 'hud.zoomOut') });
     this.mini.append(zoomBtn);
     this._me = { el: this.mini.querySelector('.arc-mini__me'), svg: this.mini.querySelector('svg'), world: this.mini.querySelector('.arc-mini__world'), P, W, H, whole: Boolean(this._marsWhole) };
