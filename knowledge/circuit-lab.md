@@ -103,6 +103,16 @@ Velxio (AGPL) and CircuitJS (GPL) stay idea-only.
   (`ui/lab/views.tsx` — generated from the netlist, inset or full screen,
   click to select).
 
+### Board teardown: Inspect board (2026-11-27)
+
+Every on-board part of six boards — ESP32 DevKit V1, ESP32-DevKitC V4, Arduino Uno R3,
+Mega 2560, Nano 3.0, Raspberry Pi Pico — in
+[circuit-boards.json](circuit-boards.json) (designator, position, package, marking,
+role, specs, nets, kid line + deep explanation), shown by Circuit Lab's **Inspect board**
+mode (`apps/circuitlab/src/inspect/`: hover card, detail panel, pull out, explode, flip,
+silkscreen / copper / x-ray layers, pin-group callouts, a schematic synced both ways).
+The technique study and how to add boards: [board-teardown.md](board-teardown.md).
+
 ### EE Lab I track (CCNY EE 22100 topics)
 
 Thirteen **original** experiments covering the topics of the catalog

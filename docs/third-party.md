@@ -166,8 +166,13 @@ Circuit Lab is its own app in `apps/circuitlab/` (licence and `NOTICE` beside it
 | [JetBrains Mono](https://www.jetbrains.com/lp/mono/) via [Fontsource](https://fontsource.org/fonts/jetbrains-mono) (`@fontsource/jetbrains-mono`) | Values, pin names, code and the scope grid | SIL Open Font License 1.1 (font), MIT (package) |
 | [DSEG7 Classic](https://github.com/keshikan/DSEG) (`dseg` on npm) | Seven-segment LCD digits on the multimeters and the function generator | SIL Open Font License 1.1 |
 | [ngspice](https://ngspice.sourceforge.io) / `@o.z/ngspice-wasm` | Not used yet: OpenCircuit loads it from a CDN for an optional SPICE check; planned the same way | BSD-3-Clause (ngspice); package terms apply |
+| [Arduino Uno Rev3, Mega 2560 Rev3 and Nano 3.0 reference designs](https://www.arduino.cc/en/hardware) (Eagle files) | Inspect board: every part's position, rotation, side, package and net on these three boards, parsed from the `.brd` files into `knowledge/circuit-boards.json` (those board entries are shared under the same licence) | CC BY-SA 2.5 (Arduino) |
+| [Raspberry Pi Pico R3 design files](https://datasheets.raspberrypi.com/pico/RPi-Pico-R3-PUBLIC-20200119.zip) and the [Pico datasheet](https://datasheets.raspberrypi.com/pico/pico-datasheet.pdf) | Inspect board: the Pico's designators, values, part numbers and power circuit (positions are our estimates) | Design files: Raspberry Pi open licence ("made available openly, with no limitations"); datasheet facts only |
+| [Espressif ESP32-DevKitC V4 schematic](https://dl.espressif.com/dl/schematics/esp32_devkitc_v4_sch.pdf), ESP32 / ESP32-WROOM-32 datasheets | Inspect board: the DevKitC's designators and values and the reference circuit of the DevKit V1 (facts only; positions are our estimates) | © Espressif; facts only, nothing copied |
+| Part datasheets (Microchip, onsemi, TI, FTDI, Silicon Labs, Richtek, Winbond, Bourns, Murata, AMS) | The specs shown for each on-board part; each part links its datasheet | Facts only |
 
-The boards and parts are modelled in code (`apps/circuitlab/src/three/meshes/boards.ts`, `modules.ts`);
+The boards and parts are modelled in code (`apps/circuitlab/src/three/meshes/boards.ts`, `modules.ts`,
+and the Inspect board meshes in `apps/circuitlab/src/inspect/part-meshes.ts`);
 the 5×7 display font is the classic public-domain dot-matrix table. Players see all of this in the lab's
 Credits panel (`apps/circuitlab/src/ui/lab/credits.ts`).
 

@@ -98,6 +98,37 @@ if (existsSync(path.join(ROOT, PARTS))) {
   }
 }
 
+// 4a'. Board teardowns for the circuit lab's Inspect mode (knowledge/circuit-boards.json; guide in
+// knowledge/board-teardown.md): one record per board, one per on-board chip or active part.
+const BOARDS = 'knowledge/circuit-boards.json';
+if (existsSync(path.join(ROOT, BOARDS))) {
+  const doc = read(BOARDS);
+  const words = (s) => s.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1);
+  for (const b of doc.boards) {
+    add({
+      id: `board.${b.id}`,
+      kind: 'circuit-board',
+      title: `${b.name}: ${b.parts.length} on-board parts`,
+      summary: `${b.summary} Positions: ${b.positions}.`,
+      tags: ['electronics', 'circuit', 'board', 'teardown', 'inspect', ...words(b.name)],
+      path: BOARDS,
+      from: 'circuit-lab',
+    });
+    for (const p of b.parts) {
+      if (/^(cap|resistor|header|pads|solder-jumper|empty-footprint|antenna)/.test(p.kind)) continue;
+      add({
+        id: `board.${b.id}.${p.ref}`,
+        kind: 'circuit-board',
+        title: `${p.ref} ${p.name} on the ${b.name}`,
+        summary: `${p.role} ${Object.entries(p.specs).slice(0, 3).map(([k, v]) => `${k}: ${v}`).join('; ')}.`,
+        tags: ['electronics', 'board', 'teardown', p.kind, ...words(p.name), ...words(b.name)],
+        path: BOARDS,
+        from: 'circuit-lab',
+      });
+    }
+  }
+}
+
 // 4b. Reference screenshots studied from images/ and images2/ (kept out of git): HUDs, skill bars, effects,
 // menus, scenes and game concepts. The record points at the study; `image` is the local file.
 // Ones rated 1 (blurry, duplicate, off-topic) stay in the catalogue but out of search.
