@@ -6,6 +6,7 @@
  * synced schematic. Data: knowledge/circuit-boards.json (loaded on open).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { InspectScene, type Layers, type PartsLayer } from './inspect-scene'
 import {
   findBoard,
@@ -48,6 +49,26 @@ export default function InspectBoard({ initialBoard, onClose }: InspectBoardProp
   const [schOpen, setSchOpen] = useState(true)
 
   const hostRef = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const topRef = useRef<HTMLDivElement>(null)
+  // Over the whole lab: the lab's dock (its rail) and clock hidden while the teardown is open, and the
+  // panels below the top bar however many rows it wraps to (it wraps on a narrow window; the parts list
+  // and the detail panel used to sit under its second row, the Pull out button hidden).
+  useEffect(() => {
+    document.body.classList.add('lg-dock-covered', 'ib-open')
+    const top = topRef.current
+    const root = rootRef.current
+    const fit = () => {
+      if (top && root) root.style.setProperty('--ib-top', `${Math.ceil(top.getBoundingClientRect().bottom) + 10}px`)
+    }
+    fit()
+    const ro = typeof ResizeObserver !== 'undefined' && top ? new ResizeObserver(fit) : null
+    if (ro && top) ro.observe(top)
+    return () => {
+      ro?.disconnect()
+      document.body.classList.remove('lg-dock-covered', 'ib-open')
+    }
+  }, [])
   const sceneRef = useRef<InspectScene | null>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const pulledLabelRef = useRef<HTMLDivElement>(null)
@@ -212,8 +233,8 @@ export default function InspectBoard({ initialBoard, onClose }: InspectBoardProp
   const netKind = (n: string) => board?.nets.find((x) => x.name === n)?.kind ?? 'signal'
   const selNets = sel ? netsOfPart(sel) : []
 
-  return (
-    <div className="ib-root" role="dialog" aria-label="Inspect board" data-inspect-board={board?.id ?? ''}>
+  return createPortal(
+    <div ref={rootRef} className="ib-root" role="dialog" aria-label="Inspect board" data-inspect-board={board?.id ?? ''}>
       <div ref={hostRef} className="ib-canvas" />
 
       {/* pin-group callouts: a dot on the header, a dotted leader, a pill like a label on a drawing */}
@@ -279,7 +300,7 @@ export default function InspectBoard({ initialBoard, onClose }: InspectBoardProp
       </div>
 
       {/* top bar */}
-      <div className="ib-top">
+      <div ref={topRef} className="ib-top">
         <div className="ib-title">
           <span className="ib-eyebrow">Inspect board</span>
           {doc && (
@@ -556,7 +577,8 @@ export default function InspectBoard({ initialBoard, onClose }: InspectBoardProp
       )}
 
       <div className="ib-hint">Hover a part · click for details · left-drag to turn · right-drag to move · scroll to zoom · P pull out · X explode · F flip · Esc back</div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

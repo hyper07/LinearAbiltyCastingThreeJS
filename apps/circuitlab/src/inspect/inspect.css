@@ -212,7 +212,7 @@
 .ib-left {
   position: absolute;
   left: 12px;
-  top: 72px;
+  top: var(--ib-top, 72px);
   bottom: 44px;
   width: min(270px, 42vw);
   display: flex;
@@ -310,7 +310,7 @@
 .ib-detail {
   position: absolute;
   right: 12px;
-  top: 72px;
+  top: var(--ib-top, 72px);
   bottom: 12px;
   width: min(380px, 46vw);
   overflow: auto;
@@ -441,7 +441,7 @@
 /* ---- about ---- */
 .ib-about {
   position: absolute;
-  top: 72px;
+  top: var(--ib-top, 72px);
   left: 50%;
   transform: translateX(-50%);
   width: min(560px, calc(100vw - 24px));
