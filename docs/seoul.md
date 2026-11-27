@@ -63,7 +63,11 @@ including commercially, **with attribution** — the game credits it in its Cred
   far plane each is drawn as a smaller copy on the same line of sight, so they stand over the city from
   across the river and from the other courses; ordinary haze greys them to a pale silhouette (never
   gone), a fog bank hides them like everything else, and after dark their windows light and the tower's
-  crown glows.
+  crown glows. From the race camera they are mostly out of sight (measured Nov 2026, a minute on the
+  autopilot each, a ray from the camera to six points up the landmark): the 63 Building in view 2 s in 60 on
+  the 63 Lanes, the Sky Tower 8 s in 60 round the Jamsil Tower Loop, never from the Sky Tower's own lanes
+  or Yeouido Riverside — the chase view's top edge is 10–15° over the horizon and the street's first
+  buildings rise above that; lifting the camera 5° toward them changed little, so it was left as it is.
 - Heights only shape the ground: **no elevation figure and no coordinate is ever shown.** Parks,
   subway lines and small streets are not in the map yet.
 - All three credits, with every model, texture and the music, are in the Credits panel (kept off
@@ -320,8 +324,9 @@ Seoul's real streets — and the streets stay open.
   201–224 s down the Bukak Skyway, 156–181 s round the Sky Tower; put back on the course a lap (you on the
   autopilot / each bot) 6 / 0–1, 2 / 1–4, 1 / 1–3, 3 / 2–3, 3 / 2–4 — measured again then (High tier):
   3 / 0–1, 1 / 0–1, 2 / 0–3, 1 / 0–1, 6 / 1, often with only one or two riders home inside five minutes.
-  After: put back 0 / 0–1 on the Heritage Run, 0 / 0–1 at Banpo, 0 / 0 on the 63 Lanes, 0 / 0 down the
-  Skyway, 0 / 0–2 round the Sky Tower; laps 189–214 s, 127–151 s, 175–200 s, 199 s, 166–192 s. Crashes
+  After (two runs each where measured twice): put back 0–2 / 0–1 on the Heritage Run, 0 / 0–1 at Banpo,
+  0 / 0 on the 63 Lanes, 0 / 0 down the Skyway, 0 / 0–2 round the Sky Tower — most riders none at all;
+  laps 160–214 s, 118–151 s, 175–200 s, 199 s, 166–207 s, every rider home in most runs. Crashes
   — traffic, items, walls — are counted apart and not changed by it.)
 
   (Crashes counted without the items' — branches, marbles. On the Hard loops the bots are often
