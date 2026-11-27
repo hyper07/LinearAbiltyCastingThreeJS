@@ -4,6 +4,7 @@ import { Walls, sweepSegment, RIDER_RADIUS } from '../../src/city/walls.js';
 import { newScoot, stepScoot, GLANCE, SCOOT } from '../../src/city/scoot.js';
 import { BIKE_COURSES, planCourse, finishCourse, centreLine } from '../../src/city/course.js';
 import { seoulData, roadsNear, wallsNear } from './seoulData.mjs';
+import { MOUTH, wallRuns } from '../../src/city/golmok.js';
 
 /** A square building, `size` m across, its middle at (x, z). */
 function block(walls, x, z, size = 20) {
@@ -92,6 +93,26 @@ test('walls: a thin garden wall is solid both ways', () => {
     RIDE(s, { throttle: true }, 3, 0.1, w);
     assert.ok(Math.sign(s.z + 20) === Math.sign(z0 + 20), `stayed on its side (z ${s.z.toFixed(2)})`);
   }
+});
+
+test('walls: an alley\'s garden wall stops at the mouth of a side street — never across it, never a sliver left in it', () => {
+  // the wall along the course's edge at z = 2, x 0…12; a side street 3 m wide coming in from +z at x = 6, and a
+  // main road's pavement reaching the wall's far end
+  const side = { x: 6, half: 1.5 };
+  const open = (t) => Math.abs(t - side.x) < side.half + MOUTH.margin || t > 11.5;
+  const runs = wallRuns(12, open);
+  assert.equal(runs.length, 2, 'two stretches, either side of the side street');
+  for (const [a, b] of runs) {
+    assert.ok(b - a >= MOUTH.min, 'no sliver');
+    for (let t = a; t <= b; t += 0.05) assert.equal(open(t), false, `wall at ${t.toFixed(2)} m stands in an opening`);
+  }
+  assert.ok(runs[0][0] === 0 && runs[0][1] > 3.5 && runs[0][1] <= 6 - side.half - MOUTH.margin, `up to the side street: ${runs[0][1]}`);
+  assert.ok(runs[1][0] >= 6 + side.half + MOUTH.margin && runs[1][1] <= 11.5, `from it to the pavement: ${runs[1]}`);
+  // a wall whose whole length is an opening isn't built; one with none is whole
+  assert.deepEqual(wallRuns(6, () => true), []);
+  assert.deepEqual(wallRuns(6, () => false), [[0, 6]]);
+  // a gap shorter than the shortest wall between two openings: nothing in it
+  assert.deepEqual(wallRuns(6, (t) => t < 2.5 || t > 3.1), []);
 });
 
 test('course: an alley line the map drew through a building is moved into the gap beside it', () => {

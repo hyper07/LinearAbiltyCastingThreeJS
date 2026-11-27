@@ -40,6 +40,35 @@ export function cornerZones(points, { before = 7, after = 2, bend = 0.5 } = {}) 
   return out;
 }
 
+/**
+ * Where a side street opens off the course: within its half-width and `margin` m of its middle line, a
+ * street running more across the course's edge than `along` (the cosine) of the way — and a main road's
+ * carriageway or its `pavement`. A wall shorter than `min` m between two openings isn't built.
+ */
+export const MOUTH = { margin: 0.35, along: 0.8, pavement: 3.1, min: 0.8, step: 0.25 };
+
+/**
+ * The stretches of a wall `len` m long that stand clear of every opening (`open(t)`: is the point `t` m
+ * along it in one?), sampled every MOUTH.step m: [[from, to], …] in metres along it, each at least
+ * MOUTH.min long, stopped a sample short of the opening.
+ */
+export function wallRuns(len, open) {
+  const runs = [];
+  let from = null;
+  const n = Math.max(1, Math.ceil(len / MOUTH.step));
+  for (let q = 0; q <= n; q++) {
+    const t = (q / n) * len;
+    const shut = !open(t);
+    if (shut && from == null) from = q === 0 ? 0 : t;
+    if ((!shut || q === n) && from != null) {
+      const to = shut ? len : ((q - 1) / n) * len;
+      if (to - from >= MOUTH.min) runs.push([from, to]);
+      from = null;
+    }
+  }
+  return runs;
+}
+
 /** The city's road lookup squares (SeoulGame ROAD_CELL). */
 const ROAD_CELL = 40;
 const CHUNK = 8; // course points (6 m apart) to a stretch
@@ -331,6 +360,33 @@ export class Golmok {
       return false;
     };
     const poles = [];
+    // The streets that meet the course here (the small ones the city doesn't draw, as its own data has them):
+    // a wall, a rail or a fence along the course's edge never runs across one's mouth — nor out over a main
+    // road or its pavement where the course comes out onto one (`opening`).
+    const side0 = at(k * CHUNK);
+    const streets = (g.roadsNear?.(side0[0], side0[1], 1) ?? []).filter((q) => q.small && q.pts?.length >= 4);
+    const opening = (x, z, ux, uz) => {
+      if (g.onRoad?.(x, z, MOUTH.pavement)) return true;
+      for (const q of streets) {
+        const m = q.pts.length / 2 - 1;
+        const reach = (q.width ?? 3) / 2 + MOUTH.margin;
+        for (let j = 0; j < m; j++) {
+          const ax = q.pts[j * 2];
+          const az = q.pts[j * 2 + 1];
+          const ex = q.pts[j * 2 + 2] - ax;
+          const ez = q.pts[j * 2 + 3] - az;
+          if (Math.min(ax, ax + ex) > x + reach || Math.max(ax, ax + ex) < x - reach || Math.min(az, az + ez) > z + reach || Math.max(az, az + ez) < z - reach) continue;
+          const L = Math.hypot(ex, ez) || 1e-6;
+          // (the course's own street, running along the wall, is no opening in it)
+          if (Math.abs((ex * ux + ez * uz) / L) > MOUTH.along) continue;
+          const t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / (L * L)));
+          if (Math.hypot(ax + ex * t - x, az + ez * t - z) < reach) return true;
+        }
+      }
+      return false;
+    };
+    // The stretches (metres along, from–to) of a line from (x0, z0) `len` m along (ux, uz) clear of every opening.
+    const solid = (x0, z0, ux, uz, len) => wallRuns(len, (t) => opening(x0 + ux * t, z0 + uz * t, ux, uz));
     for (let i = k * CHUNK; i < Math.min(n, (k + 1) * CHUNK + 1); i++) {
       if (open && i >= n - 1) break;
       const a = at(i);
@@ -490,7 +546,7 @@ export class Golmok {
         const outYaw = hd + (side > 0 ? -Math.PI / 2 : Math.PI / 2); // facing into the street from this side
         const along = (t) => [ex + ux * t, ez + uz * t];
         if (this.mountain?.[i]) {
-          this._rail(props, refl, i, side, { ex, ez, ux, uz, rx, rz, len, hd, base });
+          this._rail(props, refl, i, side, { ex, ez, ux, uz, rx, rz, len, hd, base, solid });
           continue;
         }
         if (small) {
@@ -507,21 +563,29 @@ export class Golmok {
           // A zig-zag's lane with no building at its edge (an office district's, a flats estate's): a
           // street's raised pavement out to the buildings and a low railing along its back, not an alley's
           // garden wall — the open ground beyond reads as the city's, not a walled lane through a plaza.
-          if (open2 && this.sparse && w >= 7) this._walkside(ground, props, owned, i, side, { a, b, ex, ez, ux, uz, rx, rz, len, hd, half });
+          if (open2 && this.sparse && w >= 7) this._walkside(ground, props, owned, i, side, { a, b, ex, ez, ux, uz, rx, rz, len, hd, half, solid });
           else if (open2) {
-            // A garden wall, sometimes a gate in it — solid, like the buildings (once for each place it stands).
-            const tag = `${this.course.id ?? ''}|${i}|${side}`;
-            if (this.walls && !(this.walls.tags ??= new Set()).has(tag)) {
-              this.walls.tags.add(tag);
-              this.walls.addSegment(wx0, wz0, wx0 + ux * len, wz0 + uz * len, 'garden');
-            }
+            // A garden wall, sometimes a gate in it — solid, like the buildings (once for each place it stands);
+            // broken where a side street opens off the course, and stopped short of a main road's pavement.
             const col = pick(r, PAL.walls);
             const h = 1.7 + r() * 0.6;
-            (col === PAL.walls[0] ? brick : block).box(ex + rx * side * 0.2 + ux * len / 2, base + h / 2, ez + rz * side * 0.2 + uz * len / 2, len / 2, h / 2, 0.11, hd + Math.PI / 2, col === PAL.walls[0] ? C('#f2e6e0') : col.clone().multiplyScalar(1.35));
-            props.box(ex + rx * side * 0.2 + ux * len / 2, base + h + 0.04, ez + rz * side * 0.2 + uz * len / 2, len / 2 + 0.02, 0.05, 0.15, hd + Math.PI / 2, col.clone().multiplyScalar(1.15));
-            if (r() < 0.3) {
-              const [gx, gz] = along(len * (0.3 + r() * 0.4));
-              props.box(gx + rx * side * 0.12, base + 1.0, gz + rz * side * 0.12, 0.65, 1.0, 0.04, hd + Math.PI / 2, pick(r, PAL.gate));
+            const gate = r() < 0.3 ? 0.3 + r() * 0.4 : null;
+            for (const [t0, t1] of solid(wx0, wz0, ux, uz, len)) {
+              const tag = `${this.course.id ?? ''}|${i}|${side}|${t0}`;
+              if (this.walls && !(this.walls.tags ??= new Set()).has(tag)) {
+                this.walls.tags.add(tag);
+                this.walls.addSegment(wx0 + ux * t0, wz0 + uz * t0, wx0 + ux * t1, wz0 + uz * t1, 'garden');
+              }
+              const mid = (t0 + t1) / 2;
+              const hl = (t1 - t0) / 2;
+              (col === PAL.walls[0] ? brick : block).box(wx0 + ux * mid, base + h / 2, wz0 + uz * mid, hl, h / 2, 0.11, hd + Math.PI / 2, col === PAL.walls[0] ? C('#f2e6e0') : col.clone().multiplyScalar(1.35));
+              props.box(wx0 + ux * mid, base + h + 0.04, wz0 + uz * mid, hl + 0.02, 0.05, 0.15, hd + Math.PI / 2, col.clone().multiplyScalar(1.15));
+              // (a gate only in a stretch of wall long enough to hang one in)
+              const gt = gate == null ? null : len * gate;
+              if (gt != null && gt - 0.7 > t0 && gt + 0.7 < t1) {
+                const [gx, gz] = along(gt);
+                props.box(gx + rx * side * 0.12, base + 1.0, gz + rz * side * 0.12, 0.65, 1.0, 0.04, hd + Math.PI / 2, pick(r, PAL.gate));
+              }
             }
           } else if (wall) {
             // On a building's wall: an air conditioner, a gas meter with its pipe, a sign, an awning, a lamp.
@@ -547,7 +611,7 @@ export class Golmok {
           const gx = ex - rx * side * 0.3;
           const gz = ez - rz * side * 0.3;
           // (and never on the course's own line, where it crosses itself or turns a corner)
-          const onMain = g.onRoad?.(gx, gz, 0.4) || pts.some((q, qi) => Math.abs(qi - i) > 1 && Math.hypot(q[0] - gx, q[1] - gz) < (q[2] ?? 6) / 2 - 0.1);
+          const onMain = g.onRoad?.(gx, gz, 0.4) || opening(ex, ez, ux, uz) || pts.some((q, qi) => Math.abs(qi - i) > 1 && Math.hypot(q[0] - gx, q[1] - gz) < (q[2] ?? 6) / 2 - 0.1);
           const clear = w < 5 || this.sparse || this.calm[i] || this.calm[(i + 1) % n];
           const roll0 = r();
           const roll = onMain || clear ? 1 : roll0 * 1.6;
@@ -685,7 +749,7 @@ export class Golmok {
    * metres, a reflector on every other post — and solid (walls.js), once for each place it stands.
    * Not across a junction's mouth (a side road meeting it) nor where the course itself runs.
    */
-  _rail(props, refl, i, side, { ex, ez, ux, uz, rx, rz, len, hd, base }) {
+  _rail(props, refl, i, side, { ex, ez, ux, uz, rx, rz, len, hd, base, solid = null }) {
     const g = this.g;
     const off = 0.55;
     const x0 = ex + rx * side * off;
@@ -693,26 +757,29 @@ export class Golmok {
     if (g.onRoad?.(x0 + rx * side * 1.2 + ux * len / 2, z0 + rz * side * 1.2 + uz * len / 2, 0.3)) return;
     const pts = this.course.points;
     if (pts.some((q, qi) => Math.abs(qi - i) > 3 && Math.hypot(q[0] - x0 - ux * len / 2, q[1] - z0 - uz * len / 2) < (q[2] ?? 6) / 2 + 0.8)) return;
-    const tag = `${this.course.id ?? ''}|rail|${i}|${side}`;
-    if (this.walls && !(this.walls.tags ??= new Set()).has(tag)) {
-      this.walls.tags.add(tag);
-      this.walls.addSegment(x0, z0, x0 + ux * len, z0 + uz * len, 'rail');
-    }
     const y = (t) => this.g.groundAt(x0 + ux * t, z0 + uz * t) + 0.9;
-    // the beam: two strips, the W's ridges, along the stretch
-    const ya = y(0);
-    const yb = y(len);
     const beam = PAL.rail;
-    for (const [h, d] of [[0.58, 0], [0.72, 0.03]]) {
-      const P = (t, yy, o) => new THREE.Vector3(x0 + ux * t - rx * side * o, yy, z0 + uz * t - rz * side * o);
-      props.quad(P(0, ya + h - 0.09, d), P(len, yb + h - 0.09, d), P(len, yb + h + 0.09, d), P(0, ya + h + 0.09, d), beam);
-      props.quad(P(0, ya + h + 0.09, d), P(len, yb + h + 0.09, d), P(len, yb + h - 0.09, d), P(0, ya + h - 0.09, d), beam.clone().multiplyScalar(0.8));
-    }
-    for (let t = 0; t < len; t += 2) {
-      const px = x0 + ux * t + rx * side * 0.08;
-      const pz = z0 + uz * t + rz * side * 0.08;
-      props.box(px, y(t) + 0.4, pz, 0.05, 0.4, 0.05, hd, PAL.railPost);
-      if (Math.round(t / 2) % 2 === 0) refl.box(px - rx * side * 0.06, y(t) + 0.66, pz - rz * side * 0.06, 0.05, 0.05, 0.02, hd + Math.PI / 2, C('#ffd21a'), { top: 1, side: 1 });
+    // (broken where a side road opens off it: never across one's mouth)
+    for (const [t0, t1] of solid ? solid(x0, z0, ux, uz, len) : [[0, len]]) {
+      const tag = `${this.course.id ?? ''}|rail|${i}|${side}|${t0}`;
+      if (this.walls && !(this.walls.tags ??= new Set()).has(tag)) {
+        this.walls.tags.add(tag);
+        this.walls.addSegment(x0 + ux * t0, z0 + uz * t0, x0 + ux * t1, z0 + uz * t1, 'rail');
+      }
+      // the beam: two strips, the W's ridges, along the stretch
+      const ya = y(t0);
+      const yb = y(t1);
+      for (const [h, d] of [[0.58, 0], [0.72, 0.03]]) {
+        const P = (t, yy, o) => new THREE.Vector3(x0 + ux * t - rx * side * o, yy, z0 + uz * t - rz * side * o);
+        props.quad(P(t0, ya + h - 0.09, d), P(t1, yb + h - 0.09, d), P(t1, yb + h + 0.09, d), P(t0, ya + h + 0.09, d), beam);
+        props.quad(P(t0, ya + h + 0.09, d), P(t1, yb + h + 0.09, d), P(t1, yb + h - 0.09, d), P(t0, ya + h - 0.09, d), beam.clone().multiplyScalar(0.8));
+      }
+      for (let t = Math.ceil(t0 / 2) * 2; t < (t1 < len - 0.01 ? t1 + 0.01 : t1); t += 2) {
+        const px = x0 + ux * t + rx * side * 0.08;
+        const pz = z0 + uz * t + rz * side * 0.08;
+        props.box(px, y(t) + 0.4, pz, 0.05, 0.4, 0.05, hd, PAL.railPost);
+        if (Math.round(t / 2) % 2 === 0) refl.box(px - rx * side * 0.06, y(t) + 0.66, pz - rz * side * 0.06, 0.05, 0.05, 0.02, hd + Math.PI / 2, C('#ffd21a'), { top: 1, side: 1 });
+      }
     }
     void base;
   }
@@ -724,7 +791,7 @@ export class Golmok {
    * solid (walls.js), so a line run wide is a scrape, not a ride off across the open ground (none in a
    * corner's approach or just round it: `calm`).
    */
-  _walkside(ground, props, owned, i, side, { a, b, ex, ez, ux, uz, rx, rz, len, hd, half }) {
+  _walkside(ground, props, owned, i, side, { a, b, ex, ez, ux, uz, rx, rz, len, hd, half, solid = null }) {
     const g = this.g;
     // (out to the nearest building, a hand short of it)
     let pw = 3;
@@ -765,17 +832,21 @@ export class Golmok {
     if (this.calm[i] || this.calm[(i + 1) % n]) return;
     const x0 = ex + rx * side * (pw - 0.12);
     const z0 = ez + rz * side * (pw - 0.12);
-    const tag = `${this.course.id ?? ''}|fence|${i}|${side}`;
-    if (this.walls && !(this.walls.tags ??= new Set()).has(tag)) {
-      this.walls.tags.add(tag);
-      this.walls.addSegment(x0, z0, x0 + ux * len, z0 + uz * len, 'fence');
-    }
-    for (const [h, t] of [[0.95, 0.035], [0.5, 0.025]]) {
-      props.box(x0 + ux * len / 2, (ya + yb) / 2 + KERB + h, z0 + uz * len / 2, len / 2, t, 0.025, hd + Math.PI / 2, PAL.fence);
-    }
-    for (let t = 0; t < len; t += 2) {
-      const y = yAt(t / len) + KERB;
-      props.box(x0 + ux * t, y + 0.49, z0 + uz * t, 0.03, 0.49, 0.03, hd, PAL.fencePost);
+    // (broken where a side street opens off it)
+    for (const [t0, t1] of solid ? solid(x0, z0, ux, uz, len) : [[0, len]]) {
+      const tag = `${this.course.id ?? ''}|fence|${i}|${side}|${t0}`;
+      if (this.walls && !(this.walls.tags ??= new Set()).has(tag)) {
+        this.walls.tags.add(tag);
+        this.walls.addSegment(x0 + ux * t0, z0 + uz * t0, x0 + ux * t1, z0 + uz * t1, 'fence');
+      }
+      const mid = (t0 + t1) / 2;
+      for (const [h, t] of [[0.95, 0.035], [0.5, 0.025]]) {
+        props.box(x0 + ux * mid, yAt(mid / len) + KERB + h, z0 + uz * mid, (t1 - t0) / 2, t, 0.025, hd + Math.PI / 2, PAL.fence);
+      }
+      for (let t = Math.ceil(t0 / 2) * 2; t < (t1 < len - 0.01 ? t1 + 0.01 : t1); t += 2) {
+        const y = yAt(t / len) + KERB;
+        props.box(x0 + ux * t, y + 0.49, z0 + uz * t, 0.03, 0.49, 0.03, hd, PAL.fencePost);
+      }
     }
   }
 
