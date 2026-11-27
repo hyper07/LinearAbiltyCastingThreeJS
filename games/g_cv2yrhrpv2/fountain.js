@@ -394,7 +394,8 @@ export class Fountain {
     this.ledMat.color.setScalar(0.25 + 1.4 * night);
     // the wet floor: the jets' colours glowing in it after dark, the ripples drifting
     this.floor.emissive.copy(this._glow.multiplyScalar(1 / this.jets.length));
-    this.floor.emissiveIntensity = 0.55 * night;
+    // (a glow in the wet stone, not a lit slab: at 0.55 the whole floor bloomed to a pale cyan sheet)
+    this.floor.emissiveIntensity = 0.1 * night;
     if (this.floor.normalMap) this.floor.normalMap.offset.set(Math.sin(t * 0.13) * 0.05, t * 0.02);
     // spray on the lens: the camera in (or just by) a jet's column, below its top
     let wet = 0;
