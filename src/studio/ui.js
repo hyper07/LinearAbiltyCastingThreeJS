@@ -131,6 +131,9 @@ export class PreviewManager {
           slot.prepend(img);
         }
         img.src = still;
+        // (a pixel-art preview draws at a third of the size, scaled up crisp: its still must be too,
+        // or the Full 2D and HD-2D cards froze into a blur)
+        img.style.imageRendering = slot.querySelector('canvas')?.style.imageRendering || '';
       }
     } catch {
       /* a still is a nicety */
