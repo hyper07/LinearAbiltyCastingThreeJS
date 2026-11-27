@@ -318,8 +318,11 @@ shift that lands every `per` beats, dwells, then crosses with a sine ease),
 `swell(beat, per, at, { rise, hold, fall })` (a slow hit: eased in to land on the
 count, held, eased out) and `easeSine`; and on **follow-through**: `LAG` — the hips
 lead, the chest 90 ms behind, the arms 160 ms, the head 200 ms (`lagged(c, s)`).
-Crossfades 1.5 beats. Result: under ~3.7 rad/s, jerk under ~2 000, no hops (the
-podium signatures, `signatures.js`; tested in `motion-signatures.test.mjs`).
+Crossfades 1.5 beats. Result: under ~3.7 rad/s, jerk under ~2 000, no hops. The podium
+signatures (`signatures.js`) then went **1.5× quicker** at the user's ask: the same half-time
+moves played at `RATE` 1.5 (three dance counts to two beats of the song, from a bar line, so
+still locked to it; holds ⅔ as long, every move done in ⅔ the time; the lags stay in ms):
+under ~5.7 rad/s, jerk under ~4 200 (tested in `motion-signatures.test.mjs`, ≤ 6 rad/s).
 Springs for ears and tails go softer with it (k 20–30, d 3–3.6: they flow).
 
 ### 6.4 Routines and original combos

@@ -8,11 +8,13 @@
  *   const pose = d.sample(beats);            // beats: where the song is, in beats
  *   applyPlushPose(rig, pose);
  *
- * Slow and smooth, like real dancing to a fast song: everything moves in half time (Confetti Fanfare
- * is 143.6 BPM; the dances feel it at ~72, the big gestures at ~36) — a pose arrives on the count,
- * holds, then flows to the next with a sine ease; the hips lead, the chest, arms and head follow
- * 90–200 ms behind; the knees give in a soft groove, never a hop (only the winner hops, once in
- * two bars). Peak joint speeds stay under ~3 rad/s (tests/unit/motion-signatures.test.mjs).
+ * Smooth, like real dancing to a fast song: the moves are written in half time and played at
+ * exactly 1.5× that (RATE: three dance counts to every two beats of the song, counted from a bar
+ * line, so it stays locked to the music — the dances feel Confetti Fanfare's 143.6 BPM at ~108, the big
+ * gestures at ~54) — a pose arrives on the count, holds, then flows to the next with a sine ease; the
+ * hips lead, the chest, arms and head follow 90–200 ms behind; the knees give in a soft groove, never
+ * a hop (only the winner hops, once in two bars). Peak joint speeds stay under 6 rad/s
+ * (tests/unit/motion-signatures.test.mjs).
  *
  * A signature runs 8 bars (32 counts: four 8-count phrases — the hook, an answer, a variation,
  * and a phrase that ends on the character's own button), then again as one of four variants
@@ -25,8 +27,14 @@ import { MOVES, routine, rng, beatAt, restPose, lerpPose, clampPlushPose, easeSi
 export const CYCLE = 32;
 /** How many variants a signature plays in turn. */
 export const VARIANTS = 4;
-/** Crossfade between a signature's moves, in beats (slow: the change flows over a beat and a half). */
+/** Crossfade between a signature's moves, in dance counts (the change flows over a count and a half: a beat of the song). */
 export const BLEND = 1.5;
+/**
+ * How fast the dances play: dance counts per beat of the song. The moves are written in half time;
+ * played at 1.5× (holds two thirds as long, every move done in two thirds the time) they keep their
+ * shapes and their ease, just livelier. Three counts land on every two beats, exactly.
+ */
+export const RATE = 1.5;
 
 const mod = (a, n) => ((a % n) + n) % n;
 const pick = (r, list) => list[Math.floor(r() * list.length)];
@@ -149,11 +157,11 @@ export function signatureSteps(id, cycle = 0) {
 /* ------------------------------------------------------------------ place flourishes */
 
 /**
- * On top of the signature, by podium place, once every two bars (`at`: on the first bar or the
- * second): the winner raises its arms slowly into a V — up over a beat and a half to arrive on the
- * downbeat, held two beats, down over a beat and a half — with one soft hop as they arrive (the
- * only hop in the dances); 2nd raises one paw the same way, no hop; 3rd a small V on the bars
- * between. raise: the paws' raise (≤ 1.7, the plush limit: a V, never straight up); w: how much
+ * On top of the signature, by podium place, once every two bars of the song (`at`: on the first
+ * bar or the second): the winner raises its arms into a V — up over a beat to arrive on the
+ * downbeat, held a beat and a third, down over a beat (written in counts below, played at RATE) —
+ * with one soft hop as they arrive (the only hop in the dances); 2nd raises one paw the same way,
+ * no hop; 3rd a small V on the bars between. raise: the paws' raise (≤ 1.7, the plush limit: a V, never straight up); w: how much
  * of the arms it takes; hop: the hop's height (rider units).
  */
 export const FLOURISH = {
@@ -161,23 +169,24 @@ export const FLOURISH = {
   2: { every: 2, at: 0, arms: 'one', raise: 1.55, reach: 0.2, w: 0.85, hop: 0 },
   3: { every: 2, at: 1, arms: 'both', raise: 1.25, reach: 0.1, w: 0.6, hop: 0 }
 };
-/** The flourish's timing in beats from its downbeat: up from −RISE, held to HOLD, down by HOLD + FALL. */
+/** The flourish's timing in counts from its downbeat (÷ RATE for the song's beats): up from −RISE, held to HOLD, down by HOLD + FALL. */
 const RISE = 1.5, HOLD = 2, FALL = 1.5;
 
 /** The raise at `j` beats from the flourish's downbeat: 0..1 (sine ease up, held, sine ease down). */
 const raiseAt = (j) => (j < -RISE || j > HOLD + FALL ? 0 : j < 0 ? easeSine((j + RISE) / RISE) : j < HOLD ? 1 : 1 - easeSine((j - HOLD) / FALL));
 
 /**
- * The flourish at a beat (counted from the dance's start): { pose, arms (0..1), look (0..1, the
- * head and chest, a little behind the arms), up (0..1, in the air), both } or null between them.
+ * The flourish at a beat of the song (counted from the dance's start): { pose, arms (0..1), look
+ * (0..1, the head and chest, a little behind the arms), up (0..1, in the air), both } or null
+ * between them. On the song's own downbeats; its shape timed in counts, at RATE.
  */
 export function flourish(local, place, bpm = 143.6) {
   const F = FLOURISH[place];
   if (!F) return null;
   const per = 4 * F.every;
-  let j = mod(local - 4 * F.at, per);
-  if (j > per - RISE) j -= per;
-  const lag = (0.2 * bpm) / 60; // the head and chest follow the paws up, 200 ms behind
+  let j = mod(local - 4 * F.at, per) * RATE;
+  if (j > per * RATE - RISE) j -= per * RATE;
+  const lag = (0.2 * bpm * RATE) / 60; // the head and chest follow the paws up, 200 ms behind
   if (j > HOLD + FALL + lag) return null;
   const arms = raiseAt(j);
   const look = raiseAt(j - lag);
@@ -243,9 +252,9 @@ export function withFlourish(base, f) {
 
 /**
  * A character's podium dance: its signature, from `start` (a beat; rounded down to a bar line so
- * the moves keep to the music's bars), with its place's flourish (1, 2, 3); any other place (a
- * finisher off the podium) just side-claps along, small; place 0 the signature alone.
- * `sample(beat)` → a pose inside the plush limits.
+ * the moves keep to the music's bars), at RATE counts a beat, with its place's flourish (1, 2, 3);
+ * any other place (a finisher off the podium) just side-claps along, small; place 0 the signature
+ * alone. `sample(beat)` (the song's beat) → a pose inside the plush limits.
  */
 export function podiumDance(id, { place = 0, start = 0, bpm = 143.6, limits = PLUSH_LIMITS } = {}) {
   const from = 4 * Math.floor(start / 4);
@@ -263,17 +272,19 @@ export function podiumDance(id, { place = 0, start = 0, bpm = 143.6, limits = PL
     signature: SIGNATURES[id] ?? SIGNATURES.fox,
     /** Steps of the cycle playing at `beat` (for labels and tests). */
     steps(beat) {
-      return show(Math.floor((beat - from) / CYCLE)).steps;
+      return show(Math.floor(((beat - from) * RATE) / CYCLE)).steps;
     },
     /** The step playing at `beat`. */
     at(beat) {
-      const local = beat - from;
-      return show(Math.floor(local / CYCLE)).at(mod(local, CYCLE));
+      const count = (beat - from) * RATE;
+      return show(Math.floor(count / CYCLE)).at(mod(count, CYCLE));
     },
     sample(beat) {
       const local = beat - from;
-      const cycle = Math.floor(local / CYCLE);
-      const c = beatAt(mod(local, CYCLE), bpm);
+      const count = local * RATE;
+      const cycle = Math.floor(count / CYCLE);
+      // (in counts, at RATE × the song's tempo: the follow-through's lags stay real milliseconds)
+      const c = beatAt(mod(count, CYCLE), bpm * RATE);
       let p = show(cycle).sample(c);
       if (!offPodium) p = withFlourish(p, flourish(local, place, bpm));
       return limits ? clampPlushPose(p, limits) : p;

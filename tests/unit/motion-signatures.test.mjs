@@ -119,15 +119,14 @@ function motionOf(d, beats = 2 * CYCLE, fps = 60) {
   return { max, hops, lowest };
 }
 
-test('smooth: no joint turns faster than 4 rad/s (the winner\'s arm raise excepted), no jerky hits', () => {
+test('smooth at 1.5× the half-time moves: no joint turns faster than 6 rad/s, no jerky hits', () => {
   for (const id of SIGNATURE_IDS) {
     for (const place of [0, 1, 2, 3, 5]) {
       const d = podiumDance(id, { place });
       const { max } = motionOf(d);
       for (const [j, m] of Object.entries(max)) {
-        const limit = place === 1 && j.startsWith('arm') ? 6 : 4;
-        assert.ok(m.v < limit, `${id} p${place} ${j}: ${m.v.toFixed(2)} rad/s at beat ${m.at.toFixed(2)} (${d.at(m.at).step.move})`);
-        assert.ok(m.jerk < 2500, `${id} p${place} ${j}: jerk ${m.jerk.toFixed(0)} rad/s³`);
+        assert.ok(m.v < 6, `${id} p${place} ${j}: ${m.v.toFixed(2)} rad/s at beat ${m.at.toFixed(2)} (${d.at(m.at).step.move})`);
+        assert.ok(m.jerk < 5000, `${id} p${place} ${j}: jerk ${m.jerk.toFixed(0)} rad/s³`);
       }
     }
   }
@@ -159,23 +158,25 @@ test('half time: the weight lands on every other beat and dwells there', () => {
   assert.ok(knees(2) < knees(1) - 0.03 && knees(4) < knees(3) - 0.03);
 });
 
-test('the winner raises a slow V and holds it two beats, one soft hop; 2nd one paw, 3rd a small V on the other bars; off the podium a side-clap', () => {
-  // two bars from the dance's start: the paws on their way up before the downbeat, held through beats 0–2, down by 3½
+test('the winner raises a V on the downbeat and holds it a beat and a third, one soft hop; 2nd one paw, 3rd a small V on the other bars; off the podium a side-clap', () => {
+  // two bars from the dance's start: the paws on their way up the beat before the downbeat, held through beats 0–1⅓, down by 2⅓
   const w = (b) => flourish(b, 1);
-  assert.ok(w(-1).arms > 0.1 && w(-1).arms < 0.9, 'rising');
-  for (const b of [8, 8.5, 9.5, 10]) {
+  assert.ok(w(-0.5).arms > 0.1 && w(-0.5).arms < 0.9, 'rising');
+  assert.ok(!w(-1.1) || w(-1.1).arms === 0, 'not before the beat ahead');
+  for (const b of [8, 8.4, 9, 9.3]) {
     const f = w(b);
     assert.ok(f && f.arms === 1 && f.both, `held at ${b}`);
     assert.ok(f.pose.armL[2] <= -1.6 && f.pose.armR[2] >= 1.6 && f.pose.armR[2] <= 1.7);
   }
-  assert.ok(w(8.5).pose.lift > 0.1 && w(9.5).pose.lift === 0, 'one hop, off the downbeat');
+  assert.ok(w(8.3).pose.lift > 0.1 && w(9).pose.lift === 0, 'one hop, off the downbeat');
+  assert.ok(w(9.6).arms < 1 && w(9.6).arms > 0, 'on the way down');
   assert.equal(w(12.5), null); // the rest of the two bars: the signature alone
   assert.equal(w(5), null);
   // 2nd: one paw, no hop, on the same bars; 3rd: a smaller V on the bars between
   assert.ok(!flourish(8.5, 2).both && flourish(8.5, 2).pose.lift === 0 && flourish(12.5, 2) === null);
   assert.ok(flourish(4.5, 3).both && flourish(4.5, 3).arms < flourish(8.5, 2).arms && flourish(0.5, 3) === null);
-  const winner = podiumDance('bear', { place: 1 }).sample(8.5);
-  const plain = podiumDance('bear', { place: 0 }).sample(8.5);
+  const winner = podiumDance('bear', { place: 1 }).sample(8.3);
+  const plain = podiumDance('bear', { place: 0 }).sample(8.3);
   assert.ok(winner.lift > plain.lift + 0.1 && winner.armR[2] > plain.armR[2] + 0.5);
   // off the podium: a small side-step clap, whatever the species
   const off = podiumDance('frog', { place: 5 });

@@ -174,10 +174,12 @@ Seoul's real streets — and the streets stay open.
   before, and each takes the podium down.
 - **Podium dances** (`src/shared/motion/signatures.js`, played by `PlushRider.celebrate`; procedural,
   no clips): every rider has a signature dance of its own, original combos of the generic moves in
-  `src/shared/motion/dance.js`. They are **slow and smooth, like real dancing**: in half time (the
-  song is 143.6 BPM; the dances feel ~72, big gestures ~36), a pose lands on every other beat, holds,
-  then flows to the next with a sine ease; the hips lead and the chest, arms and head follow 90–200 ms
-  behind; the knees give in a soft groove, no hops. Every joint stays under 4 rad/s (tested):
+  `src/shared/motion/dance.js`. They are **smooth, like real dancing**: moves written in half time,
+  played at exactly 1.5× that (`RATE`: three dance counts to every two beats of the song, counted
+  from a bar line — the song is 143.6 BPM; the dances feel ~108, big gestures ~54), a pose lands,
+  holds (⅔ of a beat where it held a beat), then flows to the next with a sine ease; the hips lead
+  and the chest, arms and head follow 90–200 ms behind; the knees give in a soft groove, no hops.
+  Every joint stays under 6 rad/s (tested; ~5.7 at most, the slow version's ~3.7 × 1.5):
   - **Mallow** (bunny, The Bounce): a gentle bounce-sway from foot to foot, the paws swinging in arcs,
     the ears flowing; the paws float up into a soft V and drift down; a cheer to finish.
   - **Peaches** (pig, Late Braker): a relaxed side-step with a clap on the half-time 2 and 4, a lazy
@@ -197,8 +199,8 @@ Seoul's real streets — and the streets stay open.
   one of four variants (other answers, mirrors, sizes), so it never loops two bars. All are locked to
   the podium track (Confetti Fanfare, 143.6 BPM measured; the song's position while it plays, counted from
   its top), each rider a hair off the beat. The place adds a flourish on top, once every two bars:
-  the winner raises its arms slowly into a V (up over a beat and a half, held two beats, down over a
-  beat and a half; out to the sides: a plush paw raised past ~50° vanishes behind the big head) with
+  the winner raises its arms into a V on the song's downbeat (up over a beat, held a beat and a
+  third, down over a beat; out to the sides: a plush paw raised past ~50° vanishes behind the big head) with
   one soft hop as they arrive — the only hop in the dances; 2nd raises one paw the same way; 3rd a
   small V on the bars between. A finisher off the podium would just side-clap along (none is shown
   today). Ears and tails on soft springs driven by the body's motion, so they flow after it.
