@@ -440,6 +440,26 @@
    "tame": 2.5,
    "gentle": true,
    "prompt": "gentle inviting orchestral waltz for a cozy welcome menu, warm soft strings in a lilting three-four, mellow flute and clarinet melody, soft french horn, flowing harp arpeggios, a touch of celesta and glockenspiel, soft timpani, friendly and homely, a pleasant place to sit and choose, light and lilting, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear melody, instrumental"
+  },
+  {
+   "id": "kick-city",
+   "pick": 333977,
+   "title": "Lamplit Avenue",
+   "kind": "loop",
+   "tags": [
+    "city",
+    "night",
+    "kickrani"
+   ],
+   "mood": "calm",
+   "bpm": 94,
+   "key": "F major",
+   "seconds": 130,
+   "loopMin": 60,
+   "lufs": -18,
+   "tame": 2.5,
+   "gentle": true,
+   "prompt": "relaxed twinkling evening orchestral music, an easy ride through a lamplit city at night, soft warm strings, gentle pizzicato walking bass, mellow clarinet and flute melody, soft french horn, harp and celesta twinkling like city lights, light glockenspiel, soft timpani, calm and dreamy, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear melody, instrumental"
   }
  ]
 }

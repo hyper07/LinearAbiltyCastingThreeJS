@@ -718,7 +718,7 @@ Seoul's real streets — and the streets stay open.
   *Workshop March* (Seongsu, Euljiro, Mullae — bassoon and low strings marching). *Paddock Prelude*
   (a calm 100 BPM loop) plays on the race menus; the course's track plays from the grid through the
   race and crossfades into *Confetti Fanfare* (a fanfare dance) at the ceremony (after the victory
-  fanfare); a drive at night keeps *Neon Overpass*. The Music switch and volume in the Graphics panel control all of it.
+  fanfare); a drive at night plays *Lamplit Avenue* (a calm, twinkling evening orchestra at 94 BPM — strings, pizzicato bass, clarinet and flute, soft horn, harp, celesta and glockenspiel), which replaced the old synthwave *Neon Overpass* there, and is also the fallback for a course without a track of its own. The Music switch and volume in the Graphics panel control all of it.
 - **On screen**: the map at the top left (`src/city/minimap.js`) — the real streets round you, every
   small street, the buildings faintly, the river where it is near, the course ahead bright, short
   cuts dotted, item boxes, marble patches, oil slicks, smoke clouds and branches in the road, the traffic, and every rider as

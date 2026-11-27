@@ -398,7 +398,7 @@ export class SeoulGame {
     // Power: a capped loop (60, or 45 on Quiet), stopped in a hidden tab; the sun's shadows and AO on the menu.
     this.power = new PowerKit('seoul', { renderer: this.renderer, profile: POWER_PROFILE, features: { grass: false, ao: true, rays: false, shadows: true }, onChange: () => this.applyPower() });
     this.applyPower();
-    // The soundtrack (docs/music.md): Neon Overpass while racing and while driving at night; otherwise the
+    // The soundtrack (docs/music.md): the course's orchestral track while racing, Lamplit Avenue driving at night; otherwise the
     // city is left to its own sounds (the engine, the horn). On/off and volume are in the Graphics panel.
     this.music = new GameMusic('seoul', { settle: 2.5, hold: 0 });
     this.power.start((ms, now) => this._frame(now));
@@ -2105,7 +2105,7 @@ export class SeoulGame {
     if (b && info) b.textContent = `${this.weather.kind === 'clear' && day ? '☀️' : info.icon} ${info.name}`;
   }
 
-  /** Neon Overpass on the grid and in the race, and in a car after dark (a dead band so dusk doesn't flap it). */
+  /** The course's track on the grid and in the race, Lamplit Avenue in a car after dark (a dead band so dusk doesn't flap it). */
   _music(dt) {
     if (!this.music) return;
     this._night = band(this.uniforms?.uNight?.value ?? 0, this._night, 0.6, 0.4);

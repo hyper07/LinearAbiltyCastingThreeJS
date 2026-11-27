@@ -43,7 +43,8 @@ export const TRACK_TITLES = Object.freeze({
   'kick-works': 'Workshop March',
   'kick-lobby': 'Paddock Prelude',
   'kick-podium': 'Confetti Fanfare',
-  'home-orchestra': 'Front Door Waltz'
+  'home-orchestra': 'Front Door Waltz',
+  'kick-city': 'Lamplit Avenue'
 });
 
 /** The tracks (beds, then stingers) each game plays: its Credits panel lists these. */
@@ -54,7 +55,7 @@ export const GAME_TRACKS = Object.freeze({
   kindlewatch: ['frozen-fortress', 'battle', 'boss', 'victory', 'defeat', 'level-up'],
   snowpuff: ['playful', 'meadow', 'lantern-valley', 'night-forest', 'victory', 'level-up'],
   arcademia: ['playful', 'level-up', 'discovery'],
-  seoul: ['kick-lobby', 'kick-palace', 'kick-market', 'kick-boulevard', 'kick-river', 'kick-hill', 'kick-downhill', 'kick-fair', 'kick-works', 'kick-podium', 'city-night', 'victory'],
+  seoul: ['kick-lobby', 'kick-palace', 'kick-market', 'kick-boulevard', 'kick-river', 'kick-hill', 'kick-downhill', 'kick-fair', 'kick-works', 'kick-podium', 'kick-city', 'victory'],
   lanternwood: ['title', 'village', 'night-forest', 'meadow', 'frozen-fortress', 'battle', 'boss', 'victory', 'defeat', 'level-up', 'discovery'],
   stoneball: ['battle', 'victory', 'defeat'],
   home: ['home-orchestra']
@@ -230,14 +231,15 @@ export const KICKRANI_COURSE_TRACKS = Object.freeze({
 
 /**
  * Kickrani: the calm prelude on the race menus, the course's own track from the grid through the
- * race, the podium's fanfare dance at the ceremony and the results; Neon Overpass for a drive at night;
+ * race, the podium's fanfare dance at the ceremony and the results; Lamplit Avenue (a calm, twinkling
+ * evening orchestra) for a drive at night and for a course with no track of its own;
  * quiet otherwise (the engine and the city).
  */
 export function seoulTrack({ mode, racing = false, night = false, course = null, menu = false, podium = false }) {
   if (menu) return 'kick-lobby';
   if (podium) return 'kick-podium';
-  if (racing || mode === 'race') return KICKRANI_COURSE_TRACKS[course] ?? 'city-night';
-  if (mode === 'drive' && night) return 'city-night';
+  if (racing || mode === 'race') return KICKRANI_COURSE_TRACKS[course] ?? 'kick-city';
+  if (mode === 'drive' && night) return 'kick-city';
   return null;
 }
 

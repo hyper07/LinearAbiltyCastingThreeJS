@@ -100,7 +100,7 @@ test('Kithvale, Lanternwood and Kickrani', () => {
   assert.equal(lanternwoodTrack({ realm: 'sunmeadow' }), 'meadow');
   assert.equal(lanternwoodTrack({ realm: 'frostpeak' }), 'frozen-fortress');
   assert.equal(lanternwoodTrack({ realm: 'emberfall' }), 'frozen-fortress');
-  assert.equal(seoulTrack({ mode: 'race' }), 'city-night', 'a course with no track of its own');
+  assert.equal(seoulTrack({ mode: 'race' }), 'kick-city', 'a course with no track of its own');
   assert.equal(seoulTrack({ mode: 'race', racing: true, course: 'gwanghwamun' }), 'kick-palace');
   assert.equal(seoulTrack({ mode: 'race', racing: true, course: 'jamsilpark' }), 'kick-fair');
   assert.equal(seoulTrack({ mode: 'race', racing: true, course: 'namsandown' }), 'kick-downhill');
@@ -108,7 +108,8 @@ test('Kithvale, Lanternwood and Kickrani', () => {
   assert.equal(seoulTrack({ mode: 'race', racing: true, course: 'samcheong' }), 'kick-palace');
   assert.equal(seoulTrack({ mode: 'race', menu: true, course: 'mullae' }), 'kick-lobby');
   assert.equal(seoulTrack({ mode: 'race', racing: true, podium: true, course: 'mullae' }), 'kick-podium');
-  assert.equal(seoulTrack({ mode: 'drive', night: true }), 'city-night');
+  assert.equal(seoulTrack({ mode: 'drive', night: true }), 'kick-city');
+  assert.ok(!GAME_TRACKS.seoul.includes('city-night'), 'no synthwave left in Kickrani');
   assert.equal(seoulTrack({ mode: 'drive', night: false }), null);
   assert.equal(seoulTrack({ mode: 'fly', night: true }), null);
 });

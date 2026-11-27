@@ -922,6 +922,41 @@
     "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
     "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
    }
+  },
+  {
+   "id": "kick-city",
+   "title": "Lamplit Avenue",
+   "file": "kick-city.ogg",
+   "kind": "loop",
+   "tags": [
+    "city",
+    "night",
+    "kickrani"
+   ],
+   "mood": "calm",
+   "bpm": 94,
+   "key": "F major",
+   "measured": {
+    "tempo": 95.7,
+    "key": "F major"
+   },
+   "duration": 100.23,
+   "loopStart": 39.079188,
+   "loopEnd": 99.729708,
+   "lufs": -18,
+   "bytes": 1097235,
+   "style": "relaxed twinkling evening orchestral music, an easy ride through a lamplit city at night, soft warm strings, gentle pizzicato walking bass, mellow clarinet and flute melody, soft french horn, harp and celesta twinkling like city lights, light glockenspiel, soft timpani, calm and dreamy, warm natural acoustic sound of a small live chamber orchestra in a concert hall, soft mellow highs, gentle dynamics, consonant major-key harmony, clear melody, instrumental",
+   "seed": 333977,
+   "generator": "ACE-Step 1.5 (acestep-v15-xl-sft)",
+   "licence": "MIT",
+   "credit": {
+    "model": "ACE-Step 1.5",
+    "url": "https://github.com/ace-step/ACE-Step-1.5",
+    "licence": "MIT",
+    "licenceUrl": "https://github.com/ace-step/ACE-Step-1.5/blob/main/LICENSE",
+    "attribution": "Music generated with ACE-Step 1.5 (MIT licence, https://github.com/ace-step/ACE-Step-1.5).",
+    "text": "Music generated with ACE-Step 1.5 (MIT, https://github.com/ace-step/ACE-Step-1.5)"
+   }
   }
  ]
 }
