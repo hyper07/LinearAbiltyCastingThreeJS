@@ -124,10 +124,14 @@ export async function run(browser) {
     const after = await page.evaluate(() => ({ uids: [...window.app.profile.bag, ...window.app.profile.stash].map((i) => i.uid).sort(), gold: window.app.profile.gold }));
     t.check('the same items and gold, from the server', JSON.stringify(before) === JSON.stringify(after), `${JSON.stringify(before)} vs ${JSON.stringify(after)}`);
 
-    // The history recorded it all, the strike included. After the reload the
-    // platform opens on its home page: its account button (the player's name) goes there.
+    // The history recorded it all, the strike included. After the reload the platform opens on its
+    // home page: its account button (the player's name) opens the platform's own account window
+    // (AccountDialog, signed in); the arena's history is on the arena menu's Account tab.
     t.check('the home page shows who is signed in', await until(page, () => /^Tester-/.test(document.querySelector('.home [data-account]')?.textContent ?? ''), null, 10000));
     await page.click('.home [data-account]', { timeout: 30000 });
+    t.check('the account button opens the platform\'s account window, signed in', await until(page, () => /^Tester-/.test(document.querySelector('[data-acct-who]')?.textContent ?? '') && Boolean(document.querySelector('[data-acct-who]')?.offsetParent), null, 5000));
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => window.app.openHero('account'));
     await page.waitForTimeout(600);
     const lines = await page.$$eval('.account-panel__event', (els) => els.map((e) => e.className + ' ' + e.textContent));
     t.check('the history shows the pickup and the strike', lines.some((l) => /Picked up|gave you/.test(l)) && lines.some((l) => /is-strike/.test(l)), lines.slice(0, 6).join(' | '));
