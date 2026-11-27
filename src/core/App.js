@@ -1797,7 +1797,7 @@ export class App {
       const { StudioPage } = await import('../studio/StudioPage.js');
       this.studioPage = new StudioPage(this.home.root.parentElement ?? document.body, {
         account: () => this.account?.user ?? null,
-        signIn: () => this.openHero('account'),
+        signIn: () => (this.home.accountDialog ? this.home.accountDialog.open() : this.openHero('account')),
         onOpen: () => this.home.musicAway?.(),
         onClose: () => {
           this.home.musicBack?.();
