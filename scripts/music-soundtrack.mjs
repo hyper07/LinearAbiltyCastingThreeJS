@@ -28,6 +28,18 @@ const ONLY = opt('--only', '')?.split(',').filter(Boolean) ?? [];
 const TAKES = Number(opt('--takes', 3));
 const MASTER_ONLY = argv.includes('--master-only');
 const SPEC = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'music', 'soundtrack.json'), 'utf8'));
+/** An AudioSet classifier (AST, BSD-3-Clause) the judge listens with when it is there: vocals, synths, orchestra. */
+const LISTENER = path.join(ROOT, 'library', 'tools', 'ast', 'model');
+
+/**
+ * For tracks marked "gentle": how much a take costs for being hard on the ear (master.py's
+ * `harshness` — shrill 3-8 kHz, noisy highs, squashed dynamics — plus vocals or synths the
+ * listener hears). Subtracted from the take's score, so the warmest clean take wins.
+ */
+function gentlePenalty(a) {
+  const tags = a.tags ?? {};
+  return 0.6 * (a.harshness ?? 0) + 1.5 * Math.max(0, (tags.vocals_max ?? 0) - 0.15) + 1.0 * Math.max(0, (tags.synth ?? 0) - 0.05) + 1.0 * Math.max(0, (tags.harsh ?? 0) - 0.03);
+}
 
 /** Stable seeds per track, so a re-run makes the same takes. */
 function seedsFor(id, n) {
@@ -96,24 +108,26 @@ async function main() {
       let a;
       if (existsSync(cache) && statSync(cache).mtimeMs > statSync(takePath(t.id, seed)).mtimeMs) a = JSON.parse(readFileSync(cache, 'utf8'));
       else {
-        [a] = await py('master.py', ['analyze', takePath(t.id, seed), '--bpm', String(t.bpm), '--key', t.key]);
+        [a] = await py('master.py', ['analyze', takePath(t.id, seed), '--bpm', String(t.bpm), '--key', t.key, ...(t.gentle && existsSync(LISTENER) ? ['--listen', LISTENER] : [])]);
         writeFileSync(cache, JSON.stringify(a));
       }
-      judged.push({ ...a, seed });
+      judged.push({ ...a, seed, ...(t.gentle ? { rank: Math.round((a.score - gentlePenalty(a)) * 1000) / 1000 } : {}) });
     }
-    judged.sort((a, b) => b.score - a.score);
+    judged.sort((a, b) => (b.rank ?? b.score) - (a.rank ?? a.score));
     const chosen = (t.pick && judged.find((j) => j.seed === t.pick)) || judged[0];
     const args = [
       'master', chosen.path, '--id', t.id, '--kind', t.kind, '--bpm', String(t.bpm), '--key', t.key,
       '--beats-per-bar', String(t.beatsPerBar ?? 4),
       '--wav-out', path.join(MASTERS, `${t.id}.wav`), '--ogg', path.join(BGM, `${t.id}.ogg`), '--png', path.join(MASTERS, 'report', `${t.id}.png`),
       ...(t.kind === 'loop' ? ['--loop-min', String(t.loopMin ?? 80), '--loop-max', String(t.loopMax ?? Math.min(165, t.seconds - 6))] : []),
-      ...(t.quality ? ['--quality', String(t.quality)] : [])
+      ...(t.quality ? ['--quality', String(t.quality)] : []),
+      ...(t.lufs ? ['--lufs', String(t.lufs)] : []),
+      ...(t.tame ? ['--tame', String(t.tame)] : [])
     ];
     const [m] = await py('master.py', args);
     report[t.id] = { picked: chosen.seed, pinned: Boolean(t.pick), takes: judged.map(({ st_lufs, ...rest }) => rest), master: m };
     console.error(
-      `${t.id}: seed ${chosen.seed} (score ${chosen.score}; tempo ${chosen.tempo} vs ${t.bpm}, key ${chosen.key} vs ${t.key}) → ${m.duration}s, ${m.lufs} LUFS, TP ${m.true_peak_db} dB, ${m.kbps} kbps` +
+      `${t.id}: seed ${chosen.seed} (score ${chosen.score}${chosen.rank != null ? `, gentle rank ${chosen.rank}, harshness ${chosen.harshness} → ${m.comfort?.harshness}` : ''}; tempo ${chosen.tempo} vs ${t.bpm}, key ${chosen.key} vs ${t.key}) → ${m.duration}s, ${m.lufs} LUFS, TP ${m.true_peak_db} dB, ${m.kbps} kbps` +
         (m.seam ? `, loop ${m.loopStart.toFixed(2)}–${m.loopEnd.toFixed(2)} (${m.loop.bars} bars, seam flux z ${m.seam.flux_z}, step ${m.seam.rms_step_db} dB)` : '')
     );
     writeFileSync(reportFile, JSON.stringify(report, null, 1));

@@ -107,7 +107,105 @@ def load(path):
     return x, sr
 
 
-def analyze(path, bpm, key):
+# ---------------------------------------------------------------- ear comfort
+
+def comfort(x, sr, mono):
+    """
+    How hard a take is on the ear, by the numbers (for tracks marked "gentle"):
+      harsh_share   share of the power in 3-8 kHz, where the ear is most sensitive
+                    and shrill strings, cymbals, synth leads and distortion pile up
+      presence_db   how far the loudest third-octave band in 3-8 kHz stands above
+                    the take's own spectral slope (a shrill peak sticks out)
+      hf_flatness   spectral flatness above 3 kHz: noise-like highs (hi-hats,
+                    distortion, hiss) are flat, tonal ones (strings, flutes) are not
+      crest_db      peak-to-RMS over 1 s windows, median: squashed, over-compressed
+                    takes sit under ~10 dB, a played orchestra well above
+    and one number from them, `harshness` (0 is easy listening; ~1 is the old
+    synth-pop race tracks).
+    """
+    S = np.abs(librosa.stft(mono, n_fft=4096, hop_length=2048)) ** 2
+    f = librosa.fft_frequencies(sr=SR_A, n_fft=4096)
+    ltas = S.mean(axis=1)
+    band = (f >= 50) & (f <= 10500)
+    harsh = (f >= 3000) & (f <= 8000)
+    harsh_share = float(ltas[harsh].sum() / max(1e-12, ltas[band].sum()))
+    # Third-octave bands 100 Hz-10 kHz against a straight line fitted in dB per octave.
+    centres = 1000 * 2 ** (np.arange(-10, 11) / 3)
+    db = []
+    for c in centres:
+        m = (f >= c / 2 ** (1 / 6)) & (f < c * 2 ** (1 / 6))
+        db.append(10 * np.log10(ltas[m].mean() + 1e-12))
+    db = np.array(db)
+    oct_ = np.log2(centres / 1000)
+    slope, icept = np.polyfit(oct_, db, 1)
+    resid = db - (slope * oct_ + icept)
+    presence = float(resid[(centres >= 3000) & (centres <= 8000)].max())
+    hf = librosa.feature.spectral_flatness(S=np.sqrt(S[(f >= 3000)]))
+    hf_flat = float(np.median(hf))
+    w = sr
+    crest = []
+    for i in range(0, len(x) - w, w):
+        seg = x[i:i + w]
+        r = np.sqrt(np.mean(seg ** 2))
+        if r > 1e-4:
+            crest.append(20 * np.log10(np.abs(seg).max() / r))
+    crest_db = float(np.median(crest)) if crest else 0.0
+    harshness = (
+        max(0.0, harsh_share - 0.03) * 12
+        + max(0.0, presence) * 0.08
+        + max(0.0, hf_flat - 0.02) * 6
+        + max(0.0, 11.0 - crest_db) * 0.08
+    )
+    return {
+        "harsh_share": round(harsh_share, 4), "presence_db": round(presence, 2), "hf_flatness": round(hf_flat, 4),
+        "crest_db": round(crest_db, 2), "slope_db_oct": round(float(slope), 2), "harshness": round(harshness, 3),
+    }
+
+
+# AudioSet labels the optional listener reports (an AST classifier in library/tools/ast/model).
+TAGS = {
+    "vocals": ["Singing", "Choir", "Speech", "Vocal music", "Male singing", "Female singing", "Child singing", "Rapping", "Humming", "Chant"],
+    "synth": ["Synthesizer", "Electronic music", "Electronic dance music", "Techno", "House music", "Dubstep", "Drum machine", "Sampler"],
+    "harsh": ["Distortion", "Heavy metal", "Rock music", "Electric guitar", "Hi-hat", "Noise"],
+    "orchestra": ["Orchestra", "String section", "Bowed string instrument", "Violin, fiddle", "Cello", "Pizzicato", "Brass instrument", "French horn", "Trumpet", "Flute", "Clarinet", "Harp", "Timpani", "Classical music"],
+}
+_AST = None
+
+
+def listen(path_wav, model_dir):
+    """AudioSet tag probabilities over 10 s windows: the mean and the worst window per group."""
+    global _AST
+    import os
+    if not model_dir or not os.path.isdir(model_dir):
+        return None
+    import torch
+    from transformers import ASTFeatureExtractor, ASTForAudioClassification
+    if _AST is None:
+        _AST = (ASTFeatureExtractor.from_pretrained(model_dir), ASTForAudioClassification.from_pretrained(model_dir).eval())
+    fx, model = _AST
+    x, sr = load(path_wav)
+    y = librosa.resample(x.mean(axis=1), orig_sr=sr, target_sr=16000)
+    labels = model.config.id2label
+    idx = {g: [i for i, n in labels.items() if n in names] for g, names in TAGS.items()}
+    win = 16000 * 10
+    rows = []
+    for s in range(0, max(1, len(y) - win // 2), win):
+        seg = y[s:s + win]
+        if len(seg) < 16000 * 3:
+            break
+        feats = fx(seg, sampling_rate=16000, return_tensors="pt")
+        with torch.no_grad():
+            p = torch.sigmoid(model(**feats).logits)[0].numpy()
+        rows.append({g: float(p[ii].max()) if ii else 0.0 for g, ii in idx.items()})
+    out = {}
+    for g in TAGS:
+        v = np.array([r[g] for r in rows])
+        out[g] = round(float(v.mean()), 3)
+        out[g + "_max"] = round(float(v.max()), 3)
+    return out
+
+
+def analyze(path, bpm, key, listen_dir=None):
     x, sr = load(path)
     mono = librosa.resample(x.mean(axis=1), orig_sr=sr, target_sr=SR_A)
     dur = len(x) / sr
@@ -168,6 +266,8 @@ def analyze(path, bpm, key):
         "rolloff_hz": round(roll),
         "flatness": round(flat, 4),
         "score": round(score, 3),
+        **comfort(x, sr, mono),
+        **({"tags": tags} if (tags := listen(path, listen_dir)) else {}),
         "st_lufs": [round(v, 1) for v in st.tolist()],
     }
 
@@ -381,8 +481,33 @@ def limiter(x, sr, ceiling_db=-1.0, lookahead_ms=5.0, release_ms=120.0):
     return (x * out[:, None]).astype(np.float32), float(1 - out.min())
 
 
-def master_audio(x, sr, lufs_target):
-    x = highpass(x, sr)
+def biquad(kind, f0, gain_db, q, sr):
+    """RBJ cookbook peaking / high-shelf biquad as one SOS row."""
+    A = 10 ** (gain_db / 40)
+    w = 2 * np.pi * f0 / sr
+    cw, sw = np.cos(w), np.sin(w)
+    if kind == "peak":
+        al = sw / (2 * q)
+        b = [1 + al * A, -2 * cw, 1 - al * A]
+        a = [1 + al / A, -2 * cw, 1 - al / A]
+    else:  # high shelf, slope 1
+        al = sw / 2 * np.sqrt(2)
+        sq = 2 * np.sqrt(A) * al
+        b = [A * ((A + 1) + (A - 1) * cw + sq), -2 * A * ((A - 1) + (A + 1) * cw), A * ((A + 1) + (A - 1) * cw - sq)]
+        a = [(A + 1) - (A - 1) * cw + sq, 2 * ((A - 1) - (A + 1) * cw), (A + 1) - (A - 1) * cw - sq]
+    return np.array([b[0] / a[0], b[1] / a[0], b[2] / a[0], 1.0, a[1] / a[0], a[2] / a[0]])
+
+
+def tame_highs(x, sr, db):
+    """Soften shrill highs: a broad -db cut centred on 5 kHz (about 3-8 kHz) and -db/2 above 10 kHz."""
+    if db <= 0:
+        return x
+    sos = np.stack([biquad("peak", 5000, -db, 0.7, sr), biquad("shelf", 10000, -db / 2, 0.7, sr)])
+    return sosfilt(sos, x, axis=0).astype(np.float32)
+
+
+def master_audio(x, sr, lufs_target, tame=0.0):
+    x = tame_highs(highpass(x, sr), sr, tame)
     meter = pyln.Meter(sr)
     for _ in range(3):
         cur = meter.integrated_loudness(x)
@@ -486,11 +611,13 @@ def main():
     p.add_argument("--stinger-min", type=float, default=3)
     p.add_argument("--stinger-max", type=float, default=8)
     p.add_argument("--lufs", type=float, default=-16.0)
+    p.add_argument("--tame", type=float, default=0.0, help="dB: a broad cut round 5 kHz (and half of it as a shelf above 10 kHz) to soften shrill highs")
+    p.add_argument("--listen", default=None, help="an AST AudioSet classifier directory: analyze also reports vocal/synth/orchestra tag probabilities")
     p.add_argument("--quality", type=float, default=0.2, help="Vorbis quality 0..1 (0.2 is about 105 kbps at 48 kHz stereo)")
     a = p.parse_args()
 
     if a.cmd == "analyze":
-        emit(analyze(a.wav, a.bpm, a.key))
+        emit(analyze(a.wav, a.bpm, a.key, a.listen))
         return
 
     x, sr = load(a.wav)
@@ -511,7 +638,7 @@ def main():
                 best = (total, lp, y0, s0, e0)
         _, lp, y, s, e = best
         lp["tried"] = [{k: c[k] for k in ("start", "end", "score", "seam_vs_downbeats")} for c in tops]
-        y, lufs, gr = master_audio(y, sr, a.lufs)
+        y, lufs, gr = master_audio(y, sr, a.lufs, a.tame)
         info.update({
             "loop": lp, "loopStart": round(s / sr, 6), "loopEnd": round(e / sr, 6),
             "loopStartSample": s, "loopEndSample": e, "crossfade": round(fade, 3),
@@ -519,7 +646,7 @@ def main():
         })
     else:
         y, t0, t1, how = trim_stinger(x, sr, a.stinger_min, a.stinger_max)
-        y, lufs, gr = master_audio(y, sr, a.lufs + 2.0)  # stingers sit a little above the bed
+        y, lufs, gr = master_audio(y, sr, a.lufs + 2.0, a.tame)  # stingers sit a little above the bed
         info.update({"trim": [round(t0, 3), round(t1, 3)], "ending": how})
     tp = true_peak(y, sr)
     if tp > 10 ** (-1.0 / 20):  # inter-sample peaks the sample-peak limiter missed
@@ -529,6 +656,8 @@ def main():
     info.update({
         "duration": round(len(y) / sr, 3), "lufs": round(lufs, 2),
         "true_peak_db": round(20 * np.log10(tp + 1e-9), 2), "max_gain_reduction_db": round(-20 * np.log10(1 - min(gr, 0.99)), 2),
+        "tame_db": a.tame,
+        "comfort": comfort(y, sr, librosa.resample(y.mean(axis=1), orig_sr=sr, target_sr=SR_A)),
     })
     if a.wav_out:
         sf.write(a.wav_out, y, sr, subtype="PCM_24")
