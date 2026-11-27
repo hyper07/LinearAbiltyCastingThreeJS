@@ -95,6 +95,7 @@ export class PlatformHome {
               <button type="button" class="home__menu-item" role="menuitem" data-heroes title="Your heroes in every game: levels, bags and equipment"><span class="home__ico" aria-hidden="true">🦸</span><span>My heroes</span></button>
               <button type="button" class="home__menu-item" role="menuitem" data-hero title="The free-play arena's hero: class, weapon, skills and stash"><span class="home__ico" aria-hidden="true">⚔️</span><span>Arena hero</span></button>
               <button type="button" class="home__menu-item" role="menuitem" data-party title="Make a party or join one with a code"><span class="home__ico" aria-hidden="true">🤝</span><span>Play together</span></button>
+              <button type="button" class="home__menu-item" role="menuitem" data-drafts hidden title="Admin: every game package's draft — play it, see its changes, deploy to production"><span class="home__ico" aria-hidden="true">🧪</span><span>Drafts (admin)</span></button>
               <div class="home__menu-music" role="group" aria-label="Music">
                 <label for="home-music-volume"><span class="home__ico" aria-hidden="true">♪</span> Music volume</label>
                 <input id="home-music-volume" type="range" min="0" max="100" step="5" data-home-music-volume />
@@ -234,6 +235,11 @@ export class PlatformHome {
     this.$('[data-studio-make]').addEventListener('click', () => actions.openStudio?.('new'));
     this.$('[data-hero]').addEventListener('click', () => actions.openHero('loadout'));
     this.$('[data-heroes]').addEventListener('click', () => actions.openHeroes?.());
+    // Drafts never show on the home page; the admin reaches them here.
+    this.$('[data-drafts]').addEventListener('click', () => this.openDrafts());
+    releases.list().then((info) => {
+      if (info?.admin || info?.adminHint || info?.local) this.$('[data-drafts]').hidden = false;
+    }, () => {});
     /** Channels: a maker's own space (ui/ChannelPage.js), over the home page. */
     this.channel = new ChannelPage(this.root, {
       account: () => actions.account(),
@@ -763,6 +769,41 @@ export class PlatformHome {
       new ReleasePanel(document.body, { game, onPlayDraft: () => playAs({ channel: 'draft' }), onChanged: () => this.refresh?.() }).open();
     });
     row.append(draft, dev);
+  }
+
+  /** Admin: every game package — its production version (or none yet) — opening its page with Play draft and Changes & deploy. */
+  async openDrafts() {
+    const page = this.$('[data-page]');
+    page.hidden = false;
+    const card = el('div', 'home-page__card home-drafts');
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'true');
+    card.setAttribute('aria-label', 'Drafts');
+    const close = el('button', 'home-page__close', '✕');
+    close.type = 'button';
+    close.setAttribute('aria-label', 'Close');
+    close.addEventListener('click', () => this.closePage());
+    const body = el('div', 'home-drafts__body');
+    body.append(el('h2', 'home-drafts__title', 'Drafts'), el('p', 'home-drafts__lead', 'Games being worked on. Players only ever see the production version on the home page.'));
+    const list = el('div', 'home-drafts__list');
+    body.append(list);
+    card.append(close, body);
+    page.replaceChildren(card);
+    let info;
+    try {
+      info = await releases.list({ fresh: true });
+    } catch (error) {
+      list.append(el('p', 'home__empty', `Could not list the drafts: ${error.message}`));
+      return;
+    }
+    if (!info.packages?.length) list.append(el('p', 'home__empty', 'No game packages yet.'));
+    for (const p of info.packages ?? []) {
+      const row = el('button', 'home-drafts__row');
+      row.type = 'button';
+      row.append(el('strong', '', p.title), el('span', p.version ? 'home-drafts__ver' : 'home-drafts__ver is-none', p.version ? `Production ${p.version}` : 'Not released yet'));
+      row.addEventListener('click', () => this.openPage(p.id));
+      list.append(row);
+    }
   }
 
   closePage() {

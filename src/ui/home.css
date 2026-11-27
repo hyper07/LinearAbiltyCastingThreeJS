@@ -1334,3 +1334,27 @@
 .acct__badge { font-size: 13px; font-weight: 800; color: #17a37a; }
 @media (max-width: 480px) { .acct__card { padding: 26px 18px 18px; } }
 @media (prefers-reduced-motion: reduce) { .acct__card { animation: none; } .acct__submit { transition: none; } }
+
+/* ---- Drafts (admin): the game packages being worked on, off the home page ---- */
+.home-drafts { max-width: 520px; }
+.home-drafts__body { padding: 28px 26px 22px; }
+.home-drafts__title { margin: 0 0 6px; font-size: 26px; font-weight: 900; }
+.home-drafts__lead { margin: 0 0 16px; color: var(--pop-ink-2, var(--ui-text-dim)); font-size: 14px; }
+.home-drafts__list { display: grid; gap: 10px; }
+.home-drafts__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid var(--pop-soft-line, rgba(0, 0, 0, 0.12));
+  border-radius: var(--pop-r-sm, 14px);
+  background: var(--pop-card, #fff);
+  color: var(--pop-ink, inherit);
+  font: 800 16px var(--pop-font, inherit);
+  text-align: left;
+  cursor: pointer;
+}
+.home-drafts__row:hover { border-color: var(--pop-line, currentColor); }
+.home-drafts__ver { font-size: 13px; font-weight: 800; color: #17a37a; white-space: nowrap; }
+.home-drafts__ver.is-none { color: #c97a00; }

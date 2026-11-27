@@ -243,6 +243,8 @@ export class GamesStore {
     const pkgFields = (p) => ({ package: p.code, slug: p.slug, entry: p.entry, version: p.production ?? null, draft: !p.production });
     for (const g of ENGINE_GAMES) {
       const p = pkgOf.get(g.id);
+      // (a game moved into a package shows on the home page only once it has a production release)
+      if (p && !p.production && !drafts) continue;
       out.push({ ...g, ...(p ? pkgFields(p) : {}), author: 'Gamory', official: true, plays: plays.get(g.id) ?? 0, updated: 0, levels: [], roster: [] });
     }
     for (const p of pkgs) {

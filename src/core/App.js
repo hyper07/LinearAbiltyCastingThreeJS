@@ -419,8 +419,10 @@ export class App {
     /** Which menu screen shows between games: the platform's 'home', or the action RPG's 'hero' menu. */
     this._menuView = 'home';
     this.home = new PlatformHome(hudRoot, {
-      // Draft-only game packages are listed for the platform admin (the server decides).
-      list: (params) => games.list({ ...params, drafts: 1 }),
+      // The home page is what players get: production releases and public games only. Drafts are
+      // reached from the admin's "Drafts" button (ui/DraftsPanel.js), never listed here.
+      list: (params) => games.list(params),
+      listDrafts: () => games.list({ drafts: 1 }),
       get: (id) => games.get(id),
       play: (id, options) => this.playFromHome(id, options),
       remove: (id) => games.remove(id),
