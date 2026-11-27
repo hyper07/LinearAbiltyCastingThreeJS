@@ -138,7 +138,7 @@ const DOWN = 1.55;
 export const DRINK = { boost: 4, extra: 0.4 };
 /** Seconds the race stays open for the others once the first rider is home (then the rest are DNF). */
 export const FINISH_WINDOW = 30;
-/** Podium Party's measured tempo (the manifest has it; this when it isn't loaded). */
+/** Confetti Fanfare's measured tempo (the manifest has it; this when it isn't loaded). */
 const PODIUM_BPM = 143.6;
 
 export { botRiders };

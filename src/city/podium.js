@@ -29,7 +29,7 @@ export const BLOCKS = [
 ];
 export const BLOCK_W = 1.3;
 export const BLOCK_D = 1.15;
-/** Podium Party's measured tempo (public/audio/bgm/manifest.json), when the race doesn't say. */
+/** Confetti Fanfare's measured tempo (public/audio/bgm/manifest.json), when the race doesn't say. */
 export const PODIUM_BPM = 143.6;
 /** How long the podium shows on its own before the results come up over it (s). */
 export const PODIUM_SECONDS = 6.5;

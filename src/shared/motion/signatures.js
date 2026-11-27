@@ -8,7 +8,7 @@
  *   const pose = d.sample(beats);            // beats: where the song is, in beats
  *   applyPlushPose(rig, pose);
  *
- * Slow and smooth, like real dancing to a fast song: everything moves in half time (Podium Party
+ * Slow and smooth, like real dancing to a fast song: everything moves in half time (Confetti Fanfare
  * is 143.6 BPM; the dances feel it at ~72, the big gestures at ~36) — a pose arrives on the count,
  * holds, then flows to the next with a sine ease; the hips lead, the chest, arms and head follow
  * 90–200 ms behind; the knees give in a soft groove, never a hop (only the winner hops, once in

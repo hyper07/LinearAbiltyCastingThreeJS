@@ -920,7 +920,7 @@ export const MOVES = {
    * Real dancing to a fast song moves on every other beat: it arrives on the count, holds, then
    * flows to the next pose with a sine ease (no snap). The hips lead, the chest follows, then the
    * arms, the head last (LAG); the knees give in a soft groove once every two beats, never a hop.
-   * Peak joint speeds stay under ~3 rad/s at Podium Party's 143.6 BPM (the fast moves above: 20+). */
+   * Peak joint speeds stay under ~3 rad/s at Confetti Fanfare's 143.6 BPM (the fast moves above: 20+). */
 
   /** Bounce-sway: the weight from foot to foot every two beats with a springy knee groove, the paws swinging in arcs, the head tipping after. */
   bounceSway: {
