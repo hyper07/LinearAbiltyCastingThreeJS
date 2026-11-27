@@ -31,7 +31,9 @@ export async function run(browser, { shots = null } = {}) {
     await page.waitForSelector('.wk [data-company="KO"]');
     let hired = false;
     for (const symbol of ['KO', 'PEP', 'COST', 'NKE', 'DIS', 'HD', 'MCD']) {
-      await page.fill('.wk .mk__search[type="search"]', symbol === 'KO' ? 'Coca' : '');
+      // (searched for by name: the list shows only its first 60, and those may not include it — the
+      // fallbacks were never reached until a fixture day had layoffs in the news at Coca-Cola)
+      await page.fill('.wk .mk__search[type="search"]', symbol === 'KO' ? 'Coca' : symbol);
       await page.waitForSelector(`.wk [data-company="${symbol}"]`, { timeout: 5000 }).catch(() => null);
       if (!(await page.$(`.wk [data-company="${symbol}"]`))) continue;
       await page.click(`.wk [data-company="${symbol}"]`);
@@ -107,7 +109,8 @@ export async function run(browser, { shots = null } = {}) {
 
     await page.click('.wk [data-close]');
     t.check('✕ goes back to the games', await until(page, () => !document.querySelector('.wk') && !document.querySelector('.home').hidden, null, 5000));
-    const real = errors.filter((e) => !/401 GET \/api\/work\/admin$/.test(e));
+    // (the 401 is this test's own unauthorised admin call; a 409 on apply is a company not hiring that day)
+    const real = errors.filter((e) => !/401 GET \/api\/work\/admin$/.test(e) && !/ 409 POST \/api\/work\/apply$/.test(e));
     t.check('no page errors', real.length === 0, real.join(' | '));
   } finally {
     await context.close();
