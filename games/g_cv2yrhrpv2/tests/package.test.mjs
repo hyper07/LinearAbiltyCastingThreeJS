@@ -27,7 +27,8 @@ test('Kickrani: the entry exports mount(container, platform)', () => {
 test('Kickrani: imports stay inside its folder, three, npm packages or src/shared and src/net — never another game or the platform', () => {
   const bad = [];
   for (const f of sources) {
-    const text = readFileSync(new URL(f, dir), 'utf8');
+    // Code only: a JSDoc type like import('../../src/platform/gameApi.js') is not an import.
+    const text = readFileSync(new URL(f, dir), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
     for (const m of text.matchAll(/(?:from|import\()\s*['"]([^'"]+)['"]/g)) {
       const spec = m[1];
       if (!spec.startsWith('.')) continue;
