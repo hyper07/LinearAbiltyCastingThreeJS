@@ -173,35 +173,35 @@ Seoul's real streets — and the streets stay open.
   podium still dancing above them; **Race again**, **Courses**, **Back to Seoul** and **Credits** as
   before, and each takes the podium down.
 - **Podium dances** (`src/shared/motion/signatures.js`, played by `PlushRider.celebrate`; procedural,
-  no clips): every rider has a signature dance of its own, original combos of the generic moves in
-  `src/shared/motion/dance.js`. They are **smooth, like real dancing**: moves written in half time,
-  played at exactly 1.5× that (`RATE`: three dance counts to every two beats of the song, counted
-  from a bar line — the song is 143.6 BPM; the dances feel ~108, big gestures ~54), a pose lands,
-  holds (⅔ of a beat where it held a beat), then flows to the next with a sine ease; the hips lead
-  and the chest, arms and head follow 90–200 ms behind; the knees give in a soft groove, no hops.
-  Every joint stays under 6 rad/s (tested; ~5.7 at most, the slow version's ~3.7 × 1.5):
-  - **Mallow** (bunny, The Bounce): a gentle bounce-sway from foot to foot, the paws swinging in arcs,
-    the ears flowing; the paws float up into a soft V and drift down; a cheer to finish.
-  - **Peaches** (pig, Late Braker): a relaxed side-step with a clap on the half-time 2 and 4, a lazy
-    sway with the belly circling, a shrug to finish — unbothered.
-  - **Mochi** (cat, Corner Queen): a slow, sultry body wave and hip sway, a paw on the hip, the other
-    sweeping out from the cheek in an arc; a pose to end.
-  - **Pip** (fox, Straight-line Pip): slow chest pops, one every two beats, and a smooth arm wave
-    rippling paw to paw; a point to end.
-  - **Toffee** (bear, The Wall): a heavy, slow, proud two-step deep in the knees, big slow shoulder
-    rolls, a flex to finish.
-  - **Pickle** (frog, Kerb Hopper): a slow, wide squat-and-rise, the paws floating up as it rises, and
-    a low splayed-leg wiggle that sinks and comes back.
-  - **Pebble** (penguin, Rain Dancer): a smooth waddle-glide from foot to foot, flipper waves, and a
-    slow full turn over two bars.
+  no clips): every rider has a dance **style** of its own (the style moves in
+  `src/shared/motion/dance.js`) — its own signature move, rhythm and silhouette, so three riders on
+  the podium are three clearly different dances. Written in the song's beats, at the 1.5× pace (`RATE`:
+  three dance counts to every two beats, from a bar line; the song is 143.6 BPM), smooth: poses ease
+  and hold, the hips lead and the chest, arms and head follow 90–200 ms behind; every joint under
+  6 rad/s (the fox's robot hits under 8.5; tested):
+  - **Mallow** (bunny, The Bounce): bunny hop kicks — a little hop off every beat, a foot kicking
+    forward on each in turn (then out to the sides), the paws up by the cheeks, the ears flapping.
+  - **Peaches** (pig, Late Braker): a wide pendulum shimmy — the whole body swinging side to side
+    with a swing feel, the belly circling, paws low; claps on 2 and 4, then up into a V clapping
+    overhead; a shrug to finish.
+  - **Mochi** (cat, Corner Queen): slinky body waves, hip pops on the "and" (syncopated), a claw
+    swipe from the paw framing the face, one slow spin on one foot; a pose to end.
+  - **Pip** (fox, Straight-line Pip): the robot — a held pose on every beat, the arms tutting in
+    straight lines, right angles and boxes, chest pops, sharp head tilts, quarter-turn clicks.
+  - **Toffee** (bear, The Wall): stomp-and-flex — knee up and stomp on 1, the other on 2, a double
+    biceps over 3 and 4 (a crab the next bar), and a slow heavy rock like a big guy grooving.
+  - **Pickle** (frog, Kerb Hopper): a deep knees-out squat bouncing low, the paws swimming
+    breaststroke (or on the knees, twisting), a little leap every two bars.
+  - **Pebble** (penguin, Rain Dancer): a stiff waddle-shuffle, flippers swept back and flapping,
+    skating glides side to side, a whole spin every two bars.
 
-  Each runs eight bars — a hook, an answer, a variation, a phrase ending on its button — then again as
+  Each runs eight bars of the song (four two-bar phrases: a hook, an answer, a variation, a phrase ending on its button), then again as
   one of four variants (other answers, mirrors, sizes), so it never loops two bars. All are locked to
   the podium track (Confetti Fanfare, 143.6 BPM measured; the song's position while it plays, counted from
   its top), each rider a hair off the beat. The place adds a flourish on top, once every two bars:
-  the winner raises its arms into a V on the song's downbeat (up over a beat, held a beat and a
-  third, down over a beat; out to the sides: a plush paw raised past ~50° vanishes behind the big head) with
-  one soft hop as they arrive — the only hop in the dances; 2nd raises one paw the same way; 3rd a
+  the winner raises its arms into a V on the song's downbeat (up over a beat and a third, held a beat and a
+  third, down over a beat and a third; out to the sides: a plush paw raised past ~50° vanishes behind the big head) with
+  one soft hop as they arrive, its legs together; 2nd raises one paw the same way; 3rd a
   small V on the bars between. A finisher off the podium would just side-clap along (none is shown
   today). Ears and tails on soft springs driven by the body's motion, so they flow after it.
   The species, the place and the song's beat decide every pose (no randomness), so the browsers in a

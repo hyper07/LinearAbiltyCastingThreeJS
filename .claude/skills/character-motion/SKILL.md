@@ -34,12 +34,14 @@ what · §12 checklist.
   curves (`pop`, `bounce`, `step`, `wave`), `MOVES` + emotes, `routine`,
   `makeCombo(seed)`, `mirrorPose`, `clampPlushPose`, `spring`, `secondary`,
   `applyPlushPose(rig, pose, { mask, weight })` — on the plush riders' bone names.
-- `src/shared/motion/signatures.js` (pure): each plush species' signature dance
-  (`SIGNATURES`, 8 bars in 4 variants) and `podiumDance(id, { place, start })` with the
-  podium places' flourishes; all seven side by side at `/motion-lab.html?view=crew`.
-  Smooth: half-time moves played at exactly 1.5× (`RATE`: three counts to two beats of the song),
-  held poses, sine ease, hips→chest→arms→head follow-through (`glide`, `groove`, `swell`, `LAG`
-  in dance.js; motion-study §6.3), under 6 rad/s.
+- `src/shared/motion/signatures.js` (pure): each plush species' own dance **style** (`SIGNATURES`,
+  8 bars in 4 variants: bunny hop kicks, pig pendulum, cat waves/claw/spin, fox robot, bear
+  stomp-and-flex, frog swim-and-leap, penguin waddle/glide/spin — distinct move, rhythm and
+  silhouette, tested pair by pair) and `podiumDance(id, { place, start })` with the podium places'
+  flourishes; all seven side by side at `/motion-lab.html?view=crew`. The style moves (dance.js)
+  are written in the song's beats (`RATE` 1.5 counts a beat), smooth: held poses, sine ease,
+  hips→chest→arms→head follow-through (`glide`, `swell`, `held`, `turnAt`, `LAG`; motion-study
+  §6.3), under 6 rad/s (the fox's robot hits 8.5).
 - `src/shared/motion/retarget.js`: `aimRetarget` (humanoid clip → one-bone limbs),
   `bakePoseClip`, `compressClip`, `maskClip`; `clipTools.js` (pure) for keys, masks,
   root motion.

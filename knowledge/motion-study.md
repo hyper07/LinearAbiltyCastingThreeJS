@@ -325,6 +325,33 @@ still locked to it; holds ⅔ as long, every move done in ⅔ the time; the lags
 under ~5.7 rad/s, jerk under ~4 200 (tested in `motion-signatures.test.mjs`, ≤ 6 rad/s).
 Springs for ears and tails go softer with it (k 20–30, d 3–3.6: they flow).
 
+**Seven styles, not one dance seven times.** Built from the same slow sway, the seven
+signatures read as one dance on screen (the user: "those characters dance the same thing"):
+joint angles only 0.15–0.36 rad apart on average, one bar 0.10. Each character now has its own
+**style** (dance.js, after the slow set): its own signature move, its own **rhythm** and its
+own **silhouette** — the bunny's `bunnyHop` (a 6 cm hop off every beat, a foot kicking forward
+in turn, paws up by the cheeks: narrow, vertical), the pig's `pendulum` (wide legs, the whole
+body swinging out to a side on every beat with a swing feel — knee dips on the beat and on the
+swung "a" — belly circles, claps on 2 and 4, a V clapping overhead), the cat's `catWave` /
+`catClaw` / `catSpin` (body waves, hip pops landing on the "and" — `held` on a half-beat grid —
+a claw swipe framing the face, a spin on one foot), the fox's `robot` / `foxPop` (tutting: a held
+pose on every beat from straight lines and right angles, one arm moving at a time, over half a
+beat; chest pops, head snaps, quarter-turn clicks), the bear's `bearStomp` / `bearRock` (knee up
+and stomp on 1 and 2, the body dropping into it, a double-biceps flex over 3–4 then a crab; a
+heavy rock), the frog's `frogSwim` (a deep knees-out squat, breaststroke paws, a 13 cm leap every
+two bars), the penguin's `penguinWaddle` / `penguinGlide` (a stiff rock on every beat, flippers
+swept back and flapping on the off-beat, skating glides, a whole spin every two bars). They are
+written in the **song's beats** (`sb(c)` = counts ÷ `RATE`) and the cycle is 48 counts (8 bars),
+so a hit on the beat stays on the beat across steps and cycles. Every pair is now 0.31–0.54 rad
+apart (mean 0.40), every bar over 0.18 (`motion-signatures.test.mjs`). What made them read
+apart: the arms' resting height and direction (by the cheeks, low and wide, one up by the face,
+straight out, flippers back), the stance (narrow, wide, deep squat), the body's path (up and
+down, side to side, turning) and the timing (every beat, swing, syncopated, staccato). Keeping
+them smooth: sine-squared bumps (they start and stop still: a plain sine bump's kink is a jerk
+spike), whole turns with a trapezoid speed (`turnAt`: peak 4/3 of the mean, a sine ease's is
+π/2), and the winner's V rising over 2 counts — a V raised from paws far from it (the bear's crab)
+otherwise goes past 6 rad/s; when the winner hops, the dance's own legs let go as the paws rise.
+
 ### 6.4 Routines and original combos
 
 `routine(steps)` plays `{ move, counts, mirror, amp, double }` steps in a loop with
