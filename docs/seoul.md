@@ -442,8 +442,9 @@ Seoul's real streets — and the streets stay open.
   one rule, `isNarrow` in `src/city/alleys.js` (unit-tested in `tests/unit/jarani-narrow.test.mjs`):
   every golmok, alley, service lane, living street, market lane and footway (OSM class 6 and up,
   however wide); a residential or unclassified lane — no lane markings — under 7 m (the map's 6.2 m
-  when it doesn't say: a car and a rider can't pass side by side); a main road with under 3 m a
-  direction (a two-way road under 6 m). No car, taxi, truck, bus, town bus or delivery scooter drives
+  when it doesn't say: a car and a rider can't pass side by side — down a zig-zag course, the room
+  the buildings leave it as `measureRoom` found it, so its 8 m lanes keep their traffic); a main road
+  with under 3 m a direction (a two-way road under 6 m). No car, taxi, truck, bus, town bus or delivery scooter drives
   down one, turns into one, is put down in one, parks or stands at a stop in one — the race's
   traffic (`src/city/traffic.js`: round the riders, coming down the course, sent up it, parked, at
   the stops, Hard's parked scooters, every respawn) and the city's own (`street.js`) alike, and the

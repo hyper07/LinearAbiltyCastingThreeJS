@@ -101,6 +101,21 @@ test('narrow: where the course runs down a narrow street it has no traffic — n
   assert.ok(t.spots.length > 0, 'parked on the wide road');
 });
 
+test('narrow: a lane the map gives no width, measured 8 m between the buildings down a zig-zag course, takes traffic — one measured narrow does not', () => {
+  for (const [room, narrow] of [[8, false], [6, true]]) {
+    const { t, lane, alley } = scene({ on: 'lane' });
+    // the course down the lane, as course.js measureRoom left it (the map's 6.2 m replaced by the room)
+    for (const p of t.race.course.points) p[2] = room;
+    // (and crossing the alley at a junction, which stays the alley's own: narrow)
+    t.race.course.points.push([40, -600, room, 5, 0], [-40, -600, room, 5, 0]);
+    t._courseLanes();
+    assert.equal(t.laneNarrow.get(lane), narrow, `measured ${room} m`);
+    assert.equal(t._narrow(lane), narrow);
+    assert.equal(t._narrow(alley), true, 'the alley is still people only');
+    assert.equal(t._roads(-40, 0, 'scooter').includes(lane), !narrow);
+  }
+});
+
 test('narrow: in a race the narrow streets the course runs down are where some people go — never a short cut kept clear', async () => {
   const { StreetLife } = await import('../../src/city/life.js');
   const wide = { pts: [0, 300, 0, -300], cls: 3, width: 11, oneway: false };

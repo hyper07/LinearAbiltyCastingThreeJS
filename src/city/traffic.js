@@ -355,6 +355,7 @@ export class RaceTraffic {
     this.carsOnLanes = Boolean(this.level.dense);
     // (already in by now: the race waits for them before the lights — race.js _begin)
     loadFleet();
+    this._courseLanes();
     this._parkSpots();
     this._glow();
   }
@@ -366,7 +367,48 @@ export class RaceTraffic {
   _roads(x, z, kind) {
     const keep = this.race.scRoads;
     const carMax = this.carsOnLanes ? 5 : 4;
-    return (this.g.roadsNear?.(x, z, 1) ?? []).filter((r) => r.pts.length >= 4 && r.cls >= 1 && r.cls <= (kind === 'scooter' ? 5 : kind === 'bus' ? 3 : carMax) && !narrowRoad(r) && !keep?.has(r));
+    return (this.g.roadsNear?.(x, z, 1) ?? []).filter((r) => r.pts.length >= 4 && r.cls >= 1 && r.cls <= (kind === 'scooter' ? 5 : kind === 'bus' ? 3 : carMax) && !this._narrow(r) && !keep?.has(r));
+  }
+
+  /** Whether a road is narrow (people only): as the course measured it where it runs down it, else by the map. */
+  _narrow(r) {
+    return this.laneNarrow?.get(r) ?? narrowRoad(r);
+  }
+
+  /**
+   * The residential lanes the course runs down, narrow or not as the course has them: where it measured the
+   * room between the buildings (a zig-zag's lanes, course.js measureRoom) that, not the map's 6.2 m default —
+   * and narrow if any of the course's points on it is. (A lane is the course's where it runs along it: not
+   * one crossing it at a junction.)
+   */
+  _courseLanes() {
+    this.laneNarrow = new Map();
+    const pts = this.race.course?.points;
+    if (!pts) return;
+    for (let k = 0; k < pts.length; k++) {
+      const p = pts[k];
+      if ((p[3] ?? 4) !== 5) continue;
+      const q = pts[(k + 1) % pts.length];
+      const hx = q[0] - p[0];
+      const hz = q[1] - p[1];
+      const hl = Math.hypot(hx, hz) || 1;
+      const narrow = narrowPoint(p);
+      for (const r of this.g.roadsNear?.(p[0], p[1], 1) ?? []) {
+        if (r.cls !== 5 || this.laneNarrow.get(r) === true || (!narrow && this.laneNarrow.has(r))) continue;
+        for (let i = 2; i < r.pts.length; i += 2) {
+          const ax = r.pts[i - 2];
+          const az = r.pts[i - 1];
+          const dx = r.pts[i] - ax;
+          const dz = r.pts[i + 1] - az;
+          if (Math.min(ax, ax + dx) > p[0] + 2 || Math.max(ax, ax + dx) < p[0] - 2 || Math.min(az, az + dz) > p[1] + 2 || Math.max(az, az + dz) < p[1] - 2) continue;
+          const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - az) * dz) / (dx * dx + dz * dz || 1)));
+          if (Math.hypot(p[0] - ax - dx * t, p[1] - az - dz * t) < 1.5 && Math.abs(dx * hx + dz * hz) > 0.8 * hl * Math.hypot(dx, dz)) {
+            this.laneNarrow.set(r, narrow);
+            break;
+          }
+        }
+      }
+    }
   }
 
   /**
