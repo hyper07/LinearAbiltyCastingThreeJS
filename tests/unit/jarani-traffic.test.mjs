@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { RaceTraffic, SIGHT, brakesFor, giveWay, laneAt, onScreen } from '../../src/city/traffic.js';
+import { MAX_STEER, PARK_RESIT, RaceTraffic, SIGHT, STUCK, brakesFor, giveWay, laneAt, onScreen, overlaps } from '../../src/city/traffic.js';
 import { fleetKindFor, LOD } from '../../src/city/fleet.js';
 import { pointOn } from '../../src/city/drive.js';
 
@@ -278,4 +278,91 @@ test('traffic: pulling away and braking are gentle — no jump in speed', () => 
   const gap = Math.abs(block.box.z - w.box.z) - 4.5;
   assert.ok(w.speed < 0.2 && gap > 1 && gap < 6, `stopped ${gap.toFixed(1)} m behind`);
   assert.ok(hardest <= 9.01, `braked at ${hardest.toFixed(1)} m/s² at most`);
+});
+
+/** A vehicle standing on the road at `z` (in the northbound lane, or across it with `heading`), going nowhere. */
+function standing(t, road, z, { parked = false, heading = null, x = null } = {}) {
+  const v = car(t, road, z, 1, 0);
+  Object.assign(v, { speed: 0, v: 0, parked, stopFor: parked ? 0 : 1e9 });
+  if (heading != null) v.box.heading = heading;
+  if (x != null) v.box.x = x;
+  return v;
+}
+
+const offRoad = (v) => Math.abs(Math.atan2(Math.sin(v.box.heading - (v.at.dir > 0 ? 0 : Math.PI)), Math.cos(v.box.heading - (v.at.dir > 0 ? 0 : Math.PI))));
+
+test('traffic: a parked car put down before the road under it came in is sat on the road once it has — not left a metre into it', () => {
+  const { t, road, game } = street();
+  // (its land not in yet: the surface lookup has only the bare ground)
+  game.surfaceAt = () => 0;
+  const p = standing(t, road, -120, { parked: true });
+  t._place(p, 0);
+  assert.equal(p.group.position.y, 0);
+  // the road comes in, laid 0.9 m over the land
+  game.surfaceAt = () => 0.9;
+  for (let k = 0; k <= PARK_RESIT; k++) t._place(p, 0);
+  assert.ok(Math.abs(p.group.position.y - 0.9) < 1e-6, `on the road: ${p.group.position.y}`);
+});
+
+test('traffic: behind a parked car with a car coming the other way, a car waits back from it, then pulls out round it and on — never into either, never turning its nose across the road', () => {
+  // a two-way street 7 m wide: a lane each way, the parked car half in ours
+  const road = { pts: [0, 600, 0, -600], cls: 4, width: 7, oneway: false };
+  const { t } = street({ roads: [road] });
+  const inLane = (v, lane) => {
+    const q = laneAt(road.pts, v.at, lane);
+    Object.assign(v, { road, lane, lat: lane });
+    Object.assign(v.box, { x: q.x, z: q.z, heading: q.heading });
+    return v;
+  };
+  const p = inLane(standing(t, road, -150, { parked: true }), 2.4);
+  const v = inLane(car(t, road, -110, 1, 10), 1.75);
+  const other = inLane(car(t, road, -205, -1, 6), 1.75);
+  let touched = 0;
+  let worst = 0;
+  let waited = false;
+  for (let k = 0; k < 60 * 20; k++) {
+    t._drive(other, 1 / 60);
+    t._drive(v, 1 / 60);
+    if (overlaps(v.box, p.box) || overlaps(v.box, other.box)) touched++;
+    if (v.speed < 0.3 && v.box.z > -150) waited = true;
+    worst = Math.max(worst, offRoad(v));
+  }
+  assert.ok(waited, 'waited behind it while the other came by');
+  assert.equal(touched, 0, 'never into the parked car nor the one coming');
+  assert.ok(v.box.z < -175, `out round it and on (${v.box.z.toFixed(1)})`);
+  assert.ok(worst <= MAX_STEER + 1e-6, `nose ${worst.toFixed(2)} rad off the road's way at most`);
+});
+
+test('traffic: one standing across the lane is never driven through, however long; stuck for good, both go once out of sight — never in view', () => {
+  const { t, road, cam } = street();
+  t._spawn = () => false;
+  t._spawnOncoming = () => false;
+  const across = standing(t, road, -140, { heading: Math.PI / 2 });
+  const v = car(t, road, -100, 1, 10);
+  let touched = 0;
+  for (let k = 0; k < 60 * (STUCK + 8); k++) {
+    t.update(1 / 60, [me]);
+    if (overlaps(v.box, across.box)) touched++;
+  }
+  assert.equal(touched, 0, 'never through it');
+  assert.ok(v.speed < 0.3 && v.box.z > -140, 'waits behind it');
+  assert.ok(t.vehicles.includes(v) && t.vehicles.includes(across), 'still there while the camera sees them');
+  cam.lookAt(0, 1, 60);
+  cam.updateMatrixWorld();
+  for (let k = 0; k < 30; k++) t.update(1 / 60, [me]);
+  assert.ok(!t.vehicles.includes(v) && !t.vehicles.includes(across), 'cleared away once out of sight');
+});
+
+test('traffic: two going the same way queue — the one behind never runs into the one in front, at any speed', () => {
+  const { t, road } = street();
+  const front = car(t, road, -140, 1, 4);
+  const back = car(t, road, -110, 1, 14);
+  let touched = 0;
+  for (let k = 0; k < 60 * 20; k++) {
+    t._drive(front, 1 / 60);
+    t._drive(back, 1 / 60);
+    if (overlaps(back.box, front.box)) touched++;
+  }
+  assert.equal(touched, 0);
+  assert.ok(Math.abs(back.speed - front.speed) < 1, `following at its speed (${back.speed.toFixed(1)} vs ${front.speed.toFixed(1)})`);
 });

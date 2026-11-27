@@ -60,10 +60,18 @@ const SPEEDS = [0, 14.5, 12.5, 10.5, 8.5, 5.5]; // metres a second by road class
 const WANT = { car: 24, bus: 3, scooter: 9 };
 /** No more than this many vehicles at once (those still in view on their way out count too): the street round you is busy enough. */
 const CAP = 115;
+/** Standing this many seconds with nothing moving it on (not a parked one): taken off once out of sight. */
+export const STUCK = 12;
+/** How much room (m) a vehicle keeps round itself from another, box to box, as the last guard (`_bumps`). */
+const BUMP_ROOM = 0.2;
+/** How far (m) further back than behind a moving one a vehicle stops behind a parked one: room to pull out round it. */
+const PARK_ROOM = 3;
 const SIZE = { scooter: [0.9, 0.36] };
 /** How hard each pulls away (m/s²): a bus and a loaded truck slowly, a scooter quickest. Braking is the same for all. */
 const PULL = { bus: 1.3, townbus: 1.5, truck: 1.7, scooter: 3, car: 2.4 };
 const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+/** How far (radians) a vehicle's nose may point off its lane's way along a road (off a turn's arc). */
+export const MAX_STEER = 0.45;
 
 /**
  * What the camera can see, for putting vehicles down and taking them off: `step` m between the samples of
@@ -74,6 +82,21 @@ const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
  * a bus is a green town bus `town` of the time.
  */
 export const SIGHT = { step: 2, cell: 1, px: 2.5, gone: 300, far: 700, town: 0.35 };
+
+/**
+ * Do two vehicles' boxes ({ x, z, heading, halfLength, halfWidth }) overlap on the ground (each shrunk by
+ * `slack` m all round)? Separating axes: the two boxes' own.
+ */
+export function overlaps(a, b, slack = 0) {
+  if (Math.hypot(a.x - b.x, a.z - b.z) > a.halfLength + a.halfWidth + b.halfLength + b.halfWidth) return false;
+  const reach = (o, ux, uz) => Math.abs(-Math.sin(o.heading) * ux - Math.cos(o.heading) * uz) * (o.halfLength - slack) + Math.abs(Math.cos(o.heading) * ux - Math.sin(o.heading) * uz) * (o.halfWidth - slack);
+  for (const h of [a.heading, a.heading + Math.PI / 2, b.heading, b.heading + Math.PI / 2]) {
+    const ux = -Math.sin(h);
+    const uz = -Math.cos(h);
+    if (Math.abs((b.x - a.x) * ux + (b.z - a.z) * uz) > reach(a, ux, uz) + reach(b, ux, uz)) return false;
+  }
+  return true;
+}
 
 /**
  * How big a vehicle `hl` m half-long, heading `heading`, standing at (x, y, z) looks on a screen `height`
@@ -99,8 +122,13 @@ export function onScreen(cam, height, x, z, hl, heading, y = 0) {
   return Math.max(L * seen(along), W * seen(across), H * seen(up)) * k;
 }
 
-/** Vehicles sat on the road: under each tyre within `near` m of the camera, past that the two ends' middles every `every` frames. */
+/**
+ * Vehicles sat on the road under each tyre: every frame within `near` m of the camera, past that every `every`
+ * frames (under all four still: on a hill's cross-fall the two ends' middles left the high side's tyres in the road).
+ */
 export const SIT = { near: 90, every: 4 };
+/** A parked vehicle is sat on the road again every this many frames (the road under it may have come in since). */
+export const PARK_RESIT = 30;
 
 /**
  * How a vehicle at (x, z) heading `heading` sits on the surface (`surfaceAt(x, z, from)`), its tyres at
@@ -592,7 +620,9 @@ export class RaceTraffic {
         if (v.parked) continue;
         const near = Math.min(...anchors.map((a) => Math.hypot(a.x - v.box.x, a.z - v.box.z)));
         const behind = (v.oncoming || v.along) && (v.box.x - me.x) * -Math.sin(me.heading) + (v.box.z - me.z) * -Math.cos(me.heading) < -45;
-        if (near > (v.oncoming || v.along ? SIGHT.far : SIGHT.gone) || behind || v.deadEnd) this._retire(v);
+        // (and one stuck for good — at a corner too tight for it, behind two that met nose to side — once out
+        // of sight: never left there to block the road, never taken off in view)
+        if (near > (v.oncoming || v.along ? SIGHT.far : SIGHT.gone) || behind || v.deadEnd || v.stuckT > STUCK) this._retire(v);
         else v.going = false;
       }
     }
@@ -937,10 +967,15 @@ export class RaceTraffic {
         if ((c.shortcuts ?? []).some((sc) => Math.abs(sc.from - i) < 6 || Math.abs(sc.to - i) < 6)) continue;
         // (a bus's length clear of the next corner too)
         if (kind === 'bus' && calm[(i + 3) % n]) continue;
-        const hd = Math.atan2(-(q[0] - p[0]), -(q[1] - p[1]));
-        const lat = w / 2 - (kind === 'bus' ? 1.45 : kind === 'scooter' ? 0.6 : 1.15);
-        const x = p[0] + Math.cos(hd) * lat;
-        const z = p[1] - Math.sin(hd) * lat;
+        // (at the kerb of the road itself, along it: the course's point isn't always on the road's middle,
+        // nor its way quite the road's — one put by the course's stood out into the lane, askew, and the
+        // traffic ran into it)
+        const kerb = this._kerbOf(p, q);
+        if (!kerb) continue;
+        const hd = kerb.heading;
+        const lat = kerb.width / 2 - (kind === 'bus' ? 1.45 : kind === 'scooter' ? 0.6 : 1.15);
+        const x = kerb.x + Math.cos(hd) * lat;
+        const z = kerb.z - Math.sin(hd) * lat;
         if (walls?.hits(x, z, kind === 'scooter' ? 0.5 : 1.1) || this.g.buildingAt?.(x, z)) continue;
         // (never two together: a bus stop clear of the parked cars; a parked scooter a little closer)
         if (this.spots.some((s) => Math.hypot(s.x - x, s.z - z) < (kind === 'scooter' || s.kind === 'scooter' ? 16 : 30))) continue;
@@ -948,6 +983,35 @@ export class RaceTraffic {
         this.spots.push({ i, x, z, heading: hd, k, kind, v: null });
       }
     }
+  }
+
+  /**
+   * The road under a course point `p` (toward the next, `q`) that runs its way: the point on its middle
+   * line nearest `p`, its width and its heading the course's way — null if there is none within a few metres.
+   */
+  _kerbOf(p, q) {
+    const hx = q[0] - p[0];
+    const hz = q[1] - p[1];
+    const hl = Math.hypot(hx, hz) || 1;
+    let best = null;
+    for (const r of this.g.roadsNear?.(p[0], p[1], 1) ?? []) {
+      if (r.cls < 1 || r.cls > 5) continue;
+      const m = r.pts.length / 2 - 1;
+      for (let j = 0; j < m; j++) {
+        const ax = r.pts[j * 2];
+        const az = r.pts[j * 2 + 1];
+        const ex = r.pts[j * 2 + 2] - ax;
+        const ez = r.pts[j * 2 + 3] - az;
+        const L = Math.hypot(ex, ez) || 1e-6;
+        const t = Math.max(0, Math.min(1, ((p[0] - ax) * ex + (p[1] - az) * ez) / (L * L)));
+        const d = Math.hypot(ax + ex * t - p[0], az + ez * t - p[1]);
+        const dot = (ex * hx + ez * hz) / (L * hl);
+        if (d > (r.width ?? 6) / 2 + 2 || Math.abs(dot) < 0.9 || (best && d >= best.d)) continue;
+        const s = Math.sign(dot);
+        best = { d, x: ax + ex * t, z: az + ez * t, width: r.width ?? 6, heading: Math.atan2(-ex * s, -ez * s) };
+      }
+    }
+    return best;
   }
 
   /**
@@ -1071,7 +1135,7 @@ export class RaceTraffic {
       const dz = z - b.z;
       const along = dx * fx + dz * fz - b.halfLength - ext;
       const side = Math.abs(dx * -fz + dz * fx);
-      if (along > -0.5 && along < react && side < b.halfWidth + width * 0.5) gap = Math.min(gap, along);
+      if (along > -0.5 && along < react && side < b.halfWidth + width * 0.5 + 2 * BUMP_ROOM) gap = Math.min(gap, along);
     };
     // A car parked at the kerb (a bus at its stop) ahead in our lane: pull out round it, not stand behind it.
     let dodge = null;
@@ -1081,6 +1145,10 @@ export class RaceTraffic {
     const yielding = !v.pushT;
     let held = false;
     const oncoming = [];
+    const parked = [];
+    const laneHd = v.turn ? b.heading : laneAt(v.road.pts, v.at, 0).heading;
+    const lfx = -Math.sin(laneHd);
+    const lfz = -Math.cos(laneHd);
     for (const o of this.vehicles) {
       if (o === v) continue;
       const ob = o.box;
@@ -1088,9 +1156,14 @@ export class RaceTraffic {
       const dz0 = ob.z - b.z;
       if (Math.abs(dx0) > 40 || Math.abs(dz0) > 40) continue;
       const c = Math.cos(ob.heading - b.heading);
-      // (one coming the other way keeps to its own lane: braked for only if it stands in ours)
-      if (c <= -0.6 && !o.parked && (o.speed ?? 0) > 0.5) oncoming.push(o);
-      else if (Math.abs(c) >= 0.6 || o.parked) {
+      // (one coming the other way keeps to its own lane: braked for only if it stands in ours — and every
+      // one facing us, moving or not, keeps us from pulling out into its lane)
+      const facing = c <= -0.6 && !o.parked;
+      if (facing) oncoming.push(o);
+      if (o.parked) parked.push(o);
+      else if (facing && (o.speed ?? 0) > 0.5) {
+        // (its lane's business)
+      } else if (Math.abs(c) >= 0.6) {
         // following (or one standing across the way): its width across our way
         const sn = Math.abs(Math.sin(ob.heading - b.heading));
         look(ob.x, ob.z, (sn * ob.halfLength + Math.abs(c) * ob.halfWidth) * 2, 24, Math.abs(c) * ob.halfLength + sn * ob.halfWidth);
@@ -1102,10 +1175,14 @@ export class RaceTraffic {
           held = true;
         }
       }
-      if (!o.parked || Math.abs(c) < 0.8) continue;
-      const al = dx0 * fx + dz0 * fz;
-      const sd = dx0 * -fz + dz0 * fx;
-      const room = b.halfWidth + ob.halfWidth + 0.5;
+      // (how far along and across from us it stands measured along the lane, not our nose: a nose turned out
+      // to pull round it isn't the road turning)
+      const cl = Math.cos(ob.heading - laneHd);
+      if (!o.parked || Math.abs(cl) < 0.8) continue;
+      const al = dx0 * lfx + dz0 * lfz;
+      const sd = dx0 * -lfz + dz0 * lfx;
+      // (its corners too, standing a little askew: a bus at its stop on a bend)
+      const room = b.halfWidth + Math.sqrt(Math.max(0, 1 - cl * cl)) * ob.halfLength + Math.abs(cl) * ob.halfWidth + 0.5;
       if (al < -ob.halfLength - b.halfLength || al > 30 + ob.halfLength || Math.abs(sd) > room) continue;
       if (!dodge || al < dodge.al) dodge = { al, lat: (v.lat ?? v.lane) + sd - Math.sign(sd || 1) * room, side: Math.sign(sd || 1) };
     }
@@ -1115,12 +1192,21 @@ export class RaceTraffic {
       for (const o of oncoming) {
         const dx = o.box.x - b.x;
         const dz = o.box.z - b.z;
-        const al = dx * fx + dz * fz;
-        if (al > -b.halfLength - o.box.halfLength && al < 45 && Math.abs(dx * -fz + dz * fx - shift) < b.halfWidth + o.box.halfWidth + 0.6) {
+        const al = dx * lfx + dz * lfz;
+        if (al > -b.halfLength - o.box.halfLength && al < 45 && Math.abs(dx * -lfz + dz * lfx - shift) < b.halfWidth + o.box.halfWidth + 0.6) {
           dodge = null;
           break;
         }
       }
+    }
+    // A parked one in our way braked for — while we can't go round it, stopping a car's length short of it
+    // (room to pull out round it once the other lane is clear); going round it, only while it still stands
+    // across our way as we ease out (once out, on past it).
+    for (const o of parked) {
+      const ob = o.box;
+      const c = Math.cos(ob.heading - b.heading);
+      const sn = Math.abs(Math.sin(ob.heading - b.heading));
+      look(ob.x, ob.z, (sn * ob.halfLength + Math.abs(c) * ob.halfWidth) * 2, 24, Math.abs(c) * ob.halfLength + sn * ob.halfWidth + (dodge ? 0 : PARK_ROOM));
     }
     // (waiting at a crossing more than six seconds: through, for a moment — nobody stands there for ever)
     v.yieldT = held && v.speed < 1 ? v.yieldT + dt : 0;
@@ -1189,25 +1275,24 @@ export class RaceTraffic {
         }
       }
     } else v.laneTo = null;
-    // Across to the lane (or out round a parked car), at most 1.2 m a second and eased in and out — never a jump.
+    // Across to the lane (or out round a parked car), at most 1.2 m a second and eased in and out — never a
+    // jump, and mostly as it rolls on (half a metre across for a metre along, and a creep standing):
+    // a car slid sideways from a standstill turned its nose across the road, and stood there in everyone's way.
     const aim = dodge ? (dodge.side > 0 ? Math.min(v.lane, dodge.lat) : Math.max(v.lane, dodge.lat)) : v.lane;
     v.lat ??= v.lane;
     const off = aim - v.lat;
-    v.lat += Math.sign(off) * Math.min(Math.abs(off), Math.min(1.2, 0.4 + Math.abs(off) * 0.9) * dt);
+    const across = Math.sign(off) * Math.min(Math.abs(off), Math.min(1.2, 0.4 + Math.abs(off) * 0.9, 0.3 + v.speed * 0.5) * dt);
+    if (across && !this._sideBumps(v, across)) v.lat += across;
     if (Math.abs(off) > 0.3 && !(v.next && left < 40)) v.signal = off > 0 ? 'right' : 'left';
     let step = v.speed * dt;
-    // (never into another vehicle: if this step would run into one in front, it stops short instead)
-    // (two stood nose to side for two seconds: one creeps on through, as drivers sort it out)
-    v.passT = Math.max(0, (v.passT ?? 0) - dt);
-    if (step > 0 && !v.passT && this._bumps(v, step)) {
+    // (never into another vehicle: if this step would run into one in front, it stops short instead — never
+    // through it, however long it waits: two stood nose to side used to creep on through each other, a
+    // crash in the road. One stuck for good is taken off once out of sight: update, STUCK.)
+    if (step > 0 && this._bumps(v, step)) {
       step = 0;
       v.speed = 0;
-      v.bumpT = (v.bumpT ?? 0) + dt;
-      if (v.bumpT > 2) {
-        v.bumpT = 0;
-        v.passT = 1.5;
-      }
-    } else if (step > 0) v.bumpT = 0;
+    }
+    v.stuckT = v.speed < 0.3 ? (v.stuckT ?? 0) + dt : 0;
     let q;
     if (v.turn) {
       // round the corner on its arc
@@ -1233,7 +1318,10 @@ export class RaceTraffic {
     const mz = q.z - b.z;
     const moved = Math.hypot(mx, mz);
     // (within a tenth of a second, and — fast round a hairpin — within 0.8 m of its own motion)
-    if (moved > 1e-6) b.heading += turn(b.heading, Math.atan2(-mx, -mz)) * (1 - Math.exp(-Math.max(dt * 10, moved / 0.8)));
+    // (never more than a steer's angle off its lane's way: a creep across it is no reason to face across the road)
+    let toward = Math.atan2(-mx, -mz);
+    if (!v.turn && q.heading != null) toward = q.heading + Math.max(-MAX_STEER, Math.min(MAX_STEER, turn(q.heading, toward)));
+    if (moved > 1e-6) b.heading += turn(b.heading, toward) * (1 - Math.exp(-Math.max(dt * 10, moved / 0.8)));
     else if (!v.turn && q.heading != null) b.heading += turn(b.heading, q.heading) * Math.min(1, dt * 2);
     b.x = q.x;
     b.z = q.z;
@@ -1251,21 +1339,44 @@ export class RaceTraffic {
     const fz = -Math.cos(b.heading);
     const x = b.x + fx * step;
     const z = b.z + fz * step;
+    const moved = { x, z, heading: b.heading, halfLength: b.halfLength, halfWidth: b.halfWidth };
     for (const o of this.vehicles) {
       if (o === v) continue;
       const dx = o.box.x - x;
       const dz = o.box.z - z;
       if (dx * dx + dz * dz > 225) continue;
       const al = dx * fx + dz * fz;
-      if (al <= 0) continue;
       const c = Math.cos(o.box.heading - b.heading);
-      // (one coming head on in our lane is the lanes' business, not a wall: never both stuck)
-      if (c < -0.5) continue;
+      // (one coming head on in our lane is the lanes' business, not a wall — never both stuck — unless we
+      // are the one out of our lane, out round a parked car: we wait, it comes on; a parked one is a wall)
+      if (c < -0.5 && !o.parked && Math.abs((v.lat ?? v.lane) - v.lane) < 0.5) continue;
+      // (box to box, a hand's breadth round each, whichever side it is on — a lane bending in toward one
+      // parked on the bend, a nose turning as it goes: never into it; one already that close, only away)
+      if (overlaps(moved, o.box, -BUMP_ROOM) && !overlaps(b, o.box, -BUMP_ROOM)) return true;
+      if (overlaps(moved, o.box) && dx * dx + dz * dz < (o.box.x - b.x) ** 2 + (o.box.z - b.z) ** 2) return true;
+      if (al <= 0) continue;
       const ac = Math.abs(c);
       const s = Math.sqrt(Math.max(0, 1 - c * c));
       const reach = ac * o.box.halfLength + s * o.box.halfWidth;
       const wide = s * o.box.halfLength + ac * o.box.halfWidth;
       if (al < b.halfLength + reach + 0.4 && Math.abs(dx * -fz + dz * fx) < b.halfWidth + wide) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Would moving this vehicle `by` m to its right (across its lane: out round a parked car, back in again)
+   * put it into another one it isn't already touching? Then it stays where it is across the road.
+   */
+  _sideBumps(v, by) {
+    const b = v.box;
+    const x = b.x - Math.cos(b.heading) * -by;
+    const z = b.z + Math.sin(b.heading) * -by;
+    const moved = { x, z, heading: b.heading, halfLength: b.halfLength, halfWidth: b.halfWidth };
+    for (const o of this.vehicles) {
+      if (o === v || Math.abs(o.box.x - x) > 15 || Math.abs(o.box.z - z) > 15) continue;
+      if (overlaps(moved, o.box, -BUMP_ROOM) && !overlaps(b, o.box, -BUMP_ROOM)) return true;
+      if (overlaps(moved, o.box) && dx * dx + dz * dz < (o.box.x - b.x) ** 2 + (o.box.z - b.z) ** 2) return true;
     }
     return false;
   }
@@ -1382,8 +1493,8 @@ export class RaceTraffic {
   /**
    * Stand a vehicle on the road under its own wheels (`sitOn`): nose up or down the hill and tipped
    * across a cambered road, its lowest tyre on the surface and none sunk into it — the four tyres
-   * sampled near the camera (SIT.near m), the two ends' middles further off (every few frames), a
-   * parked one once. Smoothed only in what a step adds over the hill (a seam, a kerb): up a hill the
+   * sampled every frame near the camera (SIT.near m), every few frames further off, a parked one now
+   * and then (PARK_RESIT). Smoothed only in what a step adds over the hill (a seam, a kerb): up a hill the
    * wheels never lag above or below the road.
    */
   _place(v, dt) {
@@ -1393,7 +1504,14 @@ export class RaceTraffic {
     v.group.rotation.order = 'YXZ';
     v.group.rotation.y = b.heading;
     if (v.view) v.view.wheels((v.speed * dt) / (v.view.size.wheel || 0.33));
-    if (v.parked && v.sat) return;
+    if (v.parked && v.sat) {
+      // (sat again now and then: one put down before the road under it was laid — its land still coming
+      // in, far off — sat on the bare ground, its wheels a metre into the road drawn over it later)
+      v.parkT = (v.parkT ?? Math.floor(Math.random() * PARK_RESIT)) + 1;
+      if (v.parkT < PARK_RESIT) return;
+      v.parkT = 0;
+      v.sat = false;
+    }
     const cam = this._cam ?? this.g.camera?.position;
     const d = cam ? Math.hypot(b.x - cam.x, b.z - cam.z) : 0;
     const near = d < SIT.near;
@@ -1407,7 +1525,7 @@ export class RaceTraffic {
       return;
     }
     const ax = v.axles ?? (v.axles = v.view?.axles ?? { front: -b.halfLength * 0.66, rear: b.halfLength * 0.66, track: v.kind === 'scooter' ? 0 : b.halfWidth * 0.8 });
-    const at = sitOn((x, z, from) => this.g.surfaceAt(x, z, from), b.x, b.z, b.heading, ax, v.sat ? v.y + 1 : Infinity, near && ax.track > 0);
+    const at = sitOn((x, z, from) => this.g.surfaceAt(x, z, from), b.x, b.z, b.heading, ax, v.sat ? v.y + 1 : Infinity, ax.track > 0);
     const step = dt * Math.max(1, v.sitT);
     v.sitT = 0;
     if (!v.sat || !dt) {
