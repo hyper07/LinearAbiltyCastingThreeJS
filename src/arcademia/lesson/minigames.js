@@ -166,6 +166,15 @@ export function feedMonster(host, { floor = 1, sound, rounds = 5 }) {
   });
 }
 
+/**
+ * The basket throw's numbers. Range on flat ground is v² · sin 2θ / g with v = power × speed, so at
+ * full power and 45° the ball lands about 900 px out: every basket (placed targetMin–targetMax) can
+ * be reached, and at full power so can the far ones at a range of angles.
+ */
+export const LAUNCH = { x0: 60, ground: 360, g: 98, speed: 3, targetMin: 380, targetMax: 820, powerMax: 100 };
+/** Where a throw lands (x) for an angle in degrees and a power 20–100. */
+export const launchLands = (angle, power) => LAUNCH.x0 + ((power * LAUNCH.speed) ** 2 * Math.sin((2 * angle * Math.PI) / 180)) / LAUNCH.g;
+
 export function launch(host, { sound, shots = 6 }) {
   return new Promise((resolve) => {
     const box = el('div', 'arc-mg arc-launch');
@@ -193,7 +202,7 @@ export function launch(host, { sound, shots = 6 }) {
     const fire = button('arc-btn arc-btn--primary', tr('mg.launch'), () => {
       if (ball || shot >= shots) return;
       const a = (angle * Math.PI) / 180;
-      ball = { x: 60, y: 360, vx: Math.cos(a) * power * 1.6, vy: -Math.sin(a) * power * 1.6, trail: [] };
+      ball = { x: LAUNCH.x0, y: LAUNCH.ground, vx: Math.cos(a) * power * LAUNCH.speed, vy: -Math.sin(a) * power * LAUNCH.speed, trail: [] };
       shot++;
       shotEl.textContent = tr('mg.shot', { n: shot, total: shots });
       sound?.tap();
@@ -202,14 +211,14 @@ export function launch(host, { sound, shots = 6 }) {
     const msg = el('p', 'arc-mg__q', tr('mg.land'), { 'aria-live': 'polite' });
     box.append(hud, msg, canvas, row);
     host.append(box);
-    const place = () => (target = 380 + Math.random() * 440);
+    const place = () => (target = LAUNCH.targetMin + Math.random() * (LAUNCH.targetMax - LAUNCH.targetMin));
     place();
     let last = performance.now(), raf;
     const frame = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       if (ball) {
-        ball.vy += 98 * dt * 2.2;
+        ball.vy += LAUNCH.g * dt * 2.2;
         ball.x += ball.vx * dt * 2.2;
         ball.y += ball.vy * dt * 2.2;
         ball.trail.push([ball.x, ball.y]);
@@ -253,6 +262,14 @@ export function launch(host, { sound, shots = 6 }) {
         g.beginPath();
         g.arc(ball.x, ball.y, 12, 0, Math.PI * 2);
         g.fill();
+        // A high throw leaves the top of the picture for a moment: a little arrow shows where it is.
+        if (ball.y < 0) {
+          g.beginPath();
+          g.moveTo(ball.x, 4);
+          g.lineTo(ball.x - 10, 20);
+          g.lineTo(ball.x + 10, 20);
+          g.fill();
+        }
       } else {
         const a = (angle * Math.PI) / 180;
         g.strokeStyle = '#2c6b62';
