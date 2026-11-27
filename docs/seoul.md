@@ -409,12 +409,13 @@ Seoul's real streets — and the streets stay open.
   they cost about 1,500 draws on Hard). The course's own roads are kept busy the other way: cars, taxis,
   buses and delivery scooters sent up the road ahead of you on the far side of a two-way road, or
   down the other carriageway of a divided one — fifteen of them on an Easy course, 21 on Medium,
-  26 on Hard — in their own lane (and on a two-way residential lane the riders keep to their own
-  side of it too, out over the middle only to pass). And your way: slower cars, taxis, trucks,
+  26 on Hard — in their own lane (and on a two-way residential lane wide enough for traffic the
+  riders keep to their own side of it too, out over the middle only to pass). And your way: slower cars, taxis, trucks,
   buses and delivery scooters (55–90% of the road's speed) sent up the course 90–270 m ahead of you
   in the riders' own lanes, to weave past — up to 8 on Easy, 11 on Medium, 14 on Hard (`along` in
   `LEVELS`); on Hard (`dense`) they are sent anywhere 60–300 m up the course, cars as well as
-  delivery scooters down the residential lanes wide enough for a car and a rider beside it, and they
+  delivery scooters down the residential lanes wide enough for a car and a rider beside it (7 m and
+  up: the narrower ones are people's), and they
   may stand closer on the two-lane streets (14 m apart in a lane) — but never two side by side, nor
   beside one coming the other way or a parked car: across the road there is always a gap. One that
   turns off the course is just traffic again and another is sent in its place. Bots and the autopilot see a vehicle along its
@@ -428,7 +429,7 @@ Seoul's real streets — and the streets stay open.
   a clear lane and never with a rider within 30 m — and pull out round a car parked at the kerb or
   a bus at its stop rather than queue behind it. Cars stand parked at the kerb (two, seven and
   twelve a kilometre by level) on the two-way roads — on Hard the narrower ones too (6.5 m and up),
-  with delivery scooters left at the kerb of the lanes (about ten a kilometre) — never in the 60 m
+  with delivery scooters left at the kerb of the lanes wide enough (about ten a kilometre) — never in the 60 m
   before a corner nor just after it; buses stand at their stops on the wider roads (about one a kilometre; "BUS STOPPED" warns
   you — a warning comes up only once a thing has been in your line a quarter of a second, and stays at
   least a second and a half on the side it was first seen: never a box blinking on and off), blinking to pull out. At night
@@ -436,7 +437,21 @@ Seoul's real streets — and the streets stay open.
   Rocketbox avatars, MIT) — walking, waiting in groups at the crossings, at shop doors, texting,
   looking about, cheering at the start — and nobody faceless is drawn: further off the pavement is
   simply quieter (`src/city/life.js`). In a race people gather ahead of the riders, and in the small
-  streets they keep to the edges. A delivery scooter near you has a real rider sat on it; far off,
+  streets they keep to the edges.
+  **Narrow streets are people's only** (the user's ask: "in narrow alleys, only people"). Narrow is
+  one rule, `isNarrow` in `src/city/alleys.js` (unit-tested in `tests/unit/jarani-narrow.test.mjs`):
+  every golmok, alley, service lane, living street, market lane and footway (OSM class 6 and up,
+  however wide); a residential or unclassified lane — no lane markings — under 7 m (the map's 6.2 m
+  when it doesn't say: a car and a rider can't pass side by side); a main road with under 3 m a
+  direction (a two-way road under 6 m). No car, taxi, truck, bus, town bus or delivery scooter drives
+  down one, turns into one, is put down in one, parks or stands at a stop in one — the race's
+  traffic (`src/city/traffic.js`: round the riders, coming down the course, sent up it, parked, at
+  the stops, Hard's parked scooters, every respawn) and the city's own (`street.js`) alike, and the
+  alleys' parked-scooter props (`golmok.js`) are left out there too. Where a course runs down a narrow
+  street (Hard's Euljiro, Mullae and the others' 6 m lanes) it simply has no traffic: people, props
+  and the bots are what is in the way. The people are kept there: in a race, until six are down the
+  narrow streets the course takes near you, nearly half of those put down on foot go there, at the
+  edges, to weave past. The narrowest golmok short cuts stay empty of people as before (`keepClear`). A delivery scooter near you has a real rider sat on it; far off,
   none is drawn. In the rain (`src/city/wetfx.js`) every light is smeared
   down the wet road, puddles mirror the sky, the rain glints where it crosses a light and wheels
   throw spray.
@@ -548,7 +563,7 @@ Seoul's real streets — and the streets stay open.
   a narrow raised pavement down a residential lane,
   garden walls and gates, air-conditioner units and gas meters, concrete poles with wires
   overhead, convex mirrors at blind corners, vertical shop signs lit at night, awnings, styrofoam
-  planters, pots, bins, parked scooters, steps, alley lamps with pools of light. What stands in the
+  planters, pots, bins, parked scooters (never in a narrow street), steps, alley lamps with pools of light. What stands in the
   street is fair at 70 km/h: only in lanes 5 m or wider, tight to the wall, never in the 40 m before a
   corner or just after it, each with a reflective yellow-and-black band. Every sharp corner has a
   chevron board across the end of its approach, and anything in your line ahead gets a warning at
