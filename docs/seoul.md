@@ -281,6 +281,40 @@ Seoul's real streets — and the streets stay open.
     it at a walking pace, and one stood a second and a half against anything is walked round toward the
     way on; where the course comes back past itself (the U-turn's two ways 10 m apart) a rider's place
     on it no longer jumps up the course to the other way.
+  - **The hill roads** (Hard, `mountain` zig-zags, one way like the Bukak Skyway — the course the user
+    liked best): three more roads that cars use, over Seoul's inner mountains on their real slopes,
+    tertiary roads all (no buses), each a place of its own (no two share more than a junction). The
+    **Inwangsan Skyway** (인왕산 스카이웨이, `kick-downhill`): from Buam-dong down the Bukak Skyway's
+    western tail to Changuimun, the city wall's north-west gate, then the old skyway along Inwangsan's
+    granite flank (인왕산로) over its shoulder and down toward Sajik-dong — Gyeongbokgung and downtown
+    open up below from halfway; its last 250 m (a guard post at the road's edge on the inside of the
+    bend held two riders there) left out. The **Samcheong–Bukchon Downhill** (삼청·북촌 다운힐,
+    `kick-palace`): from the mouth of the Samcheong tunnel high under Bugaksan down Samcheong Park's
+    hairpins through the woods, a jink across the top of Bukchon by Waryong Park (112° and 84° corners),
+    then down Bukchon-ro between the hanok roofs to Anguk. The **Arirang Pass Downhill** (아리랑고개
+    다운힐, `kick-hill`): the Bukak Skyway's eastern half (북악산로) — never the Bukak course's road —
+    along the ridge east of Palgakjeong, across the Seongbuk-dong pass, then down through the pines in
+    long linked bends and two hairpins toward Arirang-gogae, the north-east's towers ahead. Their side
+    lanes come from OpenStreetMap like every course's (new boxes in `alleys.bin`; the other courses plan
+    exactly as before, checked point for point). Course map: their pins in the Hard reds, and
+    Changuimun, Sajikdan, Samcheong Park and Jeongneung named. `tests/unit/course.test.mjs` keeps the
+    four hill roads so: 2.2–3 km from line to line, on the roads cars use (no boulevard, no golmok, never
+    against a one-way road), eight bends or more over 30° and one past 57°, 120 m or more up and down
+    with a 15 % stretch, and apart from each other. Measured (one run each on the autopilot with three
+    bots, day, clear, Nov 2026): Inwangsan 188–193 s, put back 0–1 a rider, no crashes but the items';
+    Samcheong–Bukchon 202–215 s, put back none, a crash at most (a person at a hairpin); Arirang
+    189–195 s, put back 0–1 (one rider, at the hairpin by Seongbuk-ro 4-gil), a crash at most (a car).
+    **Not built**, from the map's own roads and land and the autopilot: the **Seongbuk Embassy Pass**
+    (성북로 → 대사관로 → 정릉로10길, 2.75 km up and over) was planned and raced — its roads are
+    secondary, so city buses run them, and the riders crashed 3–7 times each (cars and buses) and took
+    273–281 s; Pyeongchang-dong (its winding lanes aren't on the map, 5–6 m and up to 20 %); Namsan's
+    other side (its car roads are already raced — Sowol-ro by the Namsan Hill Road and the Downhill,
+    Sopa-ro's west end by the Downhill, Haebangchon's lanes — and the south side's Sowol-ro is gentle,
+    ~30 m of climb); Naksan and Ihwa (narrow lanes, ~60 m of hill, none on the map); Ansan and
+    Hongje-dong (only the boulevards round it on the map, its hill roads are paths); Gwanaksan
+    (Horam-ro is a divided four-lane arterial; the park and campus roads aren't on the map); and a
+    Waryong Park and city-wall run (3.3 km of climbing on the Embassy Pass's roads, its wall-gate
+    tunnel missing from the map).
 
   The level sets more than the streets: the bots' skill, how many cars are about, coming the other
   way and going yours (Easy busier but fair, Medium busy, Hard packed), how many cars are parked at
@@ -320,6 +354,9 @@ Seoul's real streets — and the streets stay open.
   | Medium (zig-zag) | Yeouido 63 Lanes | 2.24 | 20% | 12 / 10 (8) | 191 m | 0 | 12 m | 0 / 0.3 |
   | Hard (zig-zag) | Bukak Skyway (A→B) | 2.88 | 0% | 2 / 0 (8: the hairpins are 40–60°) | 60 m | 0 | 143 m down, 77 up | 1 / 1 |
   | Hard (zig-zag) | Jamsil Sky Tower | 2.32 | 32% | 10 / 4 (4) | 192 m | 0 | 12 m | 1 / 0.7 |
+| Hard (hill road) | Inwangsan Skyway (A→B) | 2.59 | 0% | 1 / 0 (12 bends 30–74°) | 324 m | 0 | 160 m down, 88 up | 0 / 0 |
+| Hard (hill road) | Samcheong–Bukchon Downhill (A→B) | 2.65 | 0% | 4 / 2 (13 bends, park hairpins) | 78 m | 0 | 141 m down, 41 up | 1 / 0 |
+| Hard (hill road) | Arirang Pass Downhill (A→B) | 2.75 | 0% | 1 / 0 (16 bends, two hairpins) | 114 m | 0 | 139 m down, 27 up | 0 / 0.3 |
 
   (The zig-zags, one lap on the autopilot with three bots, day, clear, Nov 2026. Before the cornering
   work: the bots' laps 178–198 s on the Heritage Run, 139–141 s at Banpo, 184–199 s on the 63 Lanes,
