@@ -80,7 +80,8 @@ export class ClassesView {
       this.openId = null;
       this.load();
     }, { kind: 'small' });
-    if (!c.teacher) return this.studentView(c, back);
+    // (the teacher's view says teacher: true; a student's has the teacher's NAME there)
+    if (c.teacher !== true) return this.studentView(c, back);
     const link = c.joinCode ? `${location.origin}${location.pathname}?join=${encodeURIComponent(c.joinCode)}` : '';
     const redo = () => this.openClass(id);
     const act = (fn) => async () => {
