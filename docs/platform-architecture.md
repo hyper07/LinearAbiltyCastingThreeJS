@@ -19,6 +19,7 @@ modules); the rest is the plan.
 | Classes and skills players make, offered to the builder and the AI as heroes | **Built** |
 | Battle royale on the action RPG engine: storm, AI rivals, players against players, solo and squads | **Built**: see [Battle royale](battle-royale.md) |
 | Game packages: each game in its own folder, draft vs versioned production releases, pick-and-deploy, rollback | **Built** (Kickrani first; the other games move one at a time): see [Game packages, draft and production](#game-packages-draft-and-production) |
+| The Game Studio: style templates with live previews, a chat box that grows a game as data (one commit per change, in Changes & deploy), free assets, characters, a store, Free / Plus / Creator, classes | **Built** (payments and generation are test-mode / queued interfaces): see [Game Studio](game-studio.md) |
 | Games as records, on a home page | **Built**: published games are rows in PostgreSQL with their levels; the home page lists them with the official ones. See [Games on the home page](#games-on-the-home-page) |
 | Characters per player, per game, per class | **Built**: a character for each class in each game, in the browser and on the server (sealed to account, game and class); a game's lobby to choose and customize, and to start together |
 | NPCs, worlds, monsters and question sets players make, offered by the builder | Planned |
@@ -256,6 +257,14 @@ Like publishing a data app: the draft has a history of changes, and you choose w
 The platform build (`npm run build`) never builds a package, and a package's build never builds
 the platform. `vite.config.js` lets the dev server serve the real folders behind a worktree's
 links (`server.fs.allow`), so the font 403 that made every agent write a temporary config is gone.
+
+### Studio games
+
+Games made in the [Game Studio](game-studio.md) are packages too (`"template": "studio"`): their
+folder holds data files played by the shared runtime (`src/shared/studio/`), each chat change is
+one commit authored by its maker, and the manifest's `studio: { owner, listed }` keeps a private
+or class game off the home page, the public package list and `/releases/` (`isUnlistedStudio`)
+until its owner asks for it to be public and the admin approves and deploys it.
 
 ### Moving another game into a package (one at a time)
 

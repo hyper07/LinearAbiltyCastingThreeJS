@@ -3,6 +3,7 @@
  * Game packages from the command line (docs/production.md, "Deploying one game").
  *
  *   npm run game:create   -- --title "My Game" [--template 3d|2d] [--slug my-game] [--id official:my-game] [--genre arcade]
+ *                            [--template studio --render flat2d|full3d|hd2d|painted --animation pixel|skeletal|toon|plush --look realistic|stylized|cartoon]
  *   npm run game:test     -- <game>                  only this game's unit tests
  *   npm run game:list
  *   npm run game:changes  -- <game>                  the draft's changes not in production
@@ -64,7 +65,7 @@ try {
   switch (command) {
     case 'create': {
       const str = (v) => (typeof v === 'string' ? v : undefined);
-      const m = createPackage(gamesDir, { title: str(args.title), slug: str(args.slug), id: str(args.id), description: str(args.description) ?? '', template: str(args.template) ?? '3d', genre: str(args.genre) ?? 'arcade' });
+      const m = createPackage(gamesDir, { title: str(args.title), slug: str(args.slug), id: str(args.id), description: str(args.description) ?? '', template: str(args.template) ?? '3d', genre: str(args.genre) ?? 'arcade', params: { render: str(args.render), animation: str(args.animation), look: str(args.look), palette: str(args.palette), genre: str(args.genre) } });
       console.log(`Created games/${m.code}/ — ${m.title} (slug ${m.slug}, id ${m.id}, ${m.template} starter). A draft: only the admin sees it until its first deploy.`);
       console.log(`  npm run game:dev -- ${m.slug}      play it now`);
       console.log(`  npm run game:test -- ${m.slug}     its tests`);

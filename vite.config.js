@@ -19,6 +19,7 @@ import { createMarket } from './server/market/index.js';
 import { createWork } from './server/work/index.js';
 import { createMmo } from './server/mmo/index.js';
 import { createFps } from './server/fps/index.js';
+import { createStudio } from './server/studio/index.js';
 
 const LIBRARY_MIME = {
   '.json': 'application/json; charset=utf-8',
@@ -490,7 +491,25 @@ export default defineConfig(({ mode }) => {
           mount('games', gamesHandler(getStore, { authenticate: async (req) => (await getGame()).authenticate(req), canSeeDrafts: draftViewer({ env: { ...process.env, ...env }, allowLocal: true, authenticate: async (req) => (await getGame()).authenticate(req) }) })),
           // Game packages: production releases at /releases/, and the admin's changes / deploy / rollback.
           mount('releases', releasesHandler({ repo: resolve('.'), releasesDir: resolve(env.RELEASES_DIR ?? 'releases'), env: { ...process.env, ...env }, allowLocal: true, authenticate: async (req) => (await getGame()).authenticate(req), log: (line) => console.log(line) })),
-          mount('channels', channelHandler(getChannels, { authenticate: async (req) => (await getGame()).authenticate(req) }))
+          mount('channels', channelHandler(getChannels, { authenticate: async (req) => (await getGame()).authenticate(req) })),
+          // The Game Studio (server/studio): the same handler as production; this machine is the admin when none is set.
+          mount('studio', (() => {
+            let studio = null;
+            const get = () =>
+              (studio ??= createStudio({
+                getDb,
+                repo: resolve('.'),
+                gamesDir: resolve('games'),
+                libraryRoot: resolve('library'),
+                publicDir: resolve('public'),
+                env: { ...process.env, ...env },
+                allowLocal: true,
+                authenticate: async (req) => (await getGame()).authenticate(req),
+                parentGate: { hasPin: async (account) => (await getLearning()).hasPin(account), check: async (account, key) => (await getLearning()).parentOf(account, key) },
+                log: (line) => console.log(line)
+              }));
+            return (req, res) => get().handler(req, res);
+          })())
         ];
       })(),
       gameApi(getGame),

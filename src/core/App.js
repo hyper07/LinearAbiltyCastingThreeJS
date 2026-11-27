@@ -433,6 +433,7 @@ export class App {
         this.openEditor({});
       },
       openLibrary: () => this.libraryPanel.toggle(true),
+      openStudio: (tab, options) => this.openStudio(tab, options),
       heroes,
       heroOf: (id) => this.heroOf(id),
       rosterHeroes: (roster) => this.rosterHeroes(roster),
@@ -1784,6 +1785,27 @@ export class App {
     });
     await view.open();
     return view;
+  }
+
+  /**
+   * The Game Studio (studio/StudioPage.js, docs/game-studio.md), loaded on first use: style
+   * templates with live previews, the chat box that grows a game, free assets, characters,
+   * the (test-mode) store, plans and classes. Its games are data played by the shared runtime.
+   */
+  async openStudio(tab = 'new', options = {}) {
+    if (!this.studioPage) {
+      const { StudioPage } = await import('../studio/StudioPage.js');
+      this.studioPage = new StudioPage(this.home.root.parentElement ?? document.body, {
+        account: () => this.account?.user ?? null,
+        signIn: () => this.openHero('account'),
+        onOpen: () => this.home.musicAway?.(),
+        onClose: () => {
+          this.home.musicBack?.();
+          if (this.home.isVisible) this.home.refresh?.();
+        }
+      });
+    }
+    return this.studioPage.open(tab, options);
   }
 
   /**

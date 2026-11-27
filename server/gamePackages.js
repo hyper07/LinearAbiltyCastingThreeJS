@@ -134,40 +134,59 @@ export function slugify(title) {
  * A new package folder from a starter (server/gameTemplates.js): a fresh shortcode, game.json
  * and a complete small game that runs at once. Refuses a slug or id another package has.
  * Draft only until its first deploy: players do not see it, the admin does.
+ *
+ * A Game Studio game (template 'studio', docs/game-studio.md) passes `params` (its style
+ * choices) and `studio` ({ owner: { id, name } }): its slug is made from the title plus part of
+ * its shortcode (never taken), its id is `studio:<slug>`, and its manifest carries
+ * `studio: { owner, listed: false }` — unlisted games are never on the home page or served as
+ * releases to anyone but the admin (isUnlistedStudio).
  */
-export function createPackage(gamesDir, { title, slug, id, description = '', template = '3d', genre = 'arcade' }, { random } = {}) {
+export function createPackage(gamesDir, { title, slug, id, description = '', template = '3d', genre = 'arcade', params = {}, studio = null }, { random } = {}) {
   if (!title || !String(title).trim()) throw new PackageError('A title is needed: --title "My Game"');
   if (!TEMPLATES.includes(template)) throw new PackageError(`No template "${template}" (have: ${TEMPLATES.join(', ')})`);
+  const packages = scanPackages(gamesDir);
+  const code = newCode((c) => existsSync(join(gamesDir, c)) || packages.some((p) => p.code === c), random);
+  if (studio) {
+    slug = `${slugify(title).slice(0, 30).replace(/-+$/g, '') || 'game'}-${code.slice(2, 8)}`;
+    id = `studio:${slug}`;
+  }
   slug = slug ? String(slug).toLowerCase() : slugify(title);
   if (!SLUG_RE.test(slug)) throw new PackageError(`"${slug}" is not a usable slug: lowercase letters, digits and dashes`);
   id = id ? String(id).toLowerCase() : `official:${slug}`;
   if (!ID_RE.test(id)) throw new PackageError(`"${id}" is not a usable game id (like official:${slug})`);
-  const packages = scanPackages(gamesDir);
   const clash = packages.find((p) => p.slug === slug || p.id === id);
   if (clash) throw new PackageError(`${clash.slug === slug ? `The slug ${slug}` : `The id ${id}`} is taken by ${clash.code} (${clash.title})`, 409);
-  const code = newCode((c) => existsSync(join(gamesDir, c)) || packages.some((p) => p.code === c), random);
   const dir = join(gamesDir, code);
   const manifest = {
     code,
     id,
     slug,
-    title: String(title).trim(),
+    title: String(title).trim().slice(0, 80),
     version: '0.1.0',
     api: GAME_API,
     entry: 'index.js',
-    description,
+    description: String(description ?? '').slice(0, 400),
     genre,
     template,
-    smoke: { params: '', seconds: 10 }
+    smoke: { params: '', seconds: 10 },
+    ...(studio ? { studio: { owner: { id: Number(studio.owner.id), name: String(studio.owner.name).slice(0, 40) }, listed: false } } : {})
   };
   mkdirSync(join(dir, 'tests'), { recursive: true });
   writeFileSync(join(dir, 'game.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-  for (const [path, text] of Object.entries(templateFiles(manifest, template))) {
+  for (const [path, text] of Object.entries(templateFiles(manifest, template, params))) {
     mkdirSync(dirname(join(dir, path)), { recursive: true });
     writeFileSync(join(dir, path), text);
   }
   return manifest;
 }
+
+/**
+ * A Game Studio game that is not public: private (its owner only) or shared with a class.
+ * Such a game is left off the home page and the public package list, and its releases'
+ * files are served only to the admin (server/releases.js). Its players reach it through the
+ * Studio's own, membership-checked API (server/studio).
+ */
+export const isUnlistedStudio = (m) => Boolean(m?.studio) && m.studio.listed !== true;
 
 /* ------------------------------------------------------------- versions */
 
@@ -681,7 +700,10 @@ export function history({ repo, releasesDir, pkg, withPending = true }) {
 export function packageGames({ gamesDir, releasesDir, log = (line) => console.warn(line) }) {
   return () => {
     try {
-      return scanPackages(gamesDir).map((p) => ({ ...p, production: readCurrent(releasesDir, p.code)?.version ?? null }));
+      // Unlisted Studio games (private, or shared with a class) are never on the home page.
+      return scanPackages(gamesDir)
+        .filter((p) => !isUnlistedStudio(p))
+        .map((p) => ({ ...p, production: readCurrent(releasesDir, p.code)?.version ?? null }));
     } catch (error) {
       log(`[games] ${error.message}`);
       return [];

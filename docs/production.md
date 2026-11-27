@@ -102,6 +102,9 @@ docker compose exec -T db pg_restore -U gamory -d gamory --clean < gamory-2026-1
 | `RELEASES_DIR` | Game packages' production releases, served at `/releases/` (deploys and rollbacks write here) | `./releases` |
 | `GAMES_DIR` | Game packages' manifests (and their draft source in a checkout) | `./games` |
 | `GAMES_SCRATCH` | Where deploys make their temporary worktrees and builds | the OS temp dir |
+| `STUDIO_REPO` | The git checkout the [Game Studio](game-studio.md) commits Studio games to (`GAMES_DIR` inside it); without git the Studio reads only | the working directory |
+| `STUDIO_GEN_TOKEN` | The generation server's token for the Studio's job queue; unset = "coming soon" | unset |
+| `PAYMENTS_PROVIDER` | The Studio's payments: only `fake` (TEST MODE, no money moves) exists | `fake` |
 | `MAX_PLAYERS` | Players per party (2–8) | `4` |
 | `MAX_ROOMS` | Parties at once | `500` |
 | `TRUST_PROXY` | `1` behind a reverse proxy: rate limits then see the real client address from `X-Forwarded-For` | `0` |

@@ -500,6 +500,7 @@ flowchart LR
 | [Armor and gear](docs/gear.md) | Helmets, armor, shields, boots, rings: item classes, set bonuses, proficiency, the bag |
 | [Battle royale](docs/battle-royale.md) | The storm, rivals, solo and squads, players against players, making one, how it works |
 | [Game builder](docs/game-builder.md) | Whole games from a sentence or a few picks: genres, worlds, layouts, casts; the spec, tokens, Free and Plus, the command line |
+| [Game Studio](docs/game-studio.md) | Make a game from live style previews (2D, 3D, HD-2D, 3D on a painted backdrop; pixel, smooth, toon or plush animation; realistic, stylized or cartoon) and grow it map by map in a chat box; free assets with credits, a character maker, a store (test-mode payments), Free / Plus / Creator plans, classes for educators |
 | [Work Life](docs/work-life.md) | Jobs at real companies, tasks from their news, pay into the wallet, reviews, promotions and layoffs; the admin API |
 | [Shardfront](docs/shardfront.md) | The real-time strategy game: factions, maps, the computer players, controls, model slots |
 | [Lanebreak](docs/lanebreak.md) | The battle arena: champions, the map, bots, controls, playing with friends |

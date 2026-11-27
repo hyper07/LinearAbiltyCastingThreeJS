@@ -21,6 +21,7 @@ import { createMarket } from './market/index.js';
 import { createWork } from './work/index.js';
 import { createMmo } from './mmo/index.js';
 import { createFps } from './fps/index.js';
+import { createStudio } from './studio/index.js';
 
 /**
  * The production server: one process that serves the built game and
@@ -39,6 +40,8 @@ import { createFps } from './fps/index.js';
  *   /api/games/*      the games on the home page: official and published (gamesStore.js)
  *   /releases/*       game packages' production releases (RELEASES_DIR, releases.js)
  *   /api/releases/*   their versions; the admin's changes, deploy and rollback (releases.js)
+ *   /api/studio/*     the Game Studio: style templates, the chat box, free assets, the store,
+ *                     plans, classes (studio/index.js; payments TEST MODE only)
  *   /api/market/*     the stock market game and its admin API (market/index.js)
  *   /api/work/*       the work game and its admin API; /api/wallet (work/index.js, wallet.js)
  *   /api/levels/*     levels players save, in DATA_DIR/levels (api/files.js)
@@ -135,6 +138,20 @@ const work = createWork({ db: database, authenticate: (req) => game.authenticate
 const mmo = createMmo({ db: database, authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const fps = createFps({ authenticate: (req) => game.authenticate(req), log: (line) => console.log(line) });
 const models = createModelStore({ libraryRoot: LIBRARY_ROOT, log: (line) => console.log(line) });
+// The Game Studio writes Studio games into GAMES_DIR as git commits: it needs a git checkout
+// (STUDIO_REPO, default the working directory) with GAMES_DIR inside it; elsewhere it reads only.
+const studio = createStudio({
+  getDb: async () => database,
+  repo: resolve(process.env.STUDIO_REPO ?? '.'),
+  gamesDir: GAMES_DIR,
+  libraryRoot: LIBRARY_ROOT,
+  publicDir: STATIC_ROOT,
+  env: process.env,
+  authenticate: (req) => game.authenticate(req),
+  // Paid things ask for the family's parent PIN where there is one (AI Arcademia's family controls).
+  parentGate: { hasPin: (account) => learning.hasPin(account), check: (account, key) => learning.parentOf(account, key) },
+  log: (line) => console.log(line)
+});
 const api = chain([
   game.handler,
   aiBridge(process.env, { identify: (req) => game.authenticate(req) }),
@@ -146,6 +163,7 @@ const api = chain([
   channelHandler(async () => channels, { authenticate: (req) => game.authenticate(req) }),
   learningHandler(async () => learning, { authenticate: (req) => game.authenticate(req) }),
   voiceHandler(async () => voice),
+  studio.handler,
   market.handler,
   work.handler,
   mmo.handler,

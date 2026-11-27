@@ -11,13 +11,16 @@
  * Every file is small and says what it is for; README.md is the file map.
  */
 
+import { DATA_KEYS, STARTERS, fileText, normalizeStyle, starterData } from '../src/shared/studio/spec.js';
+
 const esc = (s) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
-export const TEMPLATES = ['3d', '2d'];
+export const TEMPLATES = ['3d', '2d', 'studio'];
 
-/** { relative path: file text } for a new package. */
-export function templateFiles(m, kind = '3d') {
+/** { relative path: file text } for a new package. `params` are the studio template's choices. */
+export function templateFiles(m, kind = '3d', params = {}) {
   if (!TEMPLATES.includes(kind)) throw new Error(`No template "${kind}" (have: ${TEMPLATES.join(', ')})`);
+  if (kind === 'studio') return studioFiles(m, params);
   const common = {
     'controls.js': CONTROLS(m),
     'hud.js': HUD(m),
@@ -480,4 +483,106 @@ ${kind === '2d' ? '' : '| `world.js` | what is in the scene and how it moves; TU
 - Import three and shared modules (\`src/shared/…\`, \`src/pixel/…\`); never \`src/core\`, \`src/ui\` or
   another game's folder. Search first: \`npm run kb -- <what>\`.
 - Data paths (\`./library/…\`, \`./audio/…\`) are relative to the page, not this folder.
+`;
+
+/* ------------------------------------------------------------------ studio */
+
+/**
+ * The Game Studio's template (docs/game-studio.md): ONE template whose choices are parameters —
+ * render (flat2d | full3d | hd2d | painted) × animation (pixel | skeletal | toon | plush) ×
+ * look (realistic | stylized | cartoon) × starter (the Game builder's genres + collect) — not a
+ * copy per combination. The game is data (data/*.json, src/shared/studio/spec.js) played by the
+ * shared runtime (src/shared/studio/runtime.js); the chat box changes the data, never the code.
+ *
+ *   params: { render, animation, look, palette, genre, player? }  (unknown values → defaults)
+ */
+export function studioParams(params = {}) {
+  const style = normalizeStyle(params);
+  return { ...style, genre: STARTERS[params.genre] ? params.genre : 'collect' };
+}
+
+function studioFiles(m, params) {
+  const p = studioParams(params);
+  const data = starterData({ title: m.title, ...p, player: params.player ?? null });
+  const files = {
+    'index.js': STUDIO_INDEX(m),
+    'README.md': STUDIO_README(m, p),
+    'tests/package.test.mjs': STUDIO_TEST(m)
+  };
+  for (const key of DATA_KEYS) files[`data/${key}.json`] = fileText(data[key]);
+  return files;
+}
+
+const STUDIO_INDEX = (m) => `/**
+ * ${m.title}: a Game Studio game (docs/game-studio.md). Everything that makes it this game is
+ * data in ./data/*.json; the shared runtime plays it. Edit it in the Studio's chat box, or edit
+ * the JSON by hand (src/shared/studio/spec.js says what each field may be).
+ */
+import { mountStudioGame } from '../../src/shared/studio/runtime.js';
+import style from './data/style.json';
+import rules from './data/rules.json';
+import maps from './data/maps.json';
+import cast from './data/cast.json';
+import audio from './data/audio.json';
+import assets from './data/assets.json';
+
+export async function mount(container, platform) {
+  platform.music.away();
+  const game = await mountStudioGame(container, { style, rules, maps, cast, audio, assets }, {
+    mode: 'play',
+    title: '${esc(m.title)}',
+    onExit: () => {
+      platform.music.back();
+      platform.exit();
+    },
+    onEvent: (event, data) => platform.track(event, data)
+  });
+  return { root: game.root, view: game, dispose: () => game.close(false) };
+}
+`;
+
+const STUDIO_README = (m, p) => `# ${m.title}
+
+A Game Studio game (docs/game-studio.md): render \`${p.render}\`, animation \`${p.animation}\`,
+look \`${p.look}\`, starter \`${p.genre}\`. Folder \`games/${m.code}/\` (the shortcode never changes).
+
+The game is DATA, played by the shared runtime (\`src/shared/studio/runtime.js\`):
+
+| File | What it holds |
+|---|---|
+| \`data/style.json\` | render, animation, look, palette |
+| \`data/rules.json\` | genre, goal, lives, speeds, difficulty, time limit, intro |
+| \`data/maps.json\` | the maps in order — "add a map" appends one |
+| \`data/cast.json\` | the player and every other character |
+| \`data/audio.json\` | the music and the sound for each event |
+| \`data/assets.json\` | outside assets used, with licence and credit (shown in game) |
+| \`index.js\` | \`mount(container, platform)\`: hands the data to the runtime |
+| \`tests/\` | checks the data against the schema |
+
+Every change from the Studio's chat box is one commit here, authored by its maker; the admin
+picks and deploys them (Changes & deploy). Private until its owner asks for it to be public and
+the admin approves and deploys it.
+`;
+
+const STUDIO_TEST = (m) => `/**
+ * ${m.title}: the data must fit the Studio's schema (src/shared/studio/spec.js), or the game
+ * would not load. \`npm run game:test -- ${m.slug}\`.
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { DATA_KEYS, validateData } from '../../../src/shared/studio/spec.js';
+
+const read = (name) => JSON.parse(readFileSync(new URL(\`../\${name}\`, import.meta.url), 'utf8'));
+
+test('${esc(m.title)}: the manifest names this folder', () => {
+  const manifest = read('game.json');
+  assert.equal(manifest.code, '${m.code}');
+  assert.equal(manifest.template, 'studio');
+});
+
+test('${esc(m.title)}: the data fits the schema', () => {
+  const data = Object.fromEntries(DATA_KEYS.map((key) => [key, read(\`data/\${key}.json\`)]));
+  assert.deepEqual(validateData(data), []);
+});
 `;

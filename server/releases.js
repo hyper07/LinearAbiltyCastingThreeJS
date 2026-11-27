@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { adminAuth } from './api/adminAuth.js';
 import { json, pathOf, readJson, RateLimiter, clientIp } from './api/http.js';
 import {
-  CODE_RE, HASH_RE, VERSION_RE, PackageError, scanPackages, resolvePackage, readCurrent, listReleases, history, commitDiff, deploy, rollback, buildPackage, prepareSource, commitOf
+  CODE_RE, HASH_RE, VERSION_RE, PackageError, isUnlistedStudio, readManifest, scanPackages, resolvePackage, readCurrent, listReleases, history, commitDiff, deploy, rollback, buildPackage, prepareSource, commitOf
 } from './gamePackages.js';
 
 /**
@@ -128,6 +128,14 @@ export function releasesHandler({ repo = resolve('.'), releasesDir, gamesDir, sc
   let busy = null;
 
   const packages = () => scanPackages(gamesDir);
+  /** A Game Studio game that is private or class-only: its releases are the admin's alone. */
+  const unlisted = (code) => {
+    try {
+      return isUnlistedStudio(readManifest(gamesDir, code));
+    } catch {
+      return false;
+    }
+  };
   const local = (req) => allowLocal && !admin.on && LOOPBACK.has(req.socket?.remoteAddress ?? '');
   const adminOf = (req) => (local(req) ? 'local-dev' : admin.idOf(req));
   const hint = draftViewer({ env, allowLocal, authenticate });
@@ -150,6 +158,7 @@ export function releasesHandler({ repo = resolve('.'), releasesDir, gamesDir, sc
       const parts = path.slice('/releases/'.length).split('/');
       const code = parts[0];
       if (!CODE_RE.test(code)) return json(res, 404, { error: 'not found' }), true;
+      if (unlisted(code) && !adminOf(req)) return json(res, 404, { error: 'not found' }), true;
       if (parts.length === 2 && parts[1] === 'current.json') {
         await sendFile(req, res, join(releasesDir, code, 'current.json'), 'no-cache');
         return true;
@@ -165,7 +174,8 @@ export function releasesHandler({ repo = resolve('.'), releasesDir, gamesDir, sc
     const parts = path.slice('/api/releases'.length).split('/').filter(Boolean);
     try {
       if (!parts.length && req.method === 'GET') {
-        const list = packages().map((p) => {
+        const isAdmin = Boolean(adminOf(req));
+        const list = packages().filter((p) => isAdmin || !isUnlistedStudio(p)).map((p) => {
           const cur = readCurrent(releasesDir, p.code);
           return { code: p.code, id: p.id, slug: p.slug, title: p.title, entry: p.entry, version: cur?.version ?? null, updated: cur?.updated ?? null };
         });
@@ -183,6 +193,7 @@ export function releasesHandler({ repo = resolve('.'), releasesDir, gamesDir, sc
       }
       const pkg = resolvePackage(packages(), decodeURIComponent(parts[0]));
       if (parts.length === 1 && req.method === 'GET') {
+        if (isUnlistedStudio(pkg) && !adminOf(req)) throw new PackageError('No such game package', 404);
         const cur = readCurrent(releasesDir, pkg.code);
         const releases = listReleases(releasesDir, pkg.code).reverse().map((r) => ({ version: r.version, date: r.date, notes: r.notes }));
         return send(200, { package: { code: pkg.code, id: pkg.id, slug: pkg.slug, title: pkg.title }, current: cur, releases }), true;

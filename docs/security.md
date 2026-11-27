@@ -127,6 +127,15 @@ next step in the plan for many players, see [Production — scaling](production.
 
 There is no email or password reset, no two-factor sign-in, and no key rotation yet.
 
+## The Game Studio
+
+The [Game Studio](game-studio.md#security) checks plans, ownership, class membership and the
+admin on the server for every call; treats the LM model's answer as data (a strict schema, every
+value checked, text cleaned) and writes only a game's six data files, as git commits with fixed
+argument lists; keeps private and class games off every public list and their release files
+admin-only; rate-limits and locks out wrong class codes; and asks for the family PIN before
+anything paid. Its payments are TEST MODE only.
+
 ## For developers
 
 - `server/game/keys.js` — the secret, HKDF, sealing (AES-GCM), the chain HMAC, scrypt, tokens.

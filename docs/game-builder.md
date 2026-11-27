@@ -2,6 +2,9 @@
 
 [← Back to the README](../README.md)
 
+> To build a game you keep growing — pick a 2D/3D style, then add maps, characters and sounds
+> by chatting — use the [Game Studio](game-studio.md).
+
 <p>
   <img src="screenshots/game-builder.jpg" width="100%" alt="The Game builder: an idea on the left, Quick build and Build with AI; on the right the menus (genre, world, map layout, hero, monsters, difficulty, chapters) and the study and reward settings for a times-tables game" />
 </p>

@@ -58,6 +58,7 @@ export class PlatformHome {
    *   create: () => void,
    *   openHero: (panel?: string) => void,
    *   openForge: () => void, openEditor: () => void, openLibrary: () => void,
+   *   openStudio?: (tab?: string, options?: object) => void,
    *   heroes: () => Promise<{ id: string, name: string }[]>,
    *   heroOf: (gameId: string) => string|null,
    *   rosterHeroes: (roster: object[]) => { id: string, name: string }[],
@@ -86,6 +87,7 @@ export class PlatformHome {
         <nav class="home__actions" id="home-nav" data-nav aria-label="Gamory">
           <button type="button" class="home__btn home__icon-btn home__nav-close" data-nav-close aria-label="Close the menu" title="Close (Esc)"><span class="home__ico" aria-hidden="true">✕</span></button>
           <button type="button" class="home__btn home__btn--primary home__create" data-create><span class="home__ico" aria-hidden="true">＋</span><span>Create</span></button>
+          <button type="button" class="home__btn home__studio-btn" data-studio title="The Game Studio: pick a look, then build and grow your game by chatting; free assets, characters, classes"><span class="home__ico" aria-hidden="true">🎨</span><span>Studio</span></button>
           <div class="home__space" data-space>
             <button type="button" class="home__btn home__space-toggle" data-space-toggle aria-haspopup="true" aria-expanded="false" aria-controls="home-space-menu" title="Your channel, your heroes, the arena and parties"><span class="home__ico" aria-hidden="true">🙂</span><span>My space</span><span class="home__caret" aria-hidden="true"></span></button>
             <div class="home__space-menu" id="home-space-menu" data-space-menu role="menu" aria-label="My space">
@@ -141,6 +143,7 @@ export class PlatformHome {
         <section class="home__studio" aria-label="Make something">
           <span>Make:</span>
           <button type="button" data-builder>a game</button>
+          <button type="button" data-studio-make>a game in the Studio</button>
           <button type="button" data-forge>a hero class</button>
           <button type="button" data-editor>a level by hand</button>
           <button type="button" data-library>browse the library</button>
@@ -227,6 +230,8 @@ export class PlatformHome {
     this.$('[data-forge]').addEventListener('click', () => actions.openForge());
     this.$('[data-editor]').addEventListener('click', () => actions.openEditor());
     this.$('[data-library]').addEventListener('click', () => actions.openLibrary());
+    this.$('[data-studio]').addEventListener('click', () => actions.openStudio?.('new'));
+    this.$('[data-studio-make]').addEventListener('click', () => actions.openStudio?.('new'));
     this.$('[data-hero]').addEventListener('click', () => actions.openHero('loadout'));
     this.$('[data-heroes]').addEventListener('click', () => actions.openHeroes?.());
     /** Channels: a maker's own space (ui/ChannelPage.js), over the home page. */
@@ -280,6 +285,10 @@ export class PlatformHome {
     if (!this._routed) {
       this._routed = true;
       this.channel.route();
+      // A class's join link (?join=CODE) or ?studio opens the Game Studio.
+      const params = new URLSearchParams(location.search);
+      if (params.get('join')) this.actions.openStudio?.('classes', { join: params.get('join').slice(0, 12) });
+      else if (params.has('studio')) this.actions.openStudio?.(params.get('studio') || 'new');
     } else this.channel.onShow();
     return this.refresh();
   }
