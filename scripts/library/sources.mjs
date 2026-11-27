@@ -360,6 +360,8 @@ const EXTRA_MATERIALS = ['CorrugatedSteel005', 'CorrugatedSteel007A', 'Metal027'
   'Bricks101', 'Granite002A', 'Granite001A', 'Tiles107', 'Tiles133A', 'Plaster001',
   // Kickrani's pavements: brick paving blocks.
   'PavingStones152',
+  // Kickrani's retaining walls where a hill road stands over the drop: mossy granite blocks.
+  'PavingStones138',
   // Kickrani's street trees: a ginkgo's grey furrowed bark, a plane tree's peeling camouflage bark.
   'Bark004', 'Bark009'];
 // (Kithvale's painted ground uses Grass004, Ground068, Ground106, PavingStones141, Rock051 and Moss002, all above.)
