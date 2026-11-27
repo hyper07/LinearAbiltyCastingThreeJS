@@ -29,7 +29,7 @@ import { narrowPoint, narrowRoad } from './alleys.js';
 /** How many of each, near you (the stand-abouts come in twos and threes, and some walkers in pairs). */
 export const CROWD = { walk: 22, dog: 5, shop: 8, stand: 12 };
 /** In a race, how many at least down the narrow streets the course runs down near you, and the share of new people sent there till then. */
-export const ALLEY_FOLK = { want: 6, share: 0.45 };
+export const ALLEY_FOLK = { want: 4, share: 0.3 };
 const ON_FOOT = new Set(['walk', 'jog', 'dog', 'shop', 'stand']);
 /** Who becomes a real person near you: everyone on foot (nobody is drawn who isn't). */
 const REAL = new Set(['walk', 'dog', 'shop', 'stand']);

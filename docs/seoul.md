@@ -449,9 +449,15 @@ Seoul's real streets — and the streets stay open.
   the stops, Hard's parked scooters, every respawn) and the city's own (`street.js`) alike, and the
   alleys' parked-scooter props (`golmok.js`) are left out there too. Where a course runs down a narrow
   street (Hard's Euljiro, Mullae and the others' 6 m lanes) it simply has no traffic: people, props
-  and the bots are what is in the way. The people are kept there: in a race, until six are down the
-  narrow streets the course takes near you, nearly half of those put down on foot go there, at the
-  edges, to weave past. The narrowest golmok short cuts stay empty of people as before (`keepClear`). A delivery scooter near you has a real rider sat on it; far off,
+  and the bots are what is in the way. The people are kept there: in a race, until four are down the
+  narrow streets the course takes near you, a third of those put down on foot go there, at the
+  edges, to weave past. The narrowest golmok short cuts stay empty of people as before (`keepClear`).
+  Measured on the autopilot (Nov 2026, Euljiro — 170 of its 298 course points narrow — day, clear,
+  100 s before, 70–100 s after): vehicles seen on a narrow street 365 (194 delivery scooters coming
+  down the course, 49 sent up it, 5 round you, 2 parked; 115 cars, 58 of them sent up the course) → 0; parked places in a
+  narrow street 2 of 7 → 0 of 5; vehicles round you 112 → 60 on average; people down the course's
+  narrow streets within 80 m 12 → 12.5 on average; nobody in a short cut, before or after; you got
+  544 → 684–823 m along in the time (fewer jams). A delivery scooter near you has a real rider sat on it; far off,
   none is drawn. In the rain (`src/city/wetfx.js`) every light is smeared
   down the wet road, puddles mirror the sky, the rain glints where it crosses a light and wheels
   throw spray.
