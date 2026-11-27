@@ -84,8 +84,11 @@ including commercially, **with attribution** — the game credits it in its Cred
     either side joined by a short corridor, at the foot of Bugaksan. The palace, Cheong Wa Dae and the
     statues cast and take the sun's shadows, and are lit warm after dark.
   - **Admiral Yi Sun-sin** (이순신 장군 동상) on Gwanghwamun Square, west of Sejong-daero's
-    carriageways (`src/city/admiral.js`, sculpted in three.js from lathes, tubes and shells to the user's
-    reference photo, ~9k triangles, a few-hundred-triangle copy far off): feet together on a dark bronze
+    carriageways: the sculpture the project's owner supplied (`Yi_Sun-sin_fixed.stl`, 83,842 triangles,
+    packed by `scripts/models/statue-pack.mjs` into `public/models/landmarks/yi-sun-sin.bin`, 1.3 MB,
+    loaded by `src/city/yiStatue.js`), gilded — polished gold (physical material, metalness 0.92,
+    roughness 0.3), glowing softly from below after dark. (Before it, `src/city/admiral.js`'s hand-built
+    figure, described here:) feet together on a dark bronze
     slab, his right hand holding the long sheathed sword upright at his side (tip on the slab, the round
     guard and hilt at his shoulder, a cord hanging), the left hand on his hip, a rounded helmet with a
     small trident finial and a long neck guard to the shoulders, moustache and beard, layered shoulder

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { admiral, admiralFar, bronzeMaterial } from './admiral.js';
+import { bronzeMaterial } from './admiral.js';
+import { yiStatue, goldMaterial } from './yiStatue.js';
 import { Fountain } from './fountain.js';
 
 /**
@@ -836,11 +837,11 @@ function inscription() {
 }
 
 /**
- * Gwanghwamun Square's statues: Admiral Yi Sun-sin in bronze (admiral.js: sculpted near, a light copy far) on
+ * Gwanghwamun Square's statues: Admiral Yi Sun-sin, gilded (yiStatue.js: the supplied sculpture) on
  * his tall pale granite plinth (17 m in all) with the inscription down its face, a bronze turtle ship on a
  * low stone base before it; the fountain's long pool down the square in front of him (fountain.js), lit
  * after dark; and behind him King Sejong seated, gilded, on a low plinth. Both face south, down the square.
- * After dark the admiral is lit softly from below.
+ * After dark the admiral is lit softly from below (his gold's emissive).
  */
 function statues(l, ground) {
   const m = hanokMats();
@@ -864,12 +865,11 @@ function statues(l, ground) {
   const words = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 7.2), new THREE.MeshLambertMaterial({ map: inscription() }));
   words.position.set(0, 1.8 + 3.9, 2.21);
   yi.add(words);
-  // the admiral: the sculpted figure near, a light copy far
-  const lod = new THREE.LOD();
-  lod.addLevel(admiral({ bronze }), 0);
-  lod.addLevel(admiralFar(bronze), 260);
-  lod.position.y = y;
-  yi.add(lod);
+  // the admiral, gilded, on the cornice
+  const yiGold = goldMaterial();
+  const admiral = yiStatue(yiGold);
+  admiral.position.y = y;
+  yi.add(admiral);
   // the turtle ship on its low stone base, south of the plinth
   const shipBase = stoneBox(3.2, 0.6, 6.4, granite);
   shipBase.position.set(0, 0.3, 9.6);
@@ -890,7 +890,7 @@ function statues(l, ground) {
   sj.add(king);
   sj.position.set(l.sejong.x - l.x, ground(l.sejong.x, l.sejong.z) - base, l.sejong.z - l.z);
   g.add(sj);
-  return { group: g, mats: [], base: [], lit: [], fogged: true, anim: fountain, under: [bronze] };
+  return { group: g, mats: [], base: [], lit: [], fogged: true, anim: fountain, under: [bronze, yiGold] };
 }
 
 /**
