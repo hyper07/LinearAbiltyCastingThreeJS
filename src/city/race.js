@@ -132,6 +132,13 @@ const TUMBLE = 0.7;
 const WALL_FALL = 10.5;
 const DOWN = 1.55;
 /**
+ * The edge of a street over a drop (roadLevel.js: streets lie level across, on retaining walls where the land
+ * falls away): ridden off where the land is more than `fall` metres down, a rider falls — gravity, a tumble —
+ * and is put back on the course at once on landing (or after `max` seconds), facing the way on at `speed`;
+ * the land or a retaining wall more than `wall` metres up beside a street is a wall, not ridden up.
+ */
+const DROP = { fall: 1.5, wall: 1.5, max: 1.5, settle: 0.3, speed: 4 };
+/**
  * The energy drink — the only boost there is (no gauge, no boost key): a gulp, then `boost` seconds at
  * once to the scooter's boost speed (`extra` m/s over it) with its boost's pull — about 15 metres
  * gained on a straight: worth having, not a win.
@@ -273,6 +280,8 @@ export class Race {
     this.timeEl = el('race__time');
     this.itemsEl = el('race__items');
     this.countEl = el('race__count');
+    // (a quick dip to dark as you are put back after a fall: no words)
+    this.dipEl = el('race__dip');
     this.msgEl = el('race__msg');
     this.linesEl = el('race__lines');
     this.resultEl = el('race__results');
@@ -1296,7 +1305,7 @@ export class Race {
     const o = new THREE.Object3D();
     m.userData.at.forEach((a, k) => {
       if (!all && Math.hypot(a.x - p.x, a.z - p.z) > 220) return;
-      o.position.set(a.x, this.g.surfaceAt(a.x, a.z, this.g.groundAt(a.x, a.z) + 14) + 0.06, a.z);
+      o.position.set(a.x, this.g.surfaceAt(a.x, a.z, this.g.baseAt(a.x, a.z) + 14) + 0.06, a.z);
       o.rotation.set(0, a.heading, 0);
       o.updateMatrix();
       m.setMatrixAt(k, o.matrix);
@@ -1306,7 +1315,7 @@ export class Race {
     if (sa) {
       sa.userData.at.forEach((a, k) => {
         if (!all && Math.hypot(a.x - p.x, a.z - p.z) > 220) return;
-        o.position.set(a.x, this.g.surfaceAt(a.x, a.z, this.g.groundAt(a.x, a.z) + 14) + 0.07, a.z);
+        o.position.set(a.x, this.g.surfaceAt(a.x, a.z, this.g.baseAt(a.x, a.z) + 14) + 0.07, a.z);
         o.rotation.set(0, a.heading, 0);
         o.scale.set(0.8, 1, 0.8);
         o.updateMatrix();
@@ -1317,9 +1326,9 @@ export class Race {
     }
     for (const b of this.boards ?? []) {
       const a = b.userData.at;
-      if (all || Math.hypot(a.x - p.x, a.z - p.z) < 220) b.position.y = this.g.surfaceAt(a.x, a.z, this.g.groundAt(a.x, a.z) + 14);
+      if (all || Math.hypot(a.x - p.x, a.z - p.z) < 220) b.position.y = this.g.surfaceAt(a.x, a.z, this.g.baseAt(a.x, a.z) + 14);
     }
-    for (const gt of [this.gate, this.finishGate]) if (gt && (all || Math.hypot(gt.position.x - p.x, gt.position.z - p.z) < 200)) gt.position.y = this.g.surfaceAt(gt.position.x, gt.position.z, this.g.groundAt(gt.position.x, gt.position.z) + 14);
+    for (const gt of [this.gate, this.finishGate]) if (gt && (all || Math.hypot(gt.position.x - p.x, gt.position.z - p.z) < 200)) gt.position.y = this.g.surfaceAt(gt.position.x, gt.position.z, this.g.baseAt(gt.position.x, gt.position.z) + 14);
     // The fans at the line: put down at the start, often before their pavement had loaded (on the bare land
     // under it, waist-deep in the paving drawn later) — stood on what is under their feet now.
     for (const f of this.fans ?? []) {
@@ -1330,7 +1339,7 @@ export class Race {
 
   /** Where something put down beside the course stands: on what is drawn under it (street level, not a bridge over it). */
   _standY(x, z) {
-    return this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 1.3, false, true);
+    return this.g.surfaceAt(x, z, this.g.baseAt(x, z) + 1.3, false, true);
   }
 
   /* ---------------------------------------------------------- a frame */
@@ -1448,7 +1457,11 @@ export class Race {
         // Oil under the wheels: a spin-out (no grip, a full turn, most of the speed gone).
         this._oily(r, input, dt);
         if (r.mode !== 'ride') continue;
+        const px = r.s.x;
+        const pz = r.s.z;
         const out = this._step(r, input, dt);
+        // Over the edge of a drop: falling; into a retaining wall or the hillside: held off it.
+        if (this._edge(r, px, pz)) continue;
         this._spun(r, out, racing);
         r.landed = out.landed;
         if (out.kerb === 'hop' && r.me) this.g.street?._thud?.(0.25);
@@ -1486,11 +1499,12 @@ export class Race {
     this._marbles(dt);
     this._smoke(dt);
     this._slicks();
-    this.helmetDrops?.update(dt, (x, z) => this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14));
+    this.helmetDrops?.update(dt, (x, z) => this.g.surfaceAt(x, z, this.g.baseAt(x, z) + 14));
     this._bump();
     for (const r of this.racers) {
       if (r.left) continue;
-      if (r.mine) this._progress(r);
+      // (not while falling off a drop: where it went over is where it is put back)
+      if (r.mine && !r.drop) this._progress(r);
       this._place(r, dt);
     }
     this.boxes?.update(dt, this.g.camera);
@@ -1605,8 +1619,8 @@ export class Race {
   _grade(r) {
     const fx = -Math.sin(r.s.heading) * 6;
     const fz = -Math.cos(r.s.heading) * 6;
-    const a = this.g.groundAt(r.s.x + fx, r.s.z + fz);
-    const b = this.g.groundAt(r.s.x - fx, r.s.z - fz);
+    const a = this.g.baseAt(r.s.x + fx, r.s.z + fz, r.y);
+    const b = this.g.baseAt(r.s.x - fx, r.s.z - fz, r.y);
     const g = Math.max(-0.12, Math.min(0.12, (a - b) / 12));
     r.grade = (r.grade ?? g) + (g - (r.grade ?? g)) * 0.1;
     return r.grade;
@@ -2160,9 +2174,81 @@ export class Race {
     if (r.me) this.shake = 0.35;
   }
 
+  /**
+   * Where a street's edge stands over the land (a retaining wall down) or under it (one up): ridden off a
+   * drop, the rider falls; ridden at the land or a wall well over the street, it is held off it as by a
+   * wall (back where it was, slowed). True if it fell.
+   */
+  _edge(r, px, pz) {
+    const s = r.s;
+    const under = this.g.surfaceAt(s.x, s.z, r.y + 0.3);
+    if (under < r.y - DROP.fall) {
+      this._fall(r);
+      return true;
+    }
+    if (under > r.y + DROP.wall) {
+      s.x = px;
+      s.z = pz;
+      s.v *= 0.35;
+      r.wobble = Math.max(r.wobble ?? 0, 0.4);
+      if (r.me) this.g.street?._thud?.(0.4);
+    }
+    return false;
+  }
+
+  /** Off the edge: falling, tumbling, carried on by the speed it went over at — put back on landing. */
+  _fall(r) {
+    const s = r.s;
+    const dir = s.travel ?? s.heading;
+    r.mode = 'tumble';
+    r.crashT = 0;
+    r.fallKind = null;
+    r.fallSide = s.lean > 0.05 ? 1 : s.lean < -0.05 ? -1 : Math.random() < 0.5 ? 1 : -1;
+    r.drop = { y: r.y, vy: 0, landed: null };
+    r.slide = { vx: -Math.sin(dir) * s.v * 0.7, vz: -Math.cos(dir) * s.v * 0.7, air: true };
+    r.drops = (r.drops ?? 0) + 1;
+    (this.dropLog ??= []).push({ id: r.id, x: Math.round(s.x * 10) / 10, z: Math.round(s.z * 10) / 10, idx: r.idx, v: Math.round(s.v * 10) / 10, t: Math.round(this.clock) });
+    s.v = 0;
+    if (r.me) this.shake = Math.max(this.shake ?? 0, 0.2);
+  }
+
+  /** The quick dip to dark (and back) as you are put back after a fall. */
+  _dip() {
+    const e = this.dipEl;
+    if (!e) return;
+    e.hidden = false;
+    e.classList.add('is-on');
+    clearTimeout(this._dipT);
+    this._dipT = setTimeout(() => e.classList.remove('is-on'), 170);
+  }
+
   /** While down: sliding to a stop, sitting dazed, getting up, then back on the bike on the course. */
   _down(r, dt) {
     r.crashT += dt;
+    if (r.drop) {
+      // Falling: down under gravity, on through the air at the speed it went over (no wall to slide into
+      // on the way down: it lands, or is put back first); landed, a moment, then back on the course.
+      const d = r.drop;
+      if (d.landed == null) {
+        d.vy += 9.8 * dt;
+        d.y -= d.vy * dt;
+        r.s.x += r.slide.vx * dt;
+        r.s.z += r.slide.vz * dt;
+        const ground = this.g.surfaceAt(r.s.x, r.s.z, d.y + 0.3);
+        if (d.y <= ground) {
+          d.y = ground;
+          d.landed = r.crashT;
+          if (r.me || Math.hypot(r.s.x - this.g.pos.x, r.s.z - this.g.pos.z) < 40) this.g.street?._thud?.(r.me ? 0.8 : 0.3);
+          if (r.me) this.shake = Math.max(this.shake ?? 0, 0.3);
+        }
+      }
+      if ((d.landed != null && r.crashT - d.landed > DROP.settle) || r.crashT > DROP.max) {
+        if (r.me) this._dip();
+        this._remount(r);
+        r.s.v = DROP.speed;
+      }
+      return;
+    }
     if (r.slide) {
       r.s.x += r.slide.vx * dt;
       r.s.z += r.slide.vz * dt;
@@ -2208,6 +2294,10 @@ export class Race {
     r.mode = 'ride';
     r.crashT = 0;
     r.slide = null;
+    // (on the street again, at its height at once: not eased down from wherever it fell to)
+    r.drop = null;
+    r.over = null;
+    r.y = this.g.surfaceAt(r.s.x, r.s.z, this.g.baseAt(r.s.x, r.s.z) + 1.2);
     r.safe = 1.5;
     r.stuck = 0;
   }
@@ -2249,12 +2339,14 @@ export class Race {
     // in a tenth of a second rather than snapped to (it read as a jump) — only what the step adds over
     // the hill: up or down a steep street the wheels stay on the road (eased as a whole, the scooter
     // hung up to 20 cm above it going down and sank 12 cm into it going up).
-    const ground = this.g.groundAt(s.x, s.z);
+    // (measured from the street's level under it — level across, smooth along: roadLevel.js — or the land off it)
+    const ground = this.g.baseAt(s.x, s.z, r.y);
     const over = target - ground;
     r.over ??= over;
     const dy = over - r.over;
     r.over += Math.abs(dy) > 0.8 ? dy : dy * Math.min(1, dt * (Math.abs(dy) < 0.12 ? 10 : dy > 0 ? 30 : 14));
-    r.y = ground + r.over;
+    r.y = r.drop ? r.drop.y : ground + r.over;
+    if (r.drop) r.over = r.y - ground;
     const ease = 1 - Math.exp(-dt * 16);
     r.pitch = (r.pitch ?? sit.pitch) + (sit.pitch - (r.pitch ?? sit.pitch)) * ease;
     r.camber = (r.camber ?? sit.camber) + (sit.camber - (r.camber ?? sit.camber)) * ease;
@@ -2417,7 +2509,7 @@ export class Race {
     const ahead = this.g.surfaceAt(s.x + fx * 0.55, s.z + fz * 0.55, r.y + 0.3);
     // (less the hill's own rise: the streets and pavements lie on the ground, and up a steep one a
     // pavement climbs more than a low kerb in half a metre — it isn't hopped stone by stone)
-    const hill = this.g.groundAt(s.x + fx * 0.55, s.z + fz * 0.55) - this.g.groundAt(s.x, s.z);
+    const hill = this.g.baseAt(s.x + fx * 0.55, s.z + fz * 0.55, r.y) - this.g.baseAt(s.x, s.z, r.y);
     const rise = ahead - here - hill;
     if (Math.abs(rise) < 0.035 || Math.abs(rise) > 0.6) return null;
     // Within the street the course runs down, a step in the surface is a seam or a steep bit (two road
@@ -2433,7 +2525,7 @@ export class Race {
     const l = this.g.surfaceAt(s.x + fx * 0.45 + sx * 0.5, s.z + fz * 0.45 + sz * 0.5, r.y + 0.3);
     const rt = this.g.surfaceAt(s.x + fx * 0.45 - sx * 0.5, s.z + fz * 0.45 - sz * 0.5, r.y + 0.3);
     // gradient across travel (side) vs along it (rise): met squarely, the side difference is small (the hill's own, left out)
-    const tilt = this.g.groundAt(s.x + fx * 0.45 + sx * 0.5, s.z + fz * 0.45 + sz * 0.5) - this.g.groundAt(s.x + fx * 0.45 - sx * 0.5, s.z + fz * 0.45 - sz * 0.5);
+    const tilt = this.g.baseAt(s.x + fx * 0.45 + sx * 0.5, s.z + fz * 0.45 + sz * 0.5, r.y) - this.g.baseAt(s.x + fx * 0.45 - sx * 0.5, s.z + fz * 0.45 - sz * 0.5, r.y);
     const side = (l - rt - tilt) / 1.0;
     const cross = Math.atan2(Math.abs(rise) / 0.55, Math.abs(side) + 1e-4);
     return { rise, cross, away: side > 0 ? -1 : 1 };
@@ -2755,7 +2847,7 @@ export class Race {
       p.z = b.z;
       p.r = b.r;
     }
-    this.marbleField?.update(list, (x, z) => this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14), this.clock);
+    this.marbleField?.update(list, (x, z) => this.g.surfaceAt(x, z, this.g.baseAt(x, z) + 14), this.clock);
   }
 
   /**
@@ -2852,7 +2944,7 @@ export class Race {
   _addSlick(plan) {
     const o = { ...plan, ...planSlick(plan), born: this.clock, until: this.clock + OIL.spread + OIL.life, hits: [] };
     (this.slicks ??= []).push(o);
-    this.oilField?.add(o, (x, z) => this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14));
+    this.oilField?.add(o, (x, z) => this.g.surfaceAt(x, z, this.g.baseAt(x, z) + 14));
     this.spilled = (this.spilled ?? 0) + 1;
     return o;
   }
@@ -3070,7 +3162,7 @@ export class Race {
     if (list.length || this.smokeField?.mesh.count) {
       const night = this.g.uniforms?.uNight.value ?? 0;
       const lamps = night > 0.3 ? this.g.nightLights?.near ?? [] : [];
-      this.smokeField?.update(list, { camera: this.g.camera, now: this.clock, ground: (x, z) => this.g.surfaceAt(x, z, this.g.groundAt(x, z) + 14), keep: keepInStreet, lamps, night });
+      this.smokeField?.update(list, { camera: this.g.camera, now: this.clock, ground: (x, z) => this.g.surfaceAt(x, z, this.g.baseAt(x, z) + 14), keep: keepInStreet, lamps, night });
     }
   }
 

@@ -5,7 +5,9 @@
  *
  *   road stretch: { ax, ay, az, bx, by, bz, half, alley?, w?, aL?, aR?, bL?, bR? }
  *     — its line's ends with the middle's heights, how far out it reaches (`half`); a main road also
- *       its half-width `w` and its edges' heights at each end (left/right of the way it runs), as drawn
+ *       its half-width `w` and its edges' heights at each end (left/right of the way it runs), as drawn —
+ *       the city's streets now lie level across (roadLevel.js), so a stretch's edges are its middle's height;
+ *       the rule still takes a stretch that isn't
  *   pavement strip: { ax, az, bx, bz, ya, yb, oa?, ob?, inner, outer, side, q? }
  *     — along its road's line; its kerb-side heights (ya, yb) and outer edge's (oa, ob), from `inner`
  *       to `outer` metres off the line on `side` (−1 left, 1 right); `q`, its four corners as drawn

@@ -2559,3 +2559,17 @@
     right: 10px;
   }
 }
+/* A quick dip to dark as a rider who fell off a drop is put back on the course (race.js _dip): no words. */
+.race__dip {
+  position: absolute;
+  inset: 0;
+  background: #05070c;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease-out;
+  z-index: 3;
+}
+.race__dip.is-on {
+  opacity: 0.85;
+  transition: opacity 0.08s ease-in;
+}

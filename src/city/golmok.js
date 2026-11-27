@@ -86,6 +86,12 @@ function rng(seed) {
   };
 }
 
+/**
+ * Road level at a point: the street there's level (roadLevel.js — flat across, smooth along; SeoulGame
+ * `levelAt`), its slab 0.9 m over it, or 0.9 m over the land off every street.
+ */
+const roadY = (g, x, z) => (g.levelAt?.(x, z) ?? g.groundAt(x, z)) + 0.9;
+
 /** Triangles with colours, added to by boxes and quads in a local frame. */
 class Builder {
   constructor() {
@@ -345,7 +351,7 @@ export class Golmok {
     const group = new THREE.Group();
     const open = this.open;
     const at = (i) => pts[open ? Math.max(0, Math.min(n - 1, i)) : ((i % n) + n) % n];
-    const y0 = (x, z) => g.groundAt(x, z) + 0.9; // road level (SeoulGame lays its roads 0.9 m over the land)
+    const y0 = (x, z) => roadY(g, x, z); // road level (SeoulGame lays its roads 0.9 m over their level)
     // What a thing put down at (x, z) stands on: what is drawn there — this lane or its paving (laid before
     // anything is stood beside it), a main road's pavement where it comes out onto one — else road level.
     // (Not one height for everything along an edge: across a hillside lane that sank one end of a bin and
@@ -465,10 +471,8 @@ export class Golmok {
           const L = span(-half) ?? mid;
           const R = span(half) ?? mid;
           const at = (t, o) => [a[0] + dx * t + rx * o, a[1] + dz * t + rz * o];
-          // Each point on the land under it, road level (as the city's roads lie): not flat across at the
-          // middle's height — on a hillside that left the uphill land standing over the alley's edge and
-          // the downhill edge a ledge over it, the buildings either side meeting neither.
-          // (the road's or pavement's own height where it meets one: not another stretch of alley)
+          // Each point at the street's level (as the city's roads lie: flat across, smooth along — roadLevel.js),
+          // the road's or pavement's own height where it meets one (not another stretch of alley).
           const yAt = (t, o, cut) => {
             const [x, z] = at(t, o);
             return cut ? g.surfaceAt(x, z, Infinity, true) - 0.04 : y0(x, z);
@@ -483,7 +487,7 @@ export class Golmok {
           const lb = V(L[1], -half, L[3]);
           const ma = V(mid[0], 0, mid[2]);
           const mb = V(mid[1], 0, mid[3]);
-          // (two strips, either side of its middle line, as the city's roads: the land under it isn't a plane)
+          // (two strips, either side of its middle line, as the city's roads)
           ground.quad(la, ma, mb, lb, tone);
           ground.quad(ma, ra, rb, mb, tone);
           const t0 = Math.min(L[0], R[0], mid[0]);
@@ -500,15 +504,21 @@ export class Golmok {
           };
           // Out to the buildings either side (a lane is paved wall to wall, not a strip down the middle of
           // bare land): `verge`, the paving's own width each side, wider where a building stands back.
-          const down = (v) => new THREE.Vector3(v.x, v.y - 1.4, v.z);
+          // (down to the land under it, however far: where the hillside falls away, a drop)
+          const down = (v) => new THREE.Vector3(v.x, Math.min(v.y - 1.4, g.groundAt(v.x, v.z) - 0.4), v.z);
           for (const [sd, S, e0, e1] of [[-1, L, la, lb], [1, R, ra, rb]]) {
             const edge = this._verge(ground, owned, { at, covered, sd, S, half, tone, y0, hill, inner: [e0, e1] }) ?? [e0, e1];
-            // its side down into the land, at the paving's edge
+            // its side down into the land, at the paving's edge — over a drop, a retaining wall of concrete block
             for (let k = 0; k + 1 < edge.length; k++) {
               const o0 = edge[k];
               const o1 = edge[k + 1];
-              if (sd < 0) ground.quad(down(o0), down(o1), o1, o0, tone.clone().multiplyScalar(0.7));
-              else ground.quad(down(o1), down(o0), o0, o1, tone.clone().multiplyScalar(0.7));
+              const d0 = down(o0);
+              const d1 = down(o1);
+              const tall = Math.max(o0.y - d0.y, o1.y - d1.y) > 2;
+              const into = tall ? block : ground;
+              const col = tall ? C('#bdb8ad') : tone.clone().multiplyScalar(0.7);
+              if (sd < 0) into.quad(d0, d1, o1, o0, col);
+              else into.quad(d1, d0, o0, o1, col);
             }
           }
           // A narrow raised pavement down the right of a residential lane (a short cut's: on a course's own
@@ -545,7 +555,7 @@ export class Golmok {
             if (!b[4]) stripe(0, 0.075, PAL.lineYellow);
           }
           // So bikes and people stand on it (the city's surface lookup), and it shows on the map.
-          // (sloped across as drawn: surface.js segY — its left, the +right here, is `aL`)
+          // (across as drawn: surface.js segY — its left, the +right here, is `aL`)
           const seg = { ax: pa[0], ay: ya, az: pa[1], bx: pb[0], by: yb, bz: pb[1], half: half + 0.2, alley: true, w: half, aL: ra.y, aR: la.y, bL: rb.y, bR: lb.y };
           const cell = `${Math.floor((a[0] + b[0]) / 2 / ROAD_CELL)}_${Math.floor((a[1] + b[1]) / 2 / ROAD_CELL)}`;
           if (!g.roadHash.has(cell)) g.roadHash.set(cell, []);
@@ -843,7 +853,7 @@ export class Golmok {
       const DA = D[k];
       const DB = D[k + 1];
       if (Math.max(DA, DB) < 0.3) continue;
-      // stood on: an alley stretch down the paving's middle, sloped across as drawn (its left is +right here)
+      // stood on: an alley stretch down the paving's middle, as drawn (its left is +right here)
       const [ax, az] = at(ts[k], sd * (half + DA / 2));
       const [bx, bz] = at(ts[k + 1], sd * (half + DB / 2));
       const wv = (DA + DB) / 4;
@@ -871,7 +881,7 @@ export class Golmok {
     if (g.onRoad?.(x0 + rx * side * 1.2 + ux * len / 2, z0 + rz * side * 1.2 + uz * len / 2, 0.3)) return;
     const pts = this.course.points;
     if (pts.some((q, qi) => Math.abs(qi - i) > 3 && Math.hypot(q[0] - x0 - ux * len / 2, q[1] - z0 - uz * len / 2) < (q[2] ?? 6) / 2 + 0.8)) return;
-    const y = (t) => this.g.groundAt(x0 + ux * t, z0 + uz * t) + 0.9;
+    const y = (t) => roadY(this.g, x0 + ux * t, z0 + uz * t);
     const beam = PAL.rail;
     // (broken where a side road opens off it: never across one's mouth)
     for (const [t0, t1] of solid ? solid(x0, z0, ux, uz, len) : [[0, len]]) {
@@ -920,8 +930,8 @@ export class Golmok {
     if (pw < 0.7) return;
     const KERB = 0.14;
     const P = (t, o, y) => new THREE.Vector3(a[0] + ux * len * t + rx * side * o, y, a[1] + uz * len * t + rz * side * o);
-    // (road level on the land under each point, as the lane beside it is laid: its kerb on the lane's edge)
-    const yAt = (t, o = half) => g.groundAt(a[0] + ux * len * t + rx * side * o, a[1] + uz * len * t + rz * side * o) + 0.9;
+    // (road level at each point, as the lane beside it is laid: its kerb on the lane's edge)
+    const yAt = (t, o = half) => roadY(g, a[0] + ux * len * t + rx * side * o, a[1] + uz * len * t + rz * side * o);
     // wound to face up (or out) whichever side it is on
     const quad = (p0, p1, p2, p3, col) => (side > 0 ? ground.quad(p0, p3, p2, p1, col) : ground.quad(p0, p1, p2, p3, col));
     // the top: block paving, a little lighter at its kerb
@@ -930,7 +940,8 @@ export class Golmok {
     quad(P(0, half, yAt(0)), P(1, half, yAt(1)), P(1, half, yAt(1) + KERB), P(0, half, yAt(0) + KERB), PAL.kerb);
     quad(P(0, half - 0.001, yAt(0) + KERB), P(1, half - 0.001, yAt(1) + KERB), P(1, half + 0.18, yAt(1) + KERB + 0.002), P(0, half + 0.18, yAt(0) + KERB + 0.002), PAL.kerb);
     // its back, down to the land
-    quad(P(0, half + pw, yAt(0, half + pw) + KERB), P(1, half + pw, yAt(1, half + pw) + KERB), P(1, half + pw, yAt(1, half + pw) - 1.4), P(0, half + pw, yAt(0, half + pw) - 1.4), PAL.paving.clone().multiplyScalar(0.7));
+    const foot = (t) => Math.min(yAt(t, half + pw) - 1.4, g.groundAt(a[0] + ux * len * t + rx * side * (half + pw), a[1] + uz * len * t + rz * side * (half + pw)) - 0.4);
+    quad(P(0, half + pw, yAt(0, half + pw) + KERB), P(1, half + pw, yAt(1, half + pw) + KERB), P(1, half + pw, foot(1)), P(0, half + pw, foot(0)), PAL.paving.clone().multiplyScalar(0.7));
     // stood on: the city's pavement lookup (surface.js walkY — `side` there is + to the left of a→b)
     const seg = { ax: a[0], az: a[1], bx: b[0], bz: b[1], ya: yAt(0) + KERB, yb: yAt(1) + KERB, oa: yAt(0, half + pw) + KERB, ob: yAt(1, half + pw) + KERB, inner: half, outer: half + pw, side: -side };
     const cell = `${Math.floor((a[0] + b[0]) / 2 / ROAD_CELL)}_${Math.floor((a[1] + b[1]) / 2 / ROAD_CELL)}`;

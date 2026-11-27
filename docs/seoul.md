@@ -55,12 +55,29 @@ including commercially, **with attribution** — the game credits it in its Cred
   across the road it meets and its pavements, then climbing), and
   where a bridge comes in several pieces (as Yanghwa and Dongjak do) they meet level, so every Han
   crossing drives straight through. Smaller streets are simply the gaps between buildings.
-  Off the decks a road lies on the ground edge by edge (a point every 10 m, each edge and the middle
-  line at the ground's height there), not level across at its middle's height: where roads cross on a
-  hill they are one surface, not a ledge as tall as the crossing road's width times the slope (up to
-  1.8 m on Haebangchon's). A pavement is cut where it meets another road, so it never lies across a
-  crossing and a junction's corners aren't left as holes. The surface the riders stand on is
-  `src/city/surface.js` (`surfaceOf`, tested in `tests/unit/city-surface.test.mjs`).
+  **Every street lies level from side to side** (`src/city/roadLevel.js`, run once as the map loads, for
+  the roads and the small streets together). Laid on the hillside edge by edge, a hill road tipped up to
+  37–43 % across its width on Bukak, Inwangsan and Namsan (the rider, the scooter and the view all leaning
+  with it — it made riders feel sick). Now each point every 10 m has one level for the whole width and its
+  pavements: never under the land anywhere across them (the land never pokes through), eased toward its
+  neighbours so it has no bumps or kinks, held a little to the land so on the flat it stays down on it, and
+  never more than 10 m over it. Where streets meet, every point of each within the crossing street's
+  half-width and pavement is one level — a flat plate the streets ease into; an alley that comes out onto a
+  road between its points is joined to it there. Where the land falls away beside a street it stands on a
+  **retaining wall** of granite blocks (`PavingStones138`, over 1.6 m; a concrete block wall under an
+  alley's paving), with no rail: ride off and you fall; where the hillside rises just past a street's edge,
+  a retaining wall up holds it back (and stops you as a wall would). A bridge's deck is its lift over that
+  level. Seoul's hill roads climb more steeply than a gentle grade for hundreds of metres (the land along
+  Bukak Skyway, Inwangsan and Arirang climbs 20–28 % over 10 m stretches in the 25 m terrain): held to
+  8 %, Namsan's and Bugaksan's roads stood 30–80 m over the land, so a long climb stays a climb, only
+  smoothed — on the hill courses the steepest 10 m stretch went from 20–28 % on the land to 13–22 %
+  (Namsan 19 → 13, Inwangsan 27 → 15, Bukak 27.5 → 19, Haebangchon 20 → 22 at a plate's edge), the street
+  typically 2–4 m over the land at its middle (up to 8–13 m at the foot of a long climb). A pavement is cut
+  where it meets another road, so it never lies across a crossing and a junction's corners aren't left as
+  holes. The surface the riders stand on is `src/city/surface.js` (`surfaceOf`, tested in
+  `tests/unit/city-surface.test.mjs`); the levels, `tests/unit/city-roadlevel.test.mjs`. Anything measured
+  from "the ground" under a street (a rider's or a car's height, a walker's, the hill's grade) is measured
+  from its level instead (SeoulGame `levelAt`, `baseAt`).
 - **The landmarks** (`src/city/skyline.js`, `SKYLINE`), drawn by hand, low-poly, at their real place and
   height (world metres from the register's own points and blocks, or converted from their longitude and
   latitude), so riders know where they are. No company name, logo or lighting on any of them.
@@ -688,6 +705,12 @@ Seoul's real streets — and the streets stay open.
   still riding. Pass close at speed and you hear the whoosh (and it counts as a close call); the
   "WHOOSH!" word pops only for one met coming the other way — a car or bus passing you from behind,
   horn and all, is the sound alone.
+  Ride off a street's edge where it stands over a drop (more than 1.5 m down to the land: `race.js` DROP)
+  and you fall — gravity, a tumble, carried on through the air by your speed — and as you land (or 1.5 s
+  on, whichever is first) you are put back on the course where you last were on it, facing the way on at
+  a walking pace, with a quick dip to dark and no message; a bot the same, without the dip. The land or a
+  retaining wall more than 1.5 m up beside a street is a wall: you are held off it, slowed, never ridden
+  up it or left stuck on its face.
 - **Items** (`src/city/items.js`): ride through the bouncing "?" boxes (rows across the street every
   ~220 m) to fill three slots; use them with **1 2 3**. **Energy drink** — the only boost
   there is (no boost key, no gauge, no tailwind): a can crack and two gulps, your rider drinks, and
@@ -793,9 +816,8 @@ Seoul's real streets — and the streets stay open.
   corner or just after it, each with a reflective yellow-and-black band. Every sharp corner has a
   chevron board across the end of its approach, and anything in your line ahead gets a warning at
   the top of the screen ("⚠ BINS · ⬅ KEEP LEFT 60 m").
-  The lane lies on the land under each point at road level, as the city's roads do (two strips either
-  side of its middle, sloped across with the hill — `surfaceAt` knows the slope), not flat across at
-  its middle's height; and it is paved out to the buildings either side (`_verge`: to a wall within 3 m,
+  The lane lies at its street's level (roadLevel.js: flat across, smooth along, as the city's roads), its
+  sides down to the land however far it falls away; and it is paved out to the buildings either side (`_verge`: to a wall within 3 m,
   a hand under it, or under a garden wall's foot), so the alley floor meets the building bases — before,
   a strip down the middle of bare land, a ledge on the downhill side and the uphill land over its edge.
   Its paving has real concrete grain (Concrete034). **What stands in a street stands on what is drawn
