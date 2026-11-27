@@ -123,7 +123,7 @@ export const BIKE_COURSES = [
     roads: 'avenues', beside: 0.2, max: 5700, startAt: [-100, -460], plaza: ['gwanghwamun', 'cheongwadae'], sweep: 'yisunsin',
     // (Hyoja-ro's foot to Sajik-ro's eastbound carriageway: the left turn the map leaves out)
     links: [[[-322.5, -1058.1], [-321, -1043.2]]],
-    via: [[-100, -500], [-109, -700], [-100, -940], [20, -1035], [160, -1200], [200, -1600], [140, -1900], [-165, -2040], [-268, -2200], [-345, -2040], [-372, -1700], [-345, -1250], [-250, -1030], [20, -1035], [250, -1058], [441, -950], [445, -600], [200, -445], [-40, -445]]
+    via: [[-100, -500], [-109, -700], [-100, -940], [20, -1035], [160, -1200], [200, -1600], [140, -1900], [-165, -2040], [-268, -2200], [-345, -2040], [-372, -1700], [-345, -1250], [-250, -1030], [20, -1035], [250, -1058], [441, -950], [445, -600], [200, -445], [-62, -445]]
   },
   {
     // (a short loop on and round the square: up its paving past the fountain, the admiral and King Sejong toward the
@@ -817,7 +817,22 @@ function planBikeCourse(roads, def, { step, why, walls, target, strict = true })
 function planViaCourse(roads, def, { step, why, walls, prof }) {
   const small = def.small ?? prof.small;
   // (on a zig-zag a link is across a junction between a side road and the far carriageway of a divided one: a main road's piece)
-  const links = (def.links ?? []).map(([a, b]) => (def.zigzag ? { pts: Float32Array.of(a[0], a[1], b[0], b[1]), width: 9, cls: 4, link: true } : { pts: Float32Array.of(a[0], a[1], b[0], b[1]), width: def.minWidth ?? 6, cls: 5, small: true, link: true }));
+  // (each end on the road point it was measured at — within a few metres: a link given to the metre would
+  // otherwise miss the point by a few centimetres and join nothing)
+  const snapEnd = ([x, z]) => {
+    let best = [x, z];
+    let bd = 3;
+    for (const r of roads) {
+      const q = r.pts;
+      if (Math.abs(q[0] - x) > 2000 || Math.abs(q[1] - z) > 2000) continue;
+      for (let i = 0; i < q.length; i += 2) {
+        const d = Math.hypot(q[i] - x, q[i + 1] - z);
+        if (d < bd) [bd, best] = [d, [q[i], q[i + 1]]];
+      }
+    }
+    return best;
+  };
+  const links = (def.links ?? []).map(([a0, b0]) => [snapEnd(a0), snapEnd(b0)]).map(([a, b]) => (def.zigzag ? { pts: Float32Array.of(a[0], a[1], b[0], b[1]), width: 9, cls: 4, link: true } : { pts: Float32Array.of(a[0], a[1], b[0], b[1]), width: def.minWidth ?? 6, cls: 5, small: true, link: true }));
   // (`plaza`: the squares it rides through — their lanes as streets, joined to the roads at their ends: plaza.js)
   if (def.plaza) links.push(...plazaRoads(roads, def.plaza));
   // (`roads: 'avenues'`: a course drawn along the big roads too — the Gwanghwamun run's — priced as Medium's avenues)

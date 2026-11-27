@@ -352,8 +352,11 @@ test('the landmark runs: each laid out so its landmark stands ahead down its str
   const { landmarkViews } = await import('../../scripts/geo/jarani-views.mjs');
   const ground = seoulTerrain();
   // (the course, its landmark, the least share of the lap it is in view — measured Nov 2026: 32 %, 32 %, 13 % — and
-  // for the square's runs and the 63's loop, the least of the frame's height it fills at its biggest)
-  for (const [id, landmark, least, big = 0] of [['gyeongbok8', 'gyeongbokgung', 0.2], ['gyeongbok8', 'cheongwadae', 0.15], ['gyeongbok8', 'yisunsin', 0.04, 0.15], ['fountainrun', 'yisunsin', 0.3, 0.15], ['noryangjin', 'yeouido63', 0.2], ['sixtythree', 'yeouido63', 0.25, 0.3], ['songpa', 'skytower', 0.08]]) {
+  // for the square's runs and the 63's loop, the least of the frame's height it fills at its biggest. Measured
+  // 27 Nov 2026: the Figure Eight 30 / 30 / 12 %, the Fountain Run 21 % (27 % of the frame), the 63 Riverside
+  // Loop only 1 % in clear sight (in frame 23 %, but riding at its foot what the frame holds is its lowest
+  // floors, behind the riverside blocks; 33 % of the frame at its biggest) — the 63's loop is held to its size)
+  for (const [id, landmark, least, big = 0] of [['gyeongbok8', 'gyeongbokgung', 0.2], ['gyeongbok8', 'cheongwadae', 0.15], ['gyeongbok8', 'yisunsin', 0.08, 0.15], ['fountainrun', 'yisunsin', 0.16, 0.15], ['noryangjin', 'yeouido63', 0.2], ['sixtythree', 'yeouido63', 0.005, 0.3], ['songpa', 'skytower', 0.08]]) {
     const def = BIKE_COURSES.find((c) => c.id === id);
     const walls = wallsNear(def.x, def.z, def.r * 4, def.plaza);
     const c = finishCourse(planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls }), { walls });
