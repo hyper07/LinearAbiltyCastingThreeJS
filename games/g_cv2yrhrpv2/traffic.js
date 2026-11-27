@@ -310,6 +310,25 @@ function bezier(p, t) {
   return { x: a * p[0] + b * p[2] + c * p[4] + d * p[6], z: a * p[1] + b * p[3] + c * p[5] + d * p[7] };
 }
 
+/**
+ * Does the rest of a turn (`arc`, from its `u` on) keep a vehicle's box `b` clear of the box `ob` (with a
+ * little room)? Sampled every metre, each box facing along the arc.
+ */
+export function turnClear(tr, b, ob, room = 0.3) {
+  let prev = arcAt(tr, tr.u);
+  for (let u = tr.u + 1; ; u += 1) {
+    const q = arcAt(tr, Math.min(u, tr.len));
+    const dx = q.x - prev.x;
+    const dz = q.z - prev.z;
+    if (dx * dx + dz * dz > 1e-6) {
+      const box = { x: q.x, z: q.z, heading: Math.atan2(-dx, -dz), halfLength: b.halfLength + room, halfWidth: b.halfWidth + room };
+      if (overlaps(box, ob)) return false;
+    }
+    prev = q;
+    if (u >= tr.len) return true;
+  }
+}
+
 /** The point `u` metres round a turn (`arc`). */
 export function arcAt(tr, u) {
   const N = tr.lens.length - 1;
@@ -1282,6 +1301,10 @@ export class RaceTraffic {
       else if (facing && (o.speed ?? 0) > 0.5) {
         // (its lane's business)
       } else if (Math.abs(c) >= 0.6) {
+        // (round a corner our nose sweeps across the far lane of the road we turn into: one standing at its
+        // line there, facing us, is not in our way unless the rest of our turn runs into it — braking for it
+        // left the box locked, us in it and it waiting for us to clear it)
+        if (v.turn && facing && turnClear(v.turn, b, ob)) continue;
         // following (or one standing across the way): its width across our way
         const sn = Math.abs(Math.sin(ob.heading - b.heading));
         look(ob.x, ob.z, (sn * ob.halfLength + Math.abs(c) * ob.halfWidth) * 2, 30, Math.abs(c) * ob.halfLength + sn * ob.halfWidth, o, Math.max(0, (o.speed ?? 0) * c));
@@ -1610,7 +1633,11 @@ export class RaceTraffic {
     // out of the box it held: let go
     if (v.jHold) {
       const j = v.jHold;
-      if (!v.turn && Math.hypot(b.x - j.x, b.z - j.z) > j.r + b.halfLength + 0.5) this._letGo(v);
+      // (out the far side — its middle behind us — not still short of it: a car let in at the line, a
+      // little further back than the box's reach, used to be let go at once and sent to the back of the
+      // waiting, over and over, creeping in at a walk)
+      const behind = (j.x - b.x) * -Math.sin(b.heading) + (j.z - b.z) * -Math.cos(b.heading) < 0;
+      if (!v.turn && behind && Math.hypot(b.x - j.x, b.z - j.z) > j.r + b.halfLength + 0.5) this._letGo(v);
     }
     v.jNear = false;
     v.jAhead = null;

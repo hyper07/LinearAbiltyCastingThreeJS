@@ -125,12 +125,23 @@ export class Junctions {
     for (const r of roads) {
       if (r.bridge) continue;
       const seen = new Set();
-      for (let k = 0; k < r.pts.length / 2; k++) {
-        const kk = key(r.pts[k * 2], r.pts[k * 2 + 1]);
-        if (seen.has(kk)) continue;
+      const add = (x, z) => {
+        const kk = key(x, z);
+        if (seen.has(kk)) return;
         seen.add(kk);
         if (!segs.has(kk)) segs.set(kk, []);
         segs.get(kk).push(r);
+      };
+      // every cell along each stretch, not only at its points (a long straight has none in between)
+      for (let k = 0; k < r.pts.length / 2; k++) {
+        const x = r.pts[k * 2];
+        const z = r.pts[k * 2 + 1];
+        add(x, z);
+        if (k === r.pts.length / 2 - 1) continue;
+        const ex = r.pts[k * 2 + 2] - x;
+        const ez = r.pts[k * 2 + 3] - z;
+        const steps = Math.ceil(Math.hypot(ex, ez) / (CELL / 2));
+        for (let s = 1; s < steps; s++) add(x + (ex * s) / steps, z + (ez * s) / steps);
       }
     }
     const near = (map, x, z) => {

@@ -99,6 +99,7 @@ module** as one exported constant (`SCOOT`, `CAR`, `BIKE`, `ITEMS`, `OIL`, `SMOK
 | `drive.js` | car handling as numbers (`CAR`) |
 | `cars.js` | the car models and paints |
 | `traffic.js` | race traffic on real roads (cars, buses, mopeds) |
+| `junctions.js` | where traffic's roads meet: the box, lights, who goes in (`SIGNAL`) |
 | `fleet.js` | traffic vehicle models |
 | `life.js` | people on the pavements |
 | `folk.js` | the Rocketbox walkers |
