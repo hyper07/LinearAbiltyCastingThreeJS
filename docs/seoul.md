@@ -592,9 +592,16 @@ Seoul's real streets — and the streets stay open.
   (eased as a whole, a car trailed 20 cm above the road going down and sank going up). Measured on
   Bukak Skyway (150 s, autopilot): tyres more than 5 cm off the road 0.6 % of samples, 15 cm at worst
   (level bodies before: 81 %, up to 70 cm); `tests/unit/jarani-slope.test.mjs`. Across a
-  junction one gives way to the other — the later one, or about together the one with the other on
-  its right; one already in the crossing never waits (`giveWay`) — and a last guard stops any from
-  driving into another (`_bumps`). They keep their own side, cross at the junctions, honk when held up — and
+  junction the junction decides who goes (`junctions.js`, found from the roads: where three ways or more
+  meet, a divided road's carriageways one junction, a box round its middle). Where main roads cross there
+  are lights — a green for one pair of ways in, two seconds all red to clear the box, then the other; 5–10 s
+  of green, changed early when nobody comes on it and someone waits on the red — and everywhere the box
+  itself: a car goes in only if its way through (a curve lane to lane) keeps clear of every car going
+  through from another way in, and there is room for it on the road out past the box. It never stops in
+  the box, so two never lock across it; without lights, whoever reached the line first goes first. Cars
+  wait at the line in a straight queue, following by the Intelligent Driver Model (a 2 m gap standing,
+  1.2 s on the move: they ease up, stop and move off together). Away from the junctions, across one
+  another one gives way (`giveWay`), and a last guard stops any from driving into another (`_bumps`). They keep their own side, cross at the junctions, honk when held up — and
   they don't get out of your way. Coming the other way or across, a vehicle holds its lane and its
   speed: no swerving, no braking, no waiting at a junction for the race (they still give way to one
   another); dodging it is yours to do. The only rider a driver brakes for is one going its way close
@@ -641,21 +648,27 @@ Seoul's real streets — and the streets stay open.
   abreast, or one beside a car coming the other way: no wall across the road). On a road with two
   lanes or more their way, cars change lane now and then — blinking first, sliding over, only into
   a clear lane and never with a rider within 30 m — and pull out round a car parked at the kerb or
-  a bus at its stop rather than queue behind it (stopping a car's length short of it while the other lane
-  isn't clear; across the lane only as it rolls on, its nose never more than a steer's angle off the road).
+  a bus at its stop rather than queue behind it — only with room for the whole of it (the other lane clear
+  far enough ahead to get past and back in, nobody beside, no junction on the way), and once out, on round
+  it, never back in beside it; else it waits straight in its lane well short of it. Across a lane only as
+  it rolls on, a quarter of a metre across a metre along: its nose stays within 14° of the lane's way.
   **No car ever drives into another**: the last guard is box to box, a hand's breadth round each, on
   any side (a lane bending in toward one parked on the bend, a nose turning as it pulls out) — never
   the old way out of two stood nose to side, creeping on through each other; and one stuck for good
-  (12 s: a corner too tight for it, a knot of two) is taken off once out of sight, never in view
+  (8 s with nothing that will move it on — waiting at a junction's line, or in the queue behind one, isn't
+  stuck unless it lasts 40 s) is taken off once out of sight, never in view, and none is put down into a
+  jam or at a junction
   (Haebangchon, 100 s: car-on-car overlaps 1,491 samples, 224 pairs → 0; cars stood 15 s or more 6 → 0;
   `tests/unit/jarani-traffic.test.mjs`). That guard tried a straight step along the nose; where each car
   really ends up each frame — along its lane's bend, across it, its nose turning, round a corner's arc — is
   checked too (`_into`, against moving, parked and oncoming alike), and a move that would end in another is
   not made (a nose swung back in beside a parked car, two passing at a junction's mouth: Haebangchon,
   3 × 30 s, 0 / 1 / 9 overlapping samples → 0 in 8 runs of 30–50 s). Cars stand parked at the kerb of the road itself, along it (two, seven and
-  twelve a kilometre by level) on the two-way roads — on Hard the narrower ones too (6.5 m and up),
-  with delivery scooters left at the kerb of the lanes wide enough (about ten a kilometre) — never in the 60 m
-  before a corner nor just after it; buses stand at their stops on the wider roads (about one a kilometre; "BUS STOPPED" warns
+  twelve a kilometre by level), only where they leave the lanes clear — a car going by in the lane beside
+  one eases over 0.8 m at most and never into the next lane (two-way roads about 10.6 m and up, a one-way
+  street at whichever kerb its lane leaves free, facing its way), each against the kerb whatever its width
+  — with delivery scooters left at the kerb of the lanes wide enough (about ten a kilometre) — never in the 60 m
+  before a corner nor just after it, nor within a car's length and 12 m of a junction's box; buses stand at their stops on the wider roads (about one a kilometre; "BUS STOPPED" warns
   you — a warning comes up only once a thing has been in your line a quarter of a second, and stays at
   least a second and a half on the side it was first seen: never a box blinking on and off), blinking to pull out. At night
   every headlight and tail light glows, near and far (one draw for all of them). Everyone on the street is real (`games/g_cv2yrhrpv2/folk.js`: Microsoft

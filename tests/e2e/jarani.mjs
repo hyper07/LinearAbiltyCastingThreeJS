@@ -1070,7 +1070,9 @@ export async function run(browser) {
       const r = window.seoul.race;
       const g = window.seoul;
       r.autopilot = true;
-      const st = (r._e2eHill = { samples: 0, tyres: 0, sunk: 0, worst: 0, parked: 0, overlap: 0, still: 0, across: 0, tilted: 0, worstTilt: 0, roll: 0 });
+      const st = (r._e2eHill = { samples: 0, tyres: 0, sunk: 0, worst: 0, parked: 0, overlap: 0, still: 0, across: 0, tilted: 0, worstTilt: 0, roll: 0, locked: 0, askew: 0, held: 0 });
+      // (how long each vehicle has stood, for the junctions locked and the queues askew)
+      const stoodSince = new WeakMap();
       // (two boxes on the ground overlapping, a few centimetres in)
       const over = (a, b) => {
         if (Math.hypot(a.x - b.x, a.z - b.z) > a.halfLength + b.halfLength + 2) return false;
@@ -1124,6 +1126,37 @@ export async function run(browser) {
         for (let i = 0; i < V.length; i++)
           for (let j = i + 1; j < V.length; j++)
             if (over(V[i].box, V[j].box) && st.overlap++ < 4) (st.pairs ??= []).push(`${who(V[i])} × ${who(V[j])} @${Math.round(Math.hypot(V[i].box.x - cam.x, V[i].box.z - cam.z))}m`);
+        // No gridlock: never two standing (2 s and more) in a junction's box across each other's way, and none
+        // standing askew in its lane (over 15° off the lane's way, away from its bends).
+        const now = performance.now() / 1000;
+        const stood = (v) => {
+          if (v.parked || (v.speed ?? 0) >= 0.3) {
+            stoodSince.delete(v);
+            return 0;
+          }
+          if (!stoodSince.has(v)) stoodSince.set(v, now);
+          return now - stoodSince.get(v);
+        };
+        const still = V.filter((v) => stood(v) > 2);
+        for (const v of still) {
+          if (v.waitWhy) st.held++;
+          if (v.turn || !v.road) continue;
+          const p = v.road.pts;
+          const i = v.at.i;
+          const ex = (p[i * 2 + 2] - p[i * 2]) * v.at.dir;
+          const ez = (p[i * 2 + 3] - p[i * 2 + 1]) * v.at.dir;
+          const len = Math.hypot(ex, ez);
+          if (len * Math.min(v.at.t, 1 - v.at.t) < 6) continue;
+          const h = Math.atan2(-ex, -ez);
+          if (Math.abs(Math.atan2(Math.sin(v.box.heading - h), Math.cos(v.box.heading - h))) > (15 * Math.PI) / 180 && st.askew++ < 4) (st.askewWho ??= []).push(who(v));
+        }
+        for (const j of tr.junctions?.list ?? []) {
+          if (Math.abs(j.x - cam.x) > 200 || Math.abs(j.z - cam.z) > 200) continue;
+          const inBox = still.filter((v) => Math.hypot(v.box.x - j.x, v.box.z - j.z) < j.r);
+          for (let a = 0; a < inBox.length; a++)
+            for (let b = a + 1; b < inBox.length; b++)
+              if (Math.abs(Math.sin(inBox[a].box.heading - inBox[b].box.heading)) > 0.5 && st.locked++ < 4) (st.lockedWho ??= []).push(`${who(inBox[a])} × ${who(inBox[b])}`);
+        }
       }, 250);
     });
     // …and whatever stands in the street stands on what is drawn under it (a hand's breadth either way at most):
@@ -1187,6 +1220,7 @@ export async function run(browser) {
     const stand = await page.evaluate(() => (clearInterval(window.seoul.race._e2eStandT), window.seoul.race._e2eStand));
     t.check('Haebangchon: the traffic sits on the steep road — no tyre of a car near you sunk into it, parked or moving', hill.tyres > 500 && hill.sunk === 0, JSON.stringify({ ...hill, worst: Math.round(hill.worst * 100) / 100 }));
     t.check('…never one car in another, and none left standing in the road for good', hill.samples > 60 && hill.overlap === 0 && hill.still === 0, JSON.stringify(hill));
+    t.check('…no gridlock: never two cars standing across each other in a junction\'s box, none standing askew in its lane', hill.locked === 0 && hill.askew === 0, JSON.stringify({ locked: hill.locked, lockedWho: hill.lockedWho, askew: hill.askew, askewWho: hill.askewWho, held: hill.held }));
     t.check('…its steep streets lie level across (no tilt with the hillside: one side as high as the other), and the camera never rolls', hill.across > 200 && hill.tilted <= hill.across * 0.03 && hill.roll < 1e-3, JSON.stringify({ across: hill.across, tilted: hill.tilted, worstTilt: Math.round(hill.worstTilt * 100) / 100, roll: hill.roll }));
     t.check('…and nobody rode off a drop and stayed off: every fall put back on the course', await page.evaluate(() => window.seoul.race.racers.every((r) => !r.drop || r.crashT <= 1.6)), await page.evaluate(() => JSON.stringify(window.seoul.race.dropLog ?? [])));
     t.check('…the people, the fans, the alleys\' bins and poles and the shops\' standing signs stand on the ground drawn under them (none sunk or in the air), no sign out in the street', stand.people > 200 && stand.peopleOff <= stand.people * 0.06 && stand.peopleFar <= stand.people * 0.02 && stand.fansOff === 0 && stand.propsOff === 0 && stand.signsOff === 0 && stand.signsInStreet === 0, JSON.stringify({ ...stand, worst: Math.round(stand.worst * 100) / 100 }));
