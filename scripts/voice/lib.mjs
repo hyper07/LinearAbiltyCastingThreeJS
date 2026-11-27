@@ -8,7 +8,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { GEN_CREDIT } from '../../src/arcademia/voice/generated.js';
+import { GEN_CREDIT, staleVoice } from '../../src/arcademia/voice/generated.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(HERE, '..', '..');
@@ -192,6 +192,7 @@ export function mergeGenerated(from, to = GEN_ROOT) {
     const ours = read(path.join(to, name)) ?? theirs;
     if (!theirs || !ours) continue;
     ours.voices = { ...(theirs.voices ?? {}), ...(ours.voices ?? {}) };
+    for (const id of Object.keys(ours.voices)) if (staleVoice(id)) delete ours.voices[id];
     for (const [lang, chars] of Object.entries(theirs.lines ?? {})) {
       for (const [char, lines] of Object.entries(chars)) {
         for (const [id, e] of Object.entries(lines)) {

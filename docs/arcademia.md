@@ -385,8 +385,11 @@ a sentence or a translation keeps the id:
 | `t.<i18n key>~<variant>` | the same, filled in for one lesson or floor | `t.quest.history.intro~h1-long-ago`, `t.npc.6~3` |
 | `l.<lesson id>.<path>` | a lesson's own text | `l.h1-long-ago.reading.2`, `l.p1-float-or-sink.quiz.0.hint` |
 
-The characters are the teachers (`hoot`, `tock`, `gizmo`), one guide per history lesson
-(`guide-<lesson id>`), the floor bosses (`boss-1` … `boss-7`), the `townsfolk`, and the buddies
+The characters are the teachers (the mountain's `hoot`, `tock`, `gizmo`, and three in each other
+world: `nutmeg`, `bramble`, `ribbit`, `pip`, `inka`, `splash`, `lotus`, `reed`, `sandy`, `mochi`,
+`ginger`, `comet`, `ruby`, `woolly`, `digby`, `biscuit`, `hartley`, `sprocket`), one guide per history
+lesson (`guide-<lesson id>`), the floor bosses (`boss-1` … `boss-7` on the mountain, `<world>-boss-1` …
+`-7` elsewhere, each asking its own world's riddles), the `townsfolk`, and the buddies
 (`buddy-fox`, `buddy-robot`, `buddy-dragon`, `buddy-puff`, `buddy-bunny`). Each line has a kind:
 **barks** (greetings, "great job", "try again", the hint intro, lesson start and end, level up,
 sticker found, the townsfolk's tips), then **story** lines, **reading** cards and **quiz** prompts. The
@@ -395,20 +398,22 @@ barks and the teachers' "try again" and hint intro are the `voice.*` keys in eac
 Generated math questions and the chalkboard's worked examples change every time, so they have no line
 and stay text only, as does the AI tutor's answer (see [Generated voices](#generated-voices) for why).
 
-Each language has 3,050 lines (257 of them barks), about six hours of speech:
+Each language has 7,214 lines (509 of them barks), about 13–14 hours of speech:
 
 | Character | Barks / all lines (every language) |
 | --- | --- |
 | Professor Hoot · Tock · Gizmo (the mountain) | 16 / 92 · 15 / 263 · 17 / 271 |
-| Nutmeg · Grandpa Bramble · Dr. Ribbit (the Great Tree) | 17 / 199 · 15 / 239 · 17 / 255 |
-| Captain Pip · Grandma Inka · Dr. Splash (the Lagoon) | 17 / 199 · 15 / 239 · 17 / 255 |
-| each history guide (16 + 14 + 14) | 0 / 8 |
-| the bosses of each world (7 × 3) | 2 / about 20–33 |
+| the math · history · science teacher of the Great Tree, the Lagoon and the desert | 17 / 199 · 15 / 239 · 17 / 255 |
+| the same on the Moon, Mars and in the Sky Castle | 17 / 204–207 · 15 / 239 · 17 / 255 |
+| each history guide (16 on the mountain, 14 in each other world) | 0 / 7–8 |
+| each floor boss (7 per world, 49 in all) | 2 / 19–33 |
 | the townsfolk | 19 / 19 |
 | each of the five buddies | 10 / 10 |
 
-The new teachers and bosses have voice designs (`voice/generated.js`) but no generated takes yet; until
-they are made on the Mac Studio, their lines show as text.
+Generated so far (every language): the mountain's whole cast, the buddies and the townsfolk. The six
+newer worlds' teachers and bosses have their reference voices designed (November 2026) and their barks
+and the bosses' greetings (420 lines per language) are being generated on the Mac Studio; their lesson
+lines wait until those worlds' lessons are rewritten. Until a line has a take, it shows as text.
 
 A printable script and a CSV per character and language, with each line's id, text, the
 character's direction ("warm, encouraging, slow and clear for 6–8 year-olds"), where it is heard and
@@ -509,7 +514,15 @@ npm run voice:setup     # library/tools/qwen3-tts: pinned source, a uv venv (Pyt
 (`CAST`): Professor Hoot a warm, clear, gently enthusiastic teacher; Tock an old, slow, cosy
 storyteller; Gizmo a quick, playful young inventor; the townsfolk a cheerful, chatty villager; the
 five buddies real children's voices (never sped up or pitched); the bosses playful and theatrical,
-never scary; the 16 history guides nine varied adult voices, one per guide. For each character,
+never scary; the mountain's 16 history guides nine varied adult voices, each its own clip. The newer
+worlds' 84 guides share a pool of 13 voices (`GUIDE_POOL`: four women, five men, a girl, a boy and,
+for the Sky Castle, two gentle storybook voices), chosen to fit each guide (Hatshepsut a woman,
+Galileo a man, the young sailor a boy), so 13 sets of reference clips serve them all. The other worlds' teachers
+are warm, gentle, calm middle-aged grown-ups (early forties to late fifties; the Korean ones late
+thirties to early fifties) with a soft, reassuring, angel-like warmth, still real voices: never breathy,
+whispery or over-acted, with clear, unhurried diction. Their puzzle bosses are cute, playful and
+friendly, 26 of the 42 children's voices. Everyone in the Sky Castle (teachers, guides, bosses)
+adds a gentle storybook tone, like a kindly storyteller in an old castle, in plain modern words. For each character,
 VoiceDesign renders a short reference clip: first in English (the **anchor**), then in each other
 language, where three candidates are made and the one whose speaker embedding is closest to the
 anchor's is kept, so the accent is native and the character is recognisably the same person in all
@@ -523,7 +536,9 @@ npm run voice:gen -- --tier core             # barks + floors 1–2, all languag
 npm run voice:gen -- --tier extra            # floors 3–7 (git-ignored; regenerate on each machine)
 npm run voice:gen -- --lang ko --char hoot   # one language / character; --kind bark; --floor 3-4
 npm run voice:gen -- --force                 # make them again
-npm run voice:gen -- --samples <dir>         # a listening page: one line per character per language
+npm run voice:gen -- --samples <dir>         # a listening page: one line per character per language (--char to pick)
+npm run voice:gen -- --all-refs --char …     # design every voice of those characters first, then generate
+npm run voice:gen -- --match '^t\.[^~]*$'    # only lines whose id matches (here: none of a lesson's own lines)
 npm run voice:gen -- --encode-only --bitrate 20000   # re-encode from the kept masters
 ```
 

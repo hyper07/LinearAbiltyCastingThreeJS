@@ -353,8 +353,8 @@ export function buildScript(lang = 'en') {
       lesson.quiz.forEach((q, i) => {
         add(teacher, `l.${id}.quiz.${i}.q`, 'quiz', floor, q.q, `Challenge question ${i + 1} of ${lesson.quiz.length}; the choices show on screen (${where}).`);
         add(teacher, `l.${id}.quiz.${i}.hint`, 'quiz', floor, q.hint, `The hint for challenge question ${i + 1} (${where}).`);
-        // The floor's puzzle boss asks the same questions as riddles.
-        add(`boss-${floor}`, `l.${id}.quiz.${i}.q`, 'quiz', floor, q.q, `A riddle from the puzzle boss (from ${where}).`);
+        // The floor's puzzle boss (its own world's: lesson/boss.js) asks the same questions as riddles.
+        add(lesson0.realm && lesson0.realm !== 'land' ? `${lesson0.realm}-boss-${floor}` : `boss-${floor}`,`l.${id}.quiz.${i}.q`, 'quiz', floor, q.q, `A riddle from the puzzle boss (from ${where}).`);
       });
     }
   }

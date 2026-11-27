@@ -15,8 +15,10 @@
  *   npm run voice:gen -- --takes 2            takes per line to choose from (default 2; more retries on failures)
  *   npm run voice:gen -- --limit 20           stop after this many lines (a quick try)
  *   npm run voice:gen -- --refs-only          design the voices (reference clips) and stop
+ *   npm run voice:gen -- --all-refs           design every voice of the chosen characters first, then generate
+ *   npm run voice:gen -- --match '^t\.[^~]*$'  only lines whose id matches (here: no lesson's own lines)
  *   npm run voice:gen -- --sample             generate one line per character per language (a quick listen)
- *   npm run voice:gen -- --samples <dir>      write a listening page from what is generated: one line per character per language
+ *   npm run voice:gen -- --samples <dir>      write a listening page from what is generated: one line per character per language (--char to pick)
  *   npm run voice:gen -- --encode-only --bitrate 20000   re-encode every line from its kept master (no generation)
  *
  * Per line: several takes are generated, trimmed and levelled with the voice
@@ -41,7 +43,7 @@ import { buildScript, voiceCharacters, VOICE_KINDS } from '../src/arcademia/voic
 import { recordingFor } from '../src/arcademia/voice/manifest.js';
 import { encodeWav, processTake } from '../src/arcademia/voice/dsp.js';
 import { speakable, errorRate, usesCer } from '../src/arcademia/voice/normalize.js';
-import { GEN_CREDIT, REF_TEXT, castFor, emptyGenManifest, isCoreLine, paceVariant } from '../src/arcademia/voice/generated.js';
+import { GEN_CREDIT, REF_TEXT, castFor, emptyGenManifest, isCoreLine, paceVariant, staleVoice } from '../src/arcademia/voice/generated.js';
 import { GEN_ROOT, REFS, ROOT, TOOL, readWav, ready, startWorker, writeGenGitignore } from './voice/lib.mjs';
 import { cpus, totalmem } from 'node:os';
 
@@ -66,6 +68,8 @@ for (const l of LANGS) if (!LOCALE_IDS.includes(l)) throw new Error(`Unknown lan
 const KINDS = opt('kind');
 for (const k of KINDS) if (!VOICE_KINDS.includes(k)) throw new Error(`Unknown kind ${k} (${VOICE_KINDS.join(', ')})`);
 const CHARS = opt('char');
+/** --match <regex>: only lines whose id matches (e.g. '^t\\.[^~]*$': string-table lines that belong to no one lesson). */
+const MATCH = opt('match')[0] ? new RegExp(opt('match')[0]) : null;
 const TIER = opt('tier')[0] ?? 'all';
 const FLOORS = (() => {
   const f = opt('floor')[0];
@@ -119,6 +123,7 @@ function saveManifests() {
   for (const tier of ['core', 'extra']) {
     const m = manifests[tier];
     m.updated = now;
+    for (const id of Object.keys(m.voices ?? {})) if (staleVoice(id)) delete m.voices[id];
     m.model = { name: GEN_CREDIT.model, weights: GEN_CREDIT.weights, design: GEN_CREDIT.design, licence: GEN_CREDIT.licence, url: GEN_CREDIT.url };
     m.credit = GEN_CREDIT.attribution;
     m.tier = tier;
@@ -142,6 +147,7 @@ for (const lang of LANGS) {
   for (const l of buildScript(lang)) {
     if (CHARS.length && !CHARS.includes(l.char)) continue;
     if (KINDS.length && !KINDS.includes(l.kind)) continue;
+    if (MATCH && !MATCH.test(l.id)) continue;
     if (TIER !== 'all' && tierOf(l) !== TIER) continue;
     if (FLOORS && !((l.kind === 'bark' ? 0 : l.floor) >= FLOORS.a && (l.kind === 'bark' ? 0 : l.floor) <= FLOORS.b)) continue;
     if (recordingFor(human, lang, l.char, l.id)) continue; // a person recorded it: theirs plays
@@ -239,7 +245,7 @@ try {
   await worker.call({ cmd: 'load', models: ['base', 'asr'] });
   for (const j of work) j.key = `${j.lang}|${j.char}|${j.variant}`;
   // Voices first (all of them, so a --refs-only run designs the whole cast).
-  const needed = flag('refs-only') ? allVoiceKeys() : [...new Set(work.map((j) => j.key))].map((k) => k.split('|'));
+  const needed = flag('refs-only') || flag('all-refs') ? allVoiceKeys() : [...new Set(work.map((j) => j.key))].map((k) => k.split('|'));
   await designVoices(needed);
   if (!flag('refs-only')) {
     // Phases in priority order (barks, floors 1–2, the rest), one language at a time; within a
@@ -258,7 +264,7 @@ try {
         const [lang, char, variant] = j.key.split('|');
         if (!voiceReady(voiceSpec(char, lang, variant))) continue;
         if (!loaded.has(j.key)) {
-          await worker.call({ cmd: 'voice', key: j.key, wav: refPath(char, lang, variant), text: REF_TEXT[voiceOf(char, lang).ref][lang] });
+          await worker.call({ cmd: 'voice', key: j.key, wav: voiceSpec(char, lang, variant).out, text: REF_TEXT[voiceOf(char, lang).ref][lang] });
           loaded.add(j.key);
         }
         list.push(j);
@@ -305,15 +311,17 @@ function allVoiceKeys() {
  * Every candidate's words are checked with Whisper too. Batched: the whole
  * cast takes minutes, not hours.
  */
-function voiceSpec(char, lang, variant) {
-  const v = voiceOf(char, lang);
+function voiceSpec(speaker, lang, variant) {
+  const v = voiceOf(speaker, lang);
+  // A shared voice (the newer worlds' guides speak from a small pool) has one set of clips for all who use it.
+  const char = v.pool ?? speaker;
   const text = REF_TEXT[v.ref][lang];
   const instruct = variant === 'slow' ? `${v.design} Speaking a little slower than usual, relaxed and clear, as in an everyday chat with a young child.` : v.design;
   const out = refPath(char, lang, variant);
   // The anchor this clip must sound like: the English voice, or the language's own design.
   const anchorLang = v.own ? lang : 'en';
   const anchor = anchorLang === lang && variant === 'normal' ? null : [anchorLang, 'normal'];
-  return { char, lang, variant, v, text, instruct, out, anchor, key: hash(`${instruct}|${text}|${v.seed}|${(v.f0 ?? []).join('-')}`) };
+  return { char, speaker, lang, variant, v, text, instruct, out, anchor, key: hash(`${instruct}|${text}|${v.seed}|${(v.f0 ?? []).join('-')}`) };
 }
 function voiceReady(spec) {
   return existsSync(spec.out) && readJson(`${spec.out}.json`, {}).key === spec.key;
@@ -325,10 +333,9 @@ async function designVoices(keys) {
   for (const [lang, char, variant] of keys) {
     const anchor = voiceSpec(char, lang, variant).anchor;
     for (const [l, vr] of [...(anchor ? [anchor] : []), [lang, variant]]) {
-      const k = `${char}|${l}|${vr}`;
-      if (seen.has(k)) continue;
-      seen.add(k);
       const spec = voiceSpec(char, l, vr);
+      if (seen.has(spec.out)) continue;
+      seen.add(spec.out);
       if (!voiceReady(spec)) specs.push(spec);
     }
   }
@@ -343,7 +350,7 @@ async function designVoices(keys) {
   for (const phase of [anchors, others]) {
     // Rounds: a voice whose best candidate is still off its pitch window gets fresh candidates
     // (new seeds), and every candidate so far stays in the running; the last round keeps the best.
-    for (let round_ = 0; round_ < DESIGN_ROUNDS; round_++) {
+    for (let round_ = 0; round_ < DESIGN_ROUNDS && !stopping; round_++) {
       const todo = phase.filter((s) => !s.saved);
       if (!todo.length) break;
       const last = round_ === DESIGN_ROUNDS - 1;
@@ -354,7 +361,8 @@ async function designVoices(keys) {
       if (round_) console.log(`  round ${round_ + 1}: ${todo.length} voice(s) still off their pitch, ${cands.length} new candidates`);
       // One language per batch keeps the lengths alike.
       cands.sort((a, b) => a.spec.lang.localeCompare(b.spec.lang) || a.spec.text.length - b.spec.text.length);
-      for (let i = 0; i < cands.length; i += BATCH) {
+      // --stop (SIGINT) also stops the design after the current batch; settled voices are kept.
+      for (let i = 0; i < cands.length && !stopping; i += BATCH) {
         const chunk = cands.slice(i, i + BATCH);
         const seed = 7000 + i + 50000 * round_;
         const items = chunk.map((c) => ({ text: c.spec.text, lang: c.spec.lang, instruct: c.spec.instruct, out: c.out }));
@@ -421,7 +429,7 @@ function pickVoice(spec, last = true) {
   writeJson(`${spec.out}.json`, { key: spec.key, char: spec.char, lang: spec.lang, variant: spec.variant, seed: best.seed, design: spec.instruct, text: spec.text, error: round(best.err), similarity: round(best.sim), f0: Math.round(best.f0 ?? 0), heard: best.heard });
   console.log(`voice ${spec.char} ${spec.lang}-${spec.variant}: ${Math.round(best.f0 ?? 0)} Hz (wants ${lo}–${hi}), words off ${(best.err * 100).toFixed(0)} %, same speaker ${best.sim.toFixed(2)}`);
   const vm = ((manifests.core.voices ??= {})[spec.char] ??= { design: spec.v.design, refs: {} });
-  vm.design = voiceOf(spec.char, 'en').design;
+  vm.design = voiceOf(spec.speaker, 'en').design;
   vm.refs[`${spec.lang}-${spec.variant}`] = { design: spec.v.design, f0: Math.round(best.f0 ?? 0), similarity: round(best.sim), error: round(best.err) };
 }
 
@@ -656,6 +664,7 @@ function writeSamples(dir) {
   const pick = ['t.lesson.hello.math', 't.lesson.hello.history', 't.lesson.hello.physics', 't.voice.buddy.hello', 't.npc.1', 't.puzzle.won'];
   const merged = { core: manifests.core, extra: manifests.extra };
   for (const c of charsEn) {
+    if (CHARS.length && !CHARS.includes(c.id)) continue;
     for (const lang of LOCALE_IDS) {
       const lines = { ...(merged.core.lines[lang]?.[c.id] ?? {}), ...(merged.extra.lines[lang]?.[c.id] ?? {}) };
       const id = pick.find((p) => lines[p]) ?? Object.keys(lines)[0];
@@ -665,7 +674,8 @@ function writeSamples(dir) {
       const name = `${c.id}-${lang}.webm`;
       copyFileSync(src, path.join(dir, name));
       const text = buildScript(lang).find((l) => l.id === id && l.char === c.id)?.text ?? '';
-      rows.push({ char: c.id, name: c.name, lang, file: name, text, err: lines[id].err, size: statSync(src).size });
+      const f0 = manifests.core.voices?.[c.id]?.refs?.[`${lang}-normal`]?.f0 ?? null;
+      rows.push({ char: c.id, name: c.name, lang, file: name, text, err: lines[id].err, size: statSync(src).size, f0 });
     }
   }
   const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
@@ -674,7 +684,7 @@ function writeSamples(dir) {
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>AI Arcademia voices</title>
 <style>body{font:15px/1.4 system-ui,sans-serif;margin:24px;max-width:1100px}h2{margin:22px 0 6px;font-size:17px}table{border-collapse:collapse;width:100%}td{padding:4px 8px;border-top:1px solid #ddd;vertical-align:middle}td.l{width:40px;font-weight:600}audio{height:32px}small{color:#777}</style></head><body>
 <h1>AI Arcademia: generated character voices</h1><p>${esc(GEN_CREDIT.attribution)} One line per character per language.</p>
-${[...byChar].map(([char, rs]) => `<h2>${esc(rs[0].name)} <small>${esc(char)} — ${esc(voiceOf(char)?.design ?? '')}</small></h2><table>${rs.map((r) => `<tr><td class="l">${r.lang}</td><td><audio controls preload="none" src="${esc(r.file)}"></audio></td><td lang="${r.lang}">${esc(r.text)}</td><td><small>${(r.err * 100).toFixed(0)} % off</small></td></tr>`).join('')}</table>`).join('\n')}
+${[...byChar].map(([char, rs]) => `<h2>${esc(rs[0].name)} <small>${esc(char)} — ${esc(voiceOf(char)?.design ?? '')}</small></h2><table>${rs.map((r) => `<tr><td class="l">${r.lang}</td><td><audio controls preload="none" src="${esc(r.file)}"></audio></td><td lang="${r.lang}">${esc(r.text)}</td><td><small>${(r.err * 100).toFixed(0)} % off${r.f0 ? ` · voice ${r.f0} Hz` : ''}</small></td></tr>`).join('')}</table>`).join('\n')}
 </body></html>`;
   writeFileSync(path.join(dir, 'index.html'), html);
   console.log(`Wrote ${rows.length} samples and ${path.join(dir, 'index.html')}`);

@@ -120,6 +120,55 @@ test('cast: every character in the script has a designed voice and a reference s
   for (const b of ['fox', 'robot', 'dragon', 'puff', 'bunny']) assert.match(CAST[`buddy-${b}`].design, /child|girl|boy/);
 });
 
+test('cast: the new worlds\' teachers are gentle middle-aged grown-ups; their bosses cute and never scary; the Sky Castle tells it like a storybook', async () => {
+  const { CAST_BY_LANG } = await import('../../src/arcademia/voice/generated.js');
+  const { REALM_TEACHER_OF } = await import('../../src/arcademia/voice/script.js');
+  const realms = ['forest', 'sea', 'desert', 'moon', 'mars', 'castle'];
+  for (const r of realms) {
+    for (const id of Object.values(REALM_TEACHER_OF[r])) {
+      for (const v of [CAST[id], CAST_BY_LANG.ko[id]]) {
+        assert.match(v.design, /in (his|her) (early |mid |late )?(thirties|forties|fifties)/, `${id}: a middle-aged grown-up`);
+        assert.match(v.design, /guardian angel/, `${id}: the gentle, reassuring warmth`);
+        assert.match(v.design, /never breathy, whispery, preachy or over-acted/, `${id}: still a real voice`);
+        if (r === 'castle') assert.match(v.design, /storybook/, `${id}: the Sky Castle's storybook tone`);
+      }
+    }
+    for (let n = 1; n <= 7; n++) {
+      const d = CAST[`${r}-boss-${n}`].design;
+      assert.match(d, /never (scary|menacing)/, `${r}-boss-${n} must not be scary`);
+      assert.match(d, /friendly|cuddly|sweet|playful/, `${r}-boss-${n} is cute and friendly`);
+      if (r === 'castle') assert.match(d, /storybook/);
+    }
+  }
+  // The Sky Castle's history guides get the storybook tone too; the mountain's keep their voices.
+  const guides = [...new Set(buildScript('en').filter((l) => l.char.startsWith('guide-')).map((l) => l.char))];
+  const castle = guides.find((g) => /-castle-/.test(g));
+  assert.match(castFor(castle, guides.indexOf(castle)).design, /storybook/);
+  assert.doesNotMatch(castFor('guide-h1-long-ago', 0).design, /storybook/);
+  // The newer worlds' guides share a small pool of voices that fit who they are (a few are children).
+  const { GUIDE_CAST, GUIDE_POOL } = await import('../../src/arcademia/voice/generated.js');
+  const { lessonById } = await import('../../src/arcademia/content/index.js');
+  const newer = guides.filter((g) => (lessonById(g.slice('guide-'.length)).realm ?? 'land') !== 'land');
+  for (const g of newer) assert.ok(GUIDE_CAST[g.slice('guide-'.length)], `${g}: a chosen voice`);
+  const pools = new Set(newer.map((g) => castFor(g, guides.indexOf(g)).pool));
+  assert.ok(pools.size <= GUIDE_POOL.length && !pools.has(undefined), 'a small shared pool');
+  assert.equal(castFor('guide-h1-long-ago', 0).pool, undefined, 'the mountain\'s guides keep their own clips');
+  for (const [g, who] of [['h4-desert-hatshepsut', /woman/], ['h2-moon-galileo', /\bman\b/], ['h4-moon-katherine-johnson', /woman/], ['h5-castle-hildegard', /woman/], ['h2-moon-sputnik', /girl/], ['h6-sea-hms-challenger', /boy/]]) {
+    for (const index of [3, 40, 77]) assert.match(castFor(`guide-${g}`, index).design, who, `${g} sounds like who they are`);
+  }
+});
+
+test('script: a world\'s puzzle boss asks that world\'s riddles (the voice lesson/boss.js plays)', async () => {
+  const { lessonById } = await import('../../src/arcademia/content/index.js');
+  const lines = buildScript('en');
+  const riddles = lines.filter((l) => l.kind === 'quiz' && /-boss-|^boss-/.test(l.char));
+  assert.ok(riddles.some((l) => l.char === 'castle-boss-1' && /^l\.m1-castle-/.test(l.id)), 'the castle gate goose asks the castle\'s riddles');
+  for (const l of riddles) {
+    const realm = lessonById(l.id.split('.')[1]).realm ?? 'land';
+    assert.equal(l.char, realm !== 'land' ? `${realm}-boss-${l.floor}` : `boss-${l.floor}`, `${l.id} is asked by its own world's boss`);
+  }
+});
+
 test('split: barks and floors 1–2 are the committed core; floors 1–2 lessons use the slower voice', () => {
   const lines = buildScript('en');
   const core = lines.filter(isCoreLine);
