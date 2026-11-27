@@ -126,7 +126,8 @@ export async function run(browser) {
     t.check('…on the R7 Comet you picked (its own model and handling); the bots on scooters of their own', await page.evaluate(() => {
       const rs = window.seoul.race.racers;
       const me = rs.find((r) => r.me);
-      return me.scooter === 'racer' && me.view.scooter.model === 'racer' && me.spec.cruise > 21 && new Set(rs.filter((r) => r.bot).map((r) => r.scooter)).size >= 2 && rs.every((r) => r.view.scooter.model === r.scooter);
+      // (its own top speed: 71.5 km/h, a touch over the S1's 70 — the six sit within 5 km/h of each other)
+      return me.scooter === 'racer' && me.view.scooter.model === 'racer' && Math.abs(me.spec.cruise * 3.6 - 71.5) < 0.3 &&new Set(rs.filter((r) => r.bot).map((r) => r.scooter)).size >= 2 && rs.every((r) => r.view.scooter.model === r.scooter);
     }));
     t.check('the menus are gone and the city is back behind the race', await page.evaluate(() => !window.seoul.race.stageOn && !document.querySelector('.seoul').classList.contains('is-menu')));
     t.check('the race has its own sky: night and rain, the city clock stopped', await page.evaluate(() => window.seoul.weather.kind === 'rain' && (window.seoul.hour >= 20 || window.seoul.hour < 1) && window.seoul.clockPaused === true));
@@ -637,9 +638,10 @@ export async function run(browser) {
     t.check('a bot holding oil spills it (a rival close behind, or held a while)', await until(page, (n) => {
       const r = window.seoul.race;
       const bot = r.racers.find((x) => x.bot && x.mode === 'ride');
-      if (!bot.items.includes('oil') && !(r.slicks ?? []).some((o) => o.owner === bot.id)) {
-        bot.items = ['oil', null, null];
-        bot.heldOil = 30;
+      if (!(r.slicks ?? []).some((o) => o.owner === bot.id)) {
+        // (one may already hold oil from a box — then held a while, too: primed either way)
+        if (!bot.items.includes('oil')) bot.items = ['oil', null, null];
+        bot.heldOil = Math.max(bot.heldOil ?? 0, 30);
         // (not straight after another attack: a bot fires one every few seconds)
         bot.attackCd = 0;
       }
@@ -1134,12 +1136,16 @@ export async function run(browser) {
       const ahead = bots[0];
       me.items[0] = 'police';
       r.useSlot(0);
+      // (this call's own patrol: the bots go on racing and may call one of their own meanwhile)
+      const mine = r.police.live.find((p) => p.target === ahead);
       const t0 = performance.now();
       let slow = 0;
       let beside = 0;
       let held = 0;
       await new Promise((ok) => {
         const T = setInterval(() => {
+          // (the bots hold nothing meanwhile: one that picked up a box mustn't call a patrol of its own here)
+          for (const b of bots) b.items = [null, null, null];
           if (Math.abs(ahead.s.v) < 1.5) slow += 0.05;
           // (while held: the patrol alongside, within a few metres)
           if (ahead.pulled && ahead.pulled.t > 0.2) {
@@ -1150,7 +1156,7 @@ export async function run(browser) {
           if (performance.now() - t0 > 8200) ok(clearInterval(T));
         }, 50);
       });
-      return { slow: Math.round(slow * 10) / 10, held: Math.round(held * 10) / 10, beside: Math.round(beside * 10) / 10, stops: ahead.policeStops ?? 0, patrols: r.police.live.length, free: !ahead.pulled, slots: me.items.join() };
+      return { slow: Math.round(slow * 10) / 10, held: Math.round(held * 10) / 10, beside: Math.round(beside * 10) / 10, stops: ahead.policeStops ?? 0, patrols: mine && r.police.live.includes(mine) ? 1 : mine ? 0 : -1, others: r.police.live.length, free: !ahead.pulled, slots: me.items.join() };
     });
     t.check('Call the police: a patrol pulls the rider ahead of you over — stopped for five seconds, the patrol beside them all the while, then let go and gone', cop.stops >= 1 && cop.slow >= 4.2 && cop.slow <= 6.4 && cop.beside >= cop.held - 0.3 && cop.free && cop.patrols === 0 && !cop.slots.includes('police'), JSON.stringify(cop));
     // The finish: you home first; two bots close behind (they get their time), one far back (DNF).
