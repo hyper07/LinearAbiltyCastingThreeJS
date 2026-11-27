@@ -3544,7 +3544,8 @@ export class Race {
       r.policeMercy ??= Math.random() < 0.5;
       const ahead = aim && aim.dist > r.dist;
       const spare = aim && !aim.bot && r.policeMercy;
-      if (ready() && aim && ((ahead && !spare) || r.heldPolice > 14)) {
+      // (never at one already pulled over: a patrol is with them — it would only be wasted)
+      if (ready() && aim && !aim.pulled && !this.police?.live.some((p) => p.target === aim) && ((ahead && !spare) || r.heldPolice > 14)) {
         r.heldPolice = 0;
         r.policeMercy = null;
         fire('police');

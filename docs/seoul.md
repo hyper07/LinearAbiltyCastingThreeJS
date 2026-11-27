@@ -495,7 +495,8 @@ Seoul's real streets — and the streets stay open.
   lights flashing and the officer waving them down — then let go as the patrol rides off ahead and is
   gone. (Held isn't stuck: a bot isn't put back on the course for it, nor is "Stuck?" shown.) The gold helmet
   doesn't help (it takes crashes, and this isn't one), and a rider down a short cut can still be
-  caught. Bots call it on whoever is ahead — at a person only half the time, as with the branch.
+  caught. Bots call it on whoever is ahead — at a person only half the time, as with the branch, and
+  never at a rider already pulled over (the patrol is with them: it would be wasted).
   Commoner further back (7 % of boxes leading, 19 % last). **Gold helmet** (`src/city/helmet.js`): a shiny gold helmet on your rider's
   head, fitted to each species' head (the ears poke out) — a rounded cycling helmet,
   longer to the back, with vent slots, a darker band and rim, a foam liner, a short peak and a chin
