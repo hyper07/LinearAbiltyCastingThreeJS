@@ -33,6 +33,7 @@ import { RivalPanel } from './rivalPanel.js';
 import { ComicFx } from './comic.js';
 import { Golmok } from './golmok.js';
 import { Facades } from './facades.js';
+import { trimShadows, DetailCull } from './drawcost.js';
 import { raceSky, TIME_PICKS, WEATHER_PICKS, WEATHERS } from './weather.js';
 import { WetFx } from './wetfx.js';
 import { modeHint } from './controls.js';
@@ -664,6 +665,10 @@ export class Race {
       const body = twice ? '#2b2d33' : ch.scooter;
       const ride = cleanScooter(g.scooter);
       const view = new PlushRider(char, { body, trim: twice ? ch.scooter : ch.trim, screen: g.id === this.myId, fur: 10, ride });
+      // (its bolts, lamps, eyes and claws are under a texel of the shadow map: only the parts that show cast — drawcost.js)
+      trimShadows(view.root);
+      // (and a bot's eyes, bolts and claws aren't drawn once they're under a pixel: drawcost.js)
+      (this.detail ??= new DetailCull()).add(view.root);
       this.g.scene.add(view.root);
       return {
         ...g,
@@ -1370,6 +1375,8 @@ export class Race {
 
   update(rawDt) {
     if (!this.course || this.phase === 'menu' || this.phase === 'lobby' || this.phase === 'off') return;
+    // (the riders' little parts drawn only while they're more than a pixel: drawcost.js)
+    this.detail?.update(this.g.camera, (this.g.size?.h ?? 720) * (this.g.size?.dpr ?? 1));
     // Paused: the race stands still (in a room with friends it can't: your rider just coasts).
     if (this.paused && !this.session?.room) return;
     // Hit-stop: a crash freezes the world for a beat.
@@ -4735,6 +4742,7 @@ export class Race {
     this._wrongOn = false;
     this.resultEl.classList.remove('is-podium');
     for (const r of this.racers) {
+      this.detail?.remove(r.view.root);
       r.view.dispose();
       r.heldMesh?.removeFromParent();
     }

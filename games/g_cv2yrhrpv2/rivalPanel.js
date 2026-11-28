@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DETAIL_LAYER } from './drawcost.js';
 
 /**
  * The rival panel, Snowpuff Peaks' (src/snowpuff/sideMirror.js, only read —
@@ -83,6 +84,8 @@ export class RivalPanel {
     this.renderer = renderer;
     this.scene = null;
     this.camera = new THREE.PerspectiveCamera(42, RT_W / RT_H, 0.2, 2000);
+    // (close up: a rider's little parts the main view culls by size are drawn here — drawcost.js)
+    this.camera.layers.enable(DETAIL_LAYER);
     this.rt = null;
     this.on = false;
     this.linger = 0;
