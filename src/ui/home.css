@@ -1335,17 +1335,40 @@
 @media (max-width: 480px) { .acct__card { padding: 26px 18px 18px; } }
 @media (prefers-reduced-motion: reduce) { .acct__card { animation: none; } .acct__submit { transition: none; } }
 
-/* ---- Drafts (admin): the game packages being worked on, off the home page ---- */
-.home-drafts { max-width: 520px; }
-.home-drafts__body { padding: 28px 26px 22px; }
-.home-drafts__title { margin: 0 0 6px; font-size: 26px; font-weight: 900; }
-.home-drafts__lead { margin: 0 0 16px; color: var(--pop-ink-2, var(--ui-text-dim)); font-size: 14px; }
-.home-drafts__list { display: grid; gap: 10px; }
-.home-drafts__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+/* ---- My workspace: every game you made, a space per category (PlatformHome.openWorkspace) ---- */
+.home-ws { display: block; width: min(1040px, 100%); }
+.home-ws__body { padding: 26px 26px 22px; }
+.home-ws__title { margin: 0 0 4px; font-size: 28px; font-weight: 900; }
+.home-ws__lead { margin: 0 0 14px; font-size: 14px; color: var(--pop-ink-2, var(--ui-text-dim)); }
+.home-ws__search {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  margin-bottom: 12px;
+  border: 2px solid var(--pop-soft-line, rgba(0, 0, 0, 0.12));
+  border-radius: 999px;
+  background: var(--pop-card, #fff);
+  color: var(--pop-ink, inherit);
+  font: 700 15px var(--pop-font, inherit);
+}
+.home-ws__tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+.home-ws__tab {
+  padding: 7px 14px;
+  border: 2px solid var(--pop-soft-line, rgba(0, 0, 0, 0.12));
+  border-radius: 999px;
+  background: var(--pop-card, #fff);
+  color: var(--pop-ink-2, inherit);
+  font: 800 13px var(--pop-font, inherit);
+  cursor: pointer;
+}
+.home-ws__tab.is-on { border-color: var(--pop-line, currentColor); background: var(--pop-sun, #ffc93c); color: var(--pop-ink, inherit); }
+.home-ws__space { margin-bottom: 20px; }
+.home-ws__cat { margin: 0 0 10px; font-size: 16px; font-weight: 900; color: var(--pop-ink, inherit); }
+.home-ws__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.home-ws__game {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
   padding: 14px 16px;
   border: 2px solid var(--pop-soft-line, rgba(0, 0, 0, 0.12));
   border-radius: var(--pop-r-sm, 14px);
@@ -1354,7 +1377,11 @@
   font: 800 16px var(--pop-font, inherit);
   text-align: left;
   cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
 }
-.home-drafts__row:hover { border-color: var(--pop-line, currentColor); }
-.home-drafts__ver { font-size: 13px; font-weight: 800; color: #17a37a; white-space: nowrap; }
-.home-drafts__ver.is-none { color: #c97a00; }
+.home-ws__game:hover { border-color: var(--pop-line, currentColor); transform: translateY(-2px); }
+.home-ws__pill { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: #eef4ff; color: #2f5fb3; }
+.home-ws__pill.is-live { background: #e3f8ef; color: #12805f; }
+.home-ws__pill.is-draft { background: #fff1d6; color: #9a5d00; }
+.home-ws__pill.is-class { background: #f1e9ff; color: #6a3fc4; }
+.home-ws__extra { font-size: 12px; font-weight: 700; color: var(--pop-ink-3, inherit); }

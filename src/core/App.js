@@ -422,7 +422,7 @@ export class App {
       // The home page is what players get: production releases and public games only. Drafts are
       // reached from the admin's "Drafts" button (ui/DraftsPanel.js), never listed here.
       list: (params) => games.list(params),
-      listDrafts: () => games.list({ drafts: 1 }),
+      listDrafts: (params = {}) => games.list({ ...params, drafts: 1 }),
       get: (id) => games.get(id),
       play: (id, options) => this.playFromHome(id, options),
       remove: (id) => games.remove(id),

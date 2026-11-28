@@ -95,7 +95,7 @@ export class PlatformHome {
               <button type="button" class="home__menu-item" role="menuitem" data-heroes title="Your heroes in every game: levels, bags and equipment"><span class="home__ico" aria-hidden="true">🦸</span><span>My heroes</span></button>
               <button type="button" class="home__menu-item" role="menuitem" data-hero title="The free-play arena's hero: class, weapon, skills and stash"><span class="home__ico" aria-hidden="true">⚔️</span><span>Arena hero</span></button>
               <button type="button" class="home__menu-item" role="menuitem" data-party title="Make a party or join one with a code"><span class="home__ico" aria-hidden="true">🤝</span><span>Play together</span></button>
-              <button type="button" class="home__menu-item" role="menuitem" data-drafts hidden title="Admin: every game package's draft — play it, see its changes, deploy to production"><span class="home__ico" aria-hidden="true">🧪</span><span>Drafts (admin)</span></button>
+              <button type="button" class="home__menu-item" role="menuitem" data-workspace title="Every game you made, by category — what players get, drafts, changes and deploys"><span class="home__ico" aria-hidden="true">🗂</span><span>My workspace</span></button>
               <div class="home__menu-music" role="group" aria-label="Music">
                 <label for="home-music-volume"><span class="home__ico" aria-hidden="true">♪</span> Music volume</label>
                 <input id="home-music-volume" type="range" min="0" max="100" step="5" data-home-music-volume />
@@ -235,11 +235,8 @@ export class PlatformHome {
     this.$('[data-studio-make]').addEventListener('click', () => actions.openStudio?.('new'));
     this.$('[data-hero]').addEventListener('click', () => actions.openHero('loadout'));
     this.$('[data-heroes]').addEventListener('click', () => actions.openHeroes?.());
-    // Drafts never show on the home page; the admin reaches them here.
-    this.$('[data-drafts]').addEventListener('click', () => this.openDrafts());
-    releases.list().then((info) => {
-      if (info?.admin || info?.adminHint || info?.local) this.$('[data-drafts]').hidden = false;
-    }, () => {});
+    // Drafts never show on the home page; your workspace lists every game you made, drafts included.
+    this.$('[data-workspace]').addEventListener('click', () => this.openWorkspace());
     /** Channels: a maker's own space (ui/ChannelPage.js), over the home page. */
     this.channel = new ChannelPage(this.root, {
       account: () => actions.account(),
@@ -771,39 +768,116 @@ export class PlatformHome {
     row.append(draft, dev);
   }
 
-  /** Admin: every game package — its production version (or none yet) — opening its page with Play draft and Changes & deploy. */
-  async openDrafts() {
+  /**
+   * My workspace: every game you made, in a space per category. The platform admin's are all of
+   * Gamory's games (built-in and packages, drafts included); anyone's are what they published and
+   * their Game Studio games. Each opens its page (Play; for a package, Play draft and Changes & deploy)
+   * or, for a Studio game, the Studio's editor.
+   */
+  async openWorkspace() {
+    // a space per kind of game; a game's own genre shows on its card
+    const SPACE = (genre) => {
+      const g = String(genre ?? '').toLowerCase();
+      if (/racing|sport|kart|drive/.test(g)) return '🏁 Racing & sports';
+      if (/learn|electronic|study|quiz|math/.test(g)) return '📚 Learning & simulators';
+      if (/stock|market|work|money|life|business/.test(g)) return '💼 Money & life';
+      if (/arena|royale|shooter|strategy|squad|moba|rts|battle/.test(g)) return '⚔️ Battle & strategy';
+      if (/rpg|adventure|quest|action|hunt|creature|survival|co-op|coop|story/.test(g)) return '🗡 RPG & adventure';
+      return '🎲 Other games';
+    };
     const page = this.$('[data-page]');
     page.hidden = false;
-    const card = el('div', 'home-page__card home-drafts');
+    const card = el('div', 'home-page__card home-ws');
     card.setAttribute('role', 'dialog');
     card.setAttribute('aria-modal', 'true');
-    card.setAttribute('aria-label', 'Drafts');
+    card.setAttribute('aria-label', 'My workspace');
     const close = el('button', 'home-page__close', '✕');
     close.type = 'button';
     close.setAttribute('aria-label', 'Close');
     close.addEventListener('click', () => this.closePage());
-    const body = el('div', 'home-drafts__body');
-    body.append(el('h2', 'home-drafts__title', 'Drafts'), el('p', 'home-drafts__lead', 'Games being worked on. Players only ever see the production version on the home page.'));
-    const list = el('div', 'home-drafts__list');
-    body.append(list);
+    const body = el('div', 'home-ws__body');
+    const head = el('div', 'home-ws__head');
+    head.append(el('h2', 'home-ws__title', 'My workspace'), el('p', 'home-ws__lead', 'Every game you made, by category. Players only ever see a game\'s production version (or a public game) on the home page.'));
+    const search = el('input', 'home-ws__search');
+    search.type = 'search';
+    search.placeholder = 'Find a game…';
+    const tabs = el('div', 'home-ws__tabs');
+    const spaces = el('div', 'home-ws__spaces');
+    body.append(head, search, tabs, spaces);
     card.append(close, body);
     page.replaceChildren(card);
-    let info;
-    try {
-      info = await releases.list({ fresh: true });
-    } catch (error) {
-      list.append(el('p', 'home__empty', `Could not list the drafts: ${error.message}`));
+    spaces.append(el('p', 'home__empty', 'Loading your games…'));
+
+    const me = this.actions.account();
+    const [info, all, studio] = await Promise.all([
+      releases.list({ fresh: true }).catch(() => null),
+      this.actions.listDrafts ? this.actions.listDrafts({ limit: 200 }).catch(() => []) : Promise.resolve([]),
+      me ? fetch('./api/studio/games', { credentials: 'same-origin', cache: 'no-store' }).then((r) => (r.ok ? r.json() : { games: [] })).then((b) => b.games ?? [], () => []) : Promise.resolve([])
+    ]);
+    const admin = Boolean(info?.admin || info?.adminHint || info?.local);
+    if (!admin && !me) {
+      spaces.replaceChildren(el('p', 'home__empty', 'Sign in to see the games you made.'));
+      const b = el('button', 'home__btn home__btn--primary', 'Sign in');
+      b.type = 'button';
+      b.addEventListener('click', () => this.accountDialog.open());
+      spaces.append(b);
       return;
     }
-    if (!info.packages?.length) list.append(el('p', 'home__empty', 'No game packages yet.'));
-    for (const p of info.packages ?? []) {
-      const row = el('button', 'home-drafts__row');
-      row.type = 'button';
-      row.append(el('strong', '', p.title), el('span', p.version ? 'home-drafts__ver' : 'home-drafts__ver is-none', p.version ? `Production ${p.version}` : 'Not released yet'));
-      row.addEventListener('click', () => this.openPage(p.id));
-      list.append(row);
+    const pkgVersion = new Map((info?.packages ?? []).map((p) => [p.id, p.version]));
+    const rows = [];
+    for (const g of all) {
+      const mine = g.official ? admin : me && g.author === me.name;
+      if (!mine) continue;
+      const status = g.package ? (g.version || pkgVersion.get(g.id) ? [`Live ${g.version || pkgVersion.get(g.id)}`, 'live'] : ['Draft only', 'draft']) : g.official ? ['Built in', 'builtin'] : [g.status === 'draft' ? 'Not published' : 'Published', g.status === 'draft' ? 'draft' : 'live'];
+      const genre = g.card?.genreName ?? g.genre ?? '';
+      rows.push({ title: g.title, category: SPACE(genre), status, extra: [genre, g.package ? 'draft & deploy' : ''].filter(Boolean).join(' · '), open: () => this.openPage(g.id) });
     }
+    for (const g of studio) {
+      const vis = { private: ['Private', 'draft'], class: ['Shared with classes', 'class'], shared: ['Shared with classes', 'class'], public: ['Public', 'live'] }[g.visibility] ?? ['Private', 'draft'];
+      rows.push({ title: g.title, category: '🎨 Made in the Studio', status: vis, extra: g.public_status && g.public_status !== 'none' ? `Public: ${g.public_status}` : '', open: () => (this.closePage(), this.actions.openStudio?.('editor', { code: g.code })) });
+    }
+    const ORDER = ['🏁 Racing & sports', '🗡 RPG & adventure', '⚔️ Battle & strategy', '📚 Learning & simulators', '💼 Money & life', '🎲 Other games', '🎨 Made in the Studio'];
+    const cats = [...new Set(rows.map((r) => r.category))].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+    let current = 'All';
+    const draw = () => {
+      const q = search.value.trim().toLowerCase();
+      spaces.replaceChildren();
+      const shown = cats.filter((c) => current === 'All' || c === current);
+      let any = false;
+      for (const c of shown) {
+        const list = rows.filter((r) => r.category === c && (!q || r.title.toLowerCase().includes(q))).sort((a, b) => a.title.localeCompare(b.title));
+        if (!list.length) continue;
+        any = true;
+        const sec = el('section', 'home-ws__space');
+        sec.append(el('h3', 'home-ws__cat', `${c} · ${list.length}`));
+        const grid = el('div', 'home-ws__grid');
+        for (const r of list) {
+          const row = el('button', 'home-ws__game');
+          row.type = 'button';
+          row.append(el('strong', '', r.title), el('span', `home-ws__pill is-${r.status[1]}`, r.status[0]));
+          if (r.extra) row.append(el('span', 'home-ws__extra', r.extra));
+          row.addEventListener('click', r.open);
+          grid.append(row);
+        }
+        sec.append(grid);
+        spaces.append(sec);
+      }
+      if (!any) spaces.append(el('p', 'home__empty', rows.length ? 'No game matches.' : 'No games yet — make one in the Studio.'));
+    };
+    const tab = (name, n) => {
+      const b = el('button', 'home-ws__tab', `${name} ${n}`);
+      b.type = 'button';
+      b.classList.toggle('is-on', name === current);
+      b.addEventListener('click', () => {
+        current = name;
+        tabs.querySelectorAll('.home-ws__tab').forEach((t) => t.classList.toggle('is-on', t === b));
+        draw();
+      });
+      return b;
+    };
+    tabs.append(tab('All', rows.length), ...cats.map((c) => tab(c, rows.filter((r) => r.category === c).length)));
+    search.addEventListener('input', draw);
+    draw();
   }
 
   closePage() {
