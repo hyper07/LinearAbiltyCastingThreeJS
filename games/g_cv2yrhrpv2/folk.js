@@ -17,8 +17,14 @@ import { PEOPLE } from './streetAssets.js';
  */
 
 const ROOT = './library/rocketbox/';
-/** How many real people at once, and how near (m): nobody further is drawn (life.js). */
-export const FOLK = { max: 34, near: 62, keep: 72 };
+/**
+ * How many real people at once, and how near (m): nobody further is drawn (life.js). `shadow`: only
+ * those this near cast the sun's shadow (one person is ~10k triangles and a draw per material, twice
+ * over with the shadow pass; past ~30 m their shadow is a few texels of the shadow map). `bound`: the
+ * rest pose's bounding sphere is grown this much so a walk, a cheer or a seated pose stays inside it —
+ * people are frustum-culled by it (the camera's and the sun's), not drawn behind you.
+ */
+export const FOLK = { max: 34, near: 62, keep: 72, shadow: 30, bound: 1.6 };
 /** The walk clip's natural pace (m/s): the clip is sped up or slowed to match each walker's feet. */
 const WALK_PACE = 1.3;
 
@@ -68,6 +74,7 @@ function loadShared() {
         model.traverse((o) => (o.isLight || o.isCamera) && extras.push(o));
         for (const o of extras) o.removeFromParent();
         dress(model, { body, head, opacity });
+        bound(model);
         // To size (centimetres to metres), feet at 0, facing −z like everyone in the city.
         const box = new THREE.Box3().setFromObject(model);
         const h = box.max.y - box.min.y;
@@ -130,6 +137,30 @@ function dress(model, { body, head, opacity }) {
       return new THREE.MeshStandardMaterial({ name, map: isHead ? head : body, roughness: isHead ? 0.62 : 0.82, metalness: 0, envMapIntensity: 0.6 });
     });
     o.material = Array.isArray(o.material) ? mats : mats[0];
+  });
+}
+
+/**
+ * Culled like anything else: each skinned mesh gets its rest pose's bounding sphere, grown by FOLK.bound
+ * (so a stride, raised arms or a rider's seat stay inside it) — kept as it is, never recomputed per pose.
+ * Clones (SkeletonUtils.clone) copy it. Left uncullable only if the sphere can't be measured.
+ */
+function bound(model) {
+  model.updateMatrixWorld(true);
+  model.traverse((o) => {
+    if (!o.isSkinnedMesh) return;
+    try {
+      o.computeBoundingSphere();
+    } catch {
+      return;
+    }
+    const s = o.boundingSphere;
+    if (!s || !(s.radius > 1e-3) || !Number.isFinite(s.center.x)) {
+      o.boundingSphere = null;
+      return;
+    }
+    s.radius *= FOLK.bound;
+    o.frustumCulled = true;
   });
 }
 
@@ -282,7 +313,9 @@ export class Folk {
     const actions = { walk: act('walk'), idle: act('idle'), phone: act('phone'), look: act('look'), cheer: act('cheer') };
     // everyone a little out of step with everyone else
     for (const x of Object.values(actions)) if (x) x.time = Math.random() * x.getClip().duration;
-    return { root, mixer, actions, she, avatarIndex: all.indexOf(a), state: null, m: null };
+    const meshes = [];
+    root.traverse((o) => o.isMesh && meshes.push(o));
+    return { root, mixer, actions, she, avatarIndex: all.indexOf(a), state: null, m: null, meshes, shadow: true };
   }
 
   _release(p) {
@@ -330,7 +363,15 @@ export class Folk {
       }
       if (!this._take(m)) break;
     }
-    for (const p of this.active) this._pose(p, dt);
+    for (const p of this.active) {
+      this._pose(p, dt);
+      // (the sun's shadow from the near ones only)
+      const shadow = Math.hypot(p.m.x - cam.x, p.m.z - cam.z) < FOLK.shadow;
+      if (shadow !== p.shadow) {
+        p.shadow = shadow;
+        for (const o of p.meshes) o.castShadow = shadow;
+      }
+    }
   }
 
   _pose(p, dt) {
