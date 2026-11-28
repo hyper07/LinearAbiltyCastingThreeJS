@@ -43,8 +43,8 @@ export const PLAZAS = [
     // Yulgok-ro) and westbound (along the front of the gate's junction); from its bend by the Sejong Center's
     // north end onto Sajik-ro 8-gil, west
     joins: [[0, [-96, -445]], [0, [-96, -428]], [-1, [-95, -984]], [-1, [-101, -997]], [12, [-145, -887]]],
-    // the admiral's plinth (its broad lowest step), the turtle ship's base, King Sejong's plinth
-    solids: [rect(-92, -517, 13, 13), rect(-92, -507.4, 3.2, 6.4), rect(-92, -691, 10, 8)],
+    // the admiral's plinth (its broad lowest step), the turtle ship's base, King Sejong's pedestal (the scan's, 11.3 × 10.6 m)
+    solids: [rect(-92, -517, 13, 13), rect(-92, -507.4, 3.2, 6.4), rect(-92, -691, 11.4, 10.6)],
     // round granite planters at the weave's bends, just off the lane (x, z, radius)
     planters: [[-109.5, -570, 1.2], [-104.5, -745, 1.3], [-98, -748, 1.3], [-117.5, -790, 1.3], [-104.5, -835, 1.3], [-98, -838, 1.3], [-124, -640, 1.2]],
     // stone bollards along the lane's edges (from, to: indices of the lane's points), every `every` metres — none

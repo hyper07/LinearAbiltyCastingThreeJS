@@ -41,6 +41,12 @@ export function seoulCredits({ alleys = true, terrain = true } = {}) {
       licence: '공공누리 제1유형 (KOGL type 1), source credited',
       licenceUrl: 'https://www.kogl.or.kr/info/licenseType1.do'
     },
+    {
+      name: '세종대왕 (King Sejong) by totalitystudio.io',
+      what: 'King Sejong on his throne and pedestal on Gwanghwamun Square: a photo scan of the real monument, shrunk and cleaned for the game',
+      site: 'https://sketchfab.com/3d-models/7878f0aa89e44057869457cced5391f6',
+      ...CC_BY
+    },
     terrain && {
       name: 'Copernicus DEM GLO-30',
       what: 'The land: hills and the Han. © DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018, provided under COPERNICUS by the European Union and ESA',

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { bronzeMaterial } from './admiral.js';
 import { yiStatue, goldMaterial } from './yiStatue.js';
+import { sejongStatue, sejongMaterial } from './sejongStatue.js';
 import { Fountain } from './fountain.js';
 import { PlazaView, PLAZA_LIFT } from './plaza.js';
 
@@ -755,57 +756,6 @@ function blueHouse() {
   return { group: g, mats: [], base: [], lit: [m.walls], fogged: true };
 }
 
-/** A bronze figure's parts, in its own metres (standing on y = 0, facing +z). */
-function figure(mat, { seated = false, trim = mat } = {}) {
-  const g = new THREE.Group();
-  const add = (geo, x, y, z, rx = 0, rz = 0, ry = 0, m = mat) => {
-    const o = new THREE.Mesh(geo, m);
-    o.position.set(x, y, z);
-    o.rotation.set(rx, ry, rz);
-    o.castShadow = true;
-    g.add(o);
-    return o;
-  };
-  if (seated) {
-    // King Sejong on his throne: his robe over the knees, a book open in his left hand, his right hand raised
-    add(new THREE.BoxGeometry(3.4, 2.2, 2.6), 0, 1.1, -0.4); // the throne
-    add(new THREE.BoxGeometry(3.6, 3.4, 0.5), 0, 2.8, -1.6); // its back
-    add(new THREE.BoxGeometry(0.5, 1.4, 2.4), -1.75, 2.4, -0.4); // its arms
-    add(new THREE.BoxGeometry(0.5, 1.4, 2.4), 1.75, 2.4, -0.4);
-    add(new THREE.BoxGeometry(2.4, 1.1, 2.6), 0, 2.45, 0.5); // lap and knees
-    add(new THREE.CylinderGeometry(1.15, 1.35, 1.6, 12), 0, 1.4, 1.1); // the robe falling to the feet
-    add(new THREE.CylinderGeometry(0.72, 1.1, 2.3, 12), 0, 3.95, -0.35); // body
-    add(new THREE.SphereGeometry(0.55, 14, 12), 0, 5.5, -0.3); // head
-    add(new THREE.SphereGeometry(0.5, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0, 5.8, -0.35); // the royal hat
-    add(new THREE.BoxGeometry(1.5, 0.1, 0.25), 0, 6.05, -0.55, 0.2); // its wings
-    add(new THREE.CylinderGeometry(0.2, 0.24, 1.5, 8), 1.05, 4.35, 0.3, -0.75, -0.35); // right arm, raised
-    add(new THREE.SphereGeometry(0.22, 8, 6), 1.3, 4.9, 0.85); // its hand
-    add(new THREE.CylinderGeometry(0.2, 0.24, 1.3, 8), -0.9, 3.6, 0.4, -1.1, 0.2); // left arm
-    add(new THREE.BoxGeometry(1, 0.08, 0.7), -0.8, 3.45, 1, -0.4, 0, 0.3, trim); // the book, open
-  } else {
-    // Admiral Yi: in armour to the knees, a helmet with a plume, his long sword held upright before him, his cloak behind
-    add(new THREE.CylinderGeometry(0.2, 0.24, 1.5, 8), -0.32, 0.75, 0); // legs, booted
-    add(new THREE.CylinderGeometry(0.2, 0.24, 1.5, 8), 0.32, 0.75, 0);
-    add(new THREE.CylinderGeometry(0.8, 1.05, 1.5, 14), 0, 1.75, 0); // the armour's skirt, flaring
-    add(new THREE.TorusGeometry(0.72, 0.09, 6, 16), 0, 2.45, 0, Math.PI / 2, 0, 0, trim); // the belt
-    add(new THREE.CylinderGeometry(0.66, 0.72, 1.55, 14), 0, 3.2, 0); // body, the breastplate
-    add(new THREE.SphereGeometry(0.36, 10, 8), -0.74, 3.85, 0); // shoulder plates
-    add(new THREE.SphereGeometry(0.36, 10, 8), 0.74, 3.85, 0);
-    add(new THREE.CylinderGeometry(0.2, 0.22, 0.25, 8), 0, 4.1, 0); // neck
-    add(new THREE.SphereGeometry(0.4, 12, 10), 0, 4.45, 0.03); // head
-    add(new THREE.SphereGeometry(0.47, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0, 4.55, 0); // helmet
-    add(new THREE.CylinderGeometry(0.6, 0.6, 0.06, 14), 0, 4.55, 0); // its brim
-    add(new THREE.ConeGeometry(0.1, 0.7, 8), 0, 5.25, 0, 0, 0, 0, trim); // its spike and plume
-    add(new THREE.CylinderGeometry(0.17, 0.2, 1.3, 8), -0.52, 3.35, 0.42, 0.95, 0.35); // arms, forward to the hilt
-    add(new THREE.CylinderGeometry(0.17, 0.2, 1.3, 8), 0.52, 3.35, 0.42, 0.95, -0.35);
-    add(new THREE.SphereGeometry(0.2, 8, 6), 0, 3.05, 0.95); // hands on the hilt
-    add(new THREE.BoxGeometry(0.1, 3.3, 0.22), 0, 1.35, 1.0, -0.06, 0, 0, trim); // the long sword, point down
-    add(new THREE.BoxGeometry(0.75, 0.12, 0.3), 0, 2.95, 0.98, 0, 0, 0, trim); // its guard
-    add(new THREE.BoxGeometry(1.9, 3.3, 0.18), 0, 2.55, -0.72, 0.12); // the cloak
-  }
-  return g;
-}
-
 /** A turtle ship in bronze: its hull, the spiked shell of a deck, the dragon's head at the bow. */
 function turtleShip(mat) {
   const g = new THREE.Group();
@@ -841,14 +791,13 @@ function inscription() {
  * Gwanghwamun Square's statues: Admiral Yi Sun-sin, gilded (yiStatue.js: the supplied sculpture) on
  * his tall pale granite plinth (17 m in all) with the inscription down its face, a bronze turtle ship on a
  * low stone base before it; the fountain's long pool down the square in front of him (fountain.js), lit
- * after dark; and behind him King Sejong seated, gilded, on a low plinth. Both face south, down the square.
- * After dark the admiral is lit softly from below (his gold's emissive).
+ * after dark; and behind him King Sejong on his throne and pedestal (sejongStatue.js: a photo scan of the
+ * real monument). Both face south, down the square. After dark both are lit softly from below (emissive).
  */
 function statues(l, ground) {
   const m = hanokMats();
   const granite = m.stone;
   const bronze = bronzeMaterial();
-  const gold = new THREE.MeshPhongMaterial({ color: '#c9a24a', specular: '#fff0b0', shininess: 70 });
   const g = new THREE.Group();
   const base = ground(l.x, l.z);
   const yi = new THREE.Group();
@@ -881,18 +830,13 @@ function statues(l, ground) {
   // the fountain down the middle of the square before him, on its paving as it slopes (fountain.js)
   const fountain = new Fountain(yi, { y: (x, z) => ground(l.x + x, l.z + z) - base });
   g.add(yi);
-  const sj = new THREE.Group();
-  const plinth = stoneBox(10, 4.2, 8, granite);
-  plinth.position.y = 2.1;
-  plinth.castShadow = true;
-  sj.add(plinth);
-  const king = figure(gold, { seated: true, trim: new THREE.MeshLambertMaterial({ color: '#efe6c8' }) });
-  king.position.y = 4.2;
-  sj.add(king);
+  // King Sejong: the scanned monument, his pedestal and all
+  const sejongMat = sejongMaterial();
+  const sj = sejongStatue(sejongMat);
   sj.position.set(l.sejong.x - l.x, ground(l.sejong.x, l.sejong.z) - base, l.sejong.z - l.z);
   g.add(sj);
   // (on the square's paving, a kerb's height over the land: plaza.js)
-  return { group: g, mats: [], base: [], lit: [], fogged: true, anim: fountain, under: [bronze, yiGold], lift: PLAZA_LIFT };
+  return { group: g, mats: [], base: [], lit: [], fogged: true, anim: fountain, under: [bronze, yiGold, sejongMat], lift: PLAZA_LIFT };
 }
 
 /**
