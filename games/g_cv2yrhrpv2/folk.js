@@ -20,15 +20,20 @@ const ROOT = './library/rocketbox/';
 /**
  * How many real people at once, and how near (m): nobody further is drawn (life.js). `shadow`: only
  * those this near cast the sun's shadow (one person is ~10k triangles and a draw per material, twice
- * over with the shadow pass; past ~30 m their shadow is a few texels of the shadow map). `bound`: the
+ * over with the shadow pass; past ~30 m their shadow is a few texels of the shadow map) — and only
+ * those in the picture or within `reach` m of its edge (a shadow falls a few metres: one from further
+ * outside the view can't land in it; a crowd of fans behind the camera cast nothing). `bound`: the
  * rest pose's bounding sphere is grown this much so a walk, a cheer or a seated pose stays inside it —
  * people are frustum-culled by it (the camera's and the sun's), not drawn behind you.
  */
-export const FOLK = { max: 34, near: 62, keep: 72, shadow: 30, bound: 1.6 };
+export const FOLK = { max: 34, near: 62, keep: 72, shadow: 30, reach: 5, bound: 1.6 };
 /** The walk clip's natural pace (m/s): the clip is sped up or slowed to match each walker's feet. */
 const WALK_PACE = 1.3;
 
 let shared = null;
+const _frustum = new THREE.Frustum();
+const _view = new THREE.Matrix4();
+const _sphere = new THREE.Sphere();
 
 /** Load the clips and every avatar once (in the background, one at a time). */
 function loadShared() {
@@ -363,10 +368,20 @@ export class Folk {
       }
       if (!this._take(m)) break;
     }
+    if (camera.isCamera) {
+      camera.updateMatrixWorld();
+      _view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      _frustum.setFromProjectionMatrix(_view);
+    }
     for (const p of this.active) {
       this._pose(p, dt);
-      // (the sun's shadow from the near ones only)
-      const shadow = Math.hypot(p.m.x - cam.x, p.m.z - cam.z) < FOLK.shadow;
+      // (the sun's shadow from the near ones in the picture, or just outside it, only)
+      let shadow = Math.hypot(p.m.x - cam.x, p.m.z - cam.z) < FOLK.shadow;
+      if (shadow && camera.isCamera) {
+        _sphere.center.set(p.m.x, p.m.y + 0.9, p.m.z);
+        _sphere.radius = 1.2 + FOLK.reach;
+        shadow = _frustum.intersectsSphere(_sphere);
+      }
       if (shadow !== p.shadow) {
         p.shadow = shadow;
         for (const o of p.meshes) o.castShadow = shadow;
