@@ -3,7 +3,8 @@ import { bronzeMaterial } from './admiral.js';
 import { yiStatue, goldMaterial } from './yiStatue.js';
 import { sejongStatue, sejongMaterial } from './sejongStatue.js';
 import { Fountain } from './fountain.js';
-import { PlazaView, PLAZA_LIFT } from './plaza.js';
+import { PlazaView, PLAZA_LIFT, inPlazaLane } from './plaza.js';
+import { tileKey, tileOf } from './tiles.js';
 import { SQUARE } from './square.js';
 import { mergeStatic } from './drawcost.js';
 
@@ -83,9 +84,10 @@ export const LOOK_MAX = 0.2;
  * `pitch`. From a street under the Sky Tower or below Namsan the tower is 20–35° up — over the top of
  * the chase view (10–15° above the horizon) — though it stands clear over the rooftops there.
  * A landmark with a `look` ({ near, max }: Gwanghwamun Square's giant statues) is looked up at from
- * close by too — each of its `sights`, from `near` metres off, up to its own `max`.
+ * close by too — each of its `sights`, from `near` metres off, up to its own `max`. Heights as drawn:
+ * larger than life (`scaleAt(l, d)`: LANDMARK_BOOST's height share at that distance).
  */
-export function landmarkLookUp(cam, yaw, { pitch = -0.36, vfov = 66, aspect = 16 / 9, groundAt = () => 0, landmarks = SKYLINE } = {}) {
+export function landmarkLookUp(cam, yaw, { pitch = -0.36, vfov = 66, aspect = 16 / 9, groundAt = () => 0, landmarks = SKYLINE, scaleAt = (l, d) => landmarkScale(l, d).y } = {}) {
   const half = ((vfov / 2) * Math.PI) / 180;
   const hHalf = Math.atan(Math.tan(half) * aspect);
   const fx = -Math.sin(yaw);
@@ -107,7 +109,7 @@ export function landmarkLookUp(cam, yaw, { pitch = -0.36, vfov = 66, aspect = 16
       if (off > hHalf * (near == null ? 0.6 : 0.85)) continue;
       const base = groundAt(x, z) ?? 0;
       // (its top just inside the top of the frame)
-      const up = Math.atan2(base + h - cam.y, d);
+      const up = Math.atan2(base + h * scaleAt(l, d) - cam.y, d);
       const most = near == null ? LOOK_MAX : (l.look.max ?? LOOK_MAX) * Math.min(1, (d - near) / 15);
       want = Math.max(want, Math.min(most, up - top));
     }
@@ -137,6 +139,109 @@ export function courseBend(pts, i, ahead = 50, open = false) {
 
 /** How far a landmark may be before it is drawn as its smaller copy: this share of the camera's far plane. */
 const NEAR_SHARE = 0.8;
+
+/**
+ * Landmarks drawn larger than life, the more so the further off they are, so they read on the horizon
+ * (only the picture: nothing a rider can touch changes). Each part is scaled about its own foot, so it
+ * stays planted; on a slope it is sunk as far as its grown foot needs (`plant`), never floating.
+ *
+ *   scale = near … far, eased (smoothstep) from `from` to `to` metres off
+ *
+ * Near, a part's footprint may not grow into a street (a road's edge + `clear` m), a square's riding
+ * lane, or a neighbouring building: its scale is capped where it would (measured on the real roads and
+ * the register's buildings once their tile is in), and the cap eased out from `capFrom` to `capTo` m —
+ * by then the street at its foot is behind blocks of the city. A tower (`stretch`) may still rise to
+ * `stretch` × its capped width (a slender tower a touch slenderer: it reads; a palace hall never does).
+ * `by`: per-landmark overrides. Gwanghwamun Square's statues are already MONUMENT_SCALE (their solids in
+ * plaza.js match it): near they stay as they are, far they grow a little more.
+ */
+export const LANDMARK_BOOST = {
+  near: 1.4,
+  far: 2.6,
+  from: 300,
+  to: 5000,
+  capFrom: 500,
+  capTo: 1400,
+  clear: 1.5,
+  stretch: 1,
+  by: {
+    // 555 m already: well over everything — 1.3× near, 2.2× (1.2 km) on the far horizon
+    skytower: { near: 1.3, far: 2.2, stretch: 1.25, foot: [36, 36] },
+    yeouido63: { near: 1.4, far: 2.6, stretch: 1.25, foot: [33, 15] },
+    // on Namsan's summit, seen from almost every course: the most
+    namsantower: { near: 1.5, far: 3, stretch: 1.25, foot: [21, 21] },
+    // (each of the gate and the throne hall about its own foot)
+    gyeongbokgung: { near: 1.4, far: 2.5, to: 2400 },
+    cheongwadae: { near: 1.35, far: 2.4, to: 2400, foot: [53, 16] },
+    yisunsin: { near: 1, far: 1.5, from: 200, to: 1600 }
+  }
+};
+
+/** The boost's settings for landmark `l` (its overrides over the defaults). */
+export function boostOf(l) {
+  return { ...LANDMARK_BOOST, ...LANDMARK_BOOST.by[l?.id] };
+}
+
+const smooth = (a, b, x) => {
+  const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+/**
+ * How much larger than life landmark `l` is drawn `d` metres off: { xz, y } (across and up). `cap`: the
+ * most its footprint may grow to near (from the streets and buildings round it; Infinity: no limit).
+ */
+export function landmarkScale(l, d, cap = Infinity) {
+  const b = boostOf(l);
+  const s = b.near + (b.far - b.near) * smooth(b.from, b.to, d);
+  // (the cap, eased out with distance: full near, gone by capTo)
+  const t = smooth(b.capFrom, b.capTo, d);
+  const most = Number.isFinite(cap) ? cap + (s - cap) * t : Infinity;
+  const xz = Math.max(1, Math.min(s, most));
+  return { xz, y: Math.max(xz, Math.min(s, xz * (b.stretch ?? 1))) };
+}
+
+/**
+ * A footprint's sample points at scale `s`: a rectangle `hw` × `hd` (half-sizes, metres) about (x, z),
+ * turned `angle` (radians, as a group's rotation.y), its edge and a grid inside.
+ */
+export function footPoints(x, z, [hw, hd], s = 1, angle = 0, n = 6) {
+  const out = [];
+  const c = Math.cos(angle);
+  const sn = Math.sin(angle);
+  for (let i = 0; i <= n; i++) {
+    for (let j = 0; j <= n; j++) {
+      const lx = (-1 + (2 * i) / n) * hw * s;
+      const lz = (-1 + (2 * j) / n) * hd * s;
+      // (rotation.y: x' = x cos + z sin, z' = −x sin + z cos)
+      out.push([x + lx * c + lz * sn, z - lx * sn + lz * c]);
+    }
+  }
+  return out;
+}
+
+/**
+ * The most a footprint may grow (1 … `most`, in steps of 0.05) before any of what it grows into — its
+ * grown foot outside its true one — lands where `blocked` says it mustn't. (What it already stands on at
+ * true size is the map's business, not the boost's.)
+ */
+export function footCap(x, z, foot, angle, most, blocked) {
+  const c = Math.cos(angle);
+  const sn = Math.sin(angle);
+  const inside = ([px, pz]) => {
+    const dx = px - x;
+    const dz = pz - z;
+    // (back into the foot's own frame)
+    return Math.abs(dx * c - dz * sn) <= foot[0] + 1e-6 && Math.abs(dx * sn + dz * c) <= foot[1] + 1e-6;
+  };
+  let ok = 1;
+  for (let k = 1; 1 + k * 0.05 <= most + 1e-6; k++) {
+    const s = 1 + k * 0.05;
+    if (footPoints(x, z, foot, s, angle, 8).some((p) => !inside(p) && blocked(p[0], p[1]))) break;
+    ok = s;
+  }
+  return Math.min(most, ok);
+}
 
 /**
  * The haze over a landmark `d` metres away: 0 clear … `cap` (a pale silhouette, never gone) — and in a
@@ -325,7 +430,8 @@ function sixtyThree(H, plot) {
   const podium = new THREE.Mesh(new THREE.BoxGeometry(plot.len * 0.98, 14, plot.wide * 0.92), stone);
   podium.position.y = 7;
   g.add(tower, podium);
-  return { group: g, mats: [gold, stone], windows: gold, base: [new THREE.Color('#d4a63c'), new THREE.Color('#b9ad96')] };
+  // (the tower larger than life about its own foot; the low podium as it is: LANDMARK_BOOST)
+  return { group: g, mats: [gold, stone], windows: gold, base: [new THREE.Color('#d4a63c'), new THREE.Color('#b9ad96')], parts: [{ obj: tower, foot: [L / 2, D / 2] }] };
 }
 
 /**
@@ -742,7 +848,12 @@ function palace(l, ground) {
   mergeStatic(gate);
   mergeStatic(hallG);
   g.add(gate, hallG);
-  return { group: g, mats: [], base: [], lit: [m.walls, m.under], fogged: true };
+  // (larger than life, each about its own foot: LANDMARK_BOOST)
+  const parts = [
+    { obj: gate, x: l.gate.x, z: l.gate.z, foot: [17, 7] },
+    { obj: hallG, x: l.hall.x, z: l.hall.z, foot: [25, 20] }
+  ];
+  return { group: g, mats: [], base: [], lit: [m.walls, m.under], fogged: true, parts };
 }
 
 /**
@@ -869,8 +980,13 @@ function statues(l, ground) {
   sj.scale.setScalar(MONUMENT_SCALE);
   sj.position.set(l.sejong.x - l.x, ground(l.sejong.x, l.sejong.z) - base, l.sejong.z - l.z);
   g.add(sj);
-  // (on the square's paving, a kerb's height over the land: plaza.js)
-  return { group: g, mats: [], base: [], lit: [], fogged: true, anim: fountain, under: [bronze, yiGold, sejongMat], lift: PLAZA_LIFT };
+  // (on the square's paving, a kerb's height over the land: plaza.js; each monument boosted about its own
+  // foot — near as it is, its solids are at MONUMENT_SCALE — the fountain never)
+  const parts = [
+    { obj: yi, x: l.x, z: l.z, foot: [6.5 * MONUMENT_SCALE, 6.5 * MONUMENT_SCALE] },
+    { obj: sj, x: l.sejong.x, z: l.sejong.z, foot: [6 * MONUMENT_SCALE, 6 * MONUMENT_SCALE] }
+  ];
+  return { group: g, mats: [], base: [], lit: [], fogged: true, anim: fountain, under: [bronze, yiGold, sejongMat], lift: PLAZA_LIFT, parts };
 }
 
 /**
@@ -953,13 +1069,82 @@ export class Skyline {
     for (const l of SKYLINE) {
       const m = MODELS[l.model](l, ground);
       if (l.plot) m.group.rotation.y = -l.plot.angle;
+      // (larger than life, LANDMARK_BOOST: the whole model about its foot, unless it has parts of its own)
+      m.parts ??= [{ obj: m.group, foot: boostOf(l).foot ?? [20, 20] }];
       add(l, m, l.plot ?? l, l.range ?? 12000);
+      this._parts(l, m);
       // the hill it stands on (or under), seen from wherever its land isn't loaded
       if (l.hill) add(l, hillPatch(l.hill, ground), l.hill, Math.max(l.range ?? 12000, 12000));
     }
     // the squares the courses ride through: Gwanghwamun Square's paving, planters and bollards, Cheong Wa Dae's drive
     this.plazas = new PlazaView(game.scene, ground);
     this._fog = new THREE.Color();
+  }
+
+  /**
+   * Each part's place, its true size and height in its group, how far its foot may grow near (the
+   * streets round it now; the buildings once their tiles are in: `_capBuildings`) and how far it sinks
+   * on a slope as it grows (its foot's lowest ground at each scale, so it never stands in the air).
+   */
+  _parts(l, m) {
+    const g = this.g;
+    const b = boostOf(l);
+    const ground = (x, z) => g.groundAt?.(x, z) ?? 0;
+    m.group.parent.updateMatrixWorld(true);
+    const w = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    const e = new THREE.Euler();
+    for (const p of m.parts) {
+      p.obj.getWorldPosition(w);
+      p.x ??= w.x;
+      p.z ??= w.z;
+      p.obj.getWorldQuaternion(q);
+      p.angle ??= e.setFromQuaternion(q, 'YXZ').y;
+      p.s0 = p.obj.scale.x;
+      p.y0 = p.obj.position.y;
+      // (true size counted as the land is: a part already over a road edge at true size may stay so, not grow further)
+      const road = (x, z) => Boolean(g.onRoad?.(x, z, b.clear) || inPlazaLane(x, z, b.clear));
+      p.cap = b.near > 1 ? footCap(p.x, p.z, p.foot, p.angle, b.near, road) : 1;
+      p.road = road;
+      p.built = b.near <= 1;
+      // the foot's lowest ground below its middle, at scales 1, 1.25 … 3.5
+      const mid = ground(p.x, p.z);
+      p.drops = [];
+      for (let s = 1; s <= 3.5 + 1e-6; s += 0.25) {
+        let low = mid;
+        for (const [x, z] of footPoints(p.x, p.z, p.foot, s, p.angle, 4)) low = Math.min(low, ground(x, z));
+        p.drops.push(mid - low);
+      }
+    }
+  }
+
+  /** How far a part is sunk at scale `s` (metres in its group): its grown foot's drop on the slope beyond its true one. */
+  _sink(p, s) {
+    const f = Math.max(0, Math.min(p.drops.length - 1, (s - 1) / 0.25));
+    const i = Math.floor(f);
+    const d = p.drops[i] + (p.drops[Math.min(p.drops.length - 1, i + 1)] - p.drops[i]) * (f - i);
+    return Math.max(0, d - p.drops[0]);
+  }
+
+  /**
+   * Once the tiles under a part's grown foot are in (and it is near enough to matter): its cap again,
+   * with the register's buildings round it as well as the streets.
+   */
+  _capBuildings(l, p) {
+    const g = this.g;
+    const o = g.origin;
+    if (!o || !g.tiles || !g.buildingAt) return;
+    const b = boostOf(l);
+    const keys = new Set();
+    for (const [x, z] of footPoints(p.x, p.z, p.foot, b.near, p.angle, 2)) keys.add(tileKey(...tileOf(x + o.x, -z + o.y)));
+    for (const k of keys) {
+      const t = g.tiles.get(k);
+      // (a tile not in the index has no buildings: nothing to wait for)
+      if (g.index?.tiles && !g.index.tiles[k]) continue;
+      if (t?.state !== 'ready' && t?.state !== 'failed') return;
+    }
+    p.cap = footCap(p.x, p.z, p.foot, p.angle, b.near, (x, z) => p.road(x, z) || Boolean(g.buildingAt(x, z)));
+    p.built = true;
   }
 
   /**
@@ -1015,6 +1200,16 @@ export class Skyline {
         it.holder.position.copy(it.pos);
         it.holder.scale.setScalar(1);
       }
+      // larger than life, each part about its own foot (LANDMARK_BOOST); sunk on a slope as it grows
+      for (const p of it.m.parts ?? []) {
+        const pd = Math.hypot(p.x - cam.x, p.z - cam.z, it.pos.y - cam.y);
+        if (!p.built && pd < boostOf(it.l).capTo + 300) this._capBuildings(it.l, p);
+        const sc = landmarkScale(it.l, pd, p.cap);
+        p.obj.scale.set(p.s0 * sc.xz, p.s0 * sc.y, p.s0 * sc.xz);
+        p.obj.position.y = p.y0 - this._sink(p, sc.xz);
+        p.shown = sc;
+      }
+      it.shown = it.m.parts?.[0]?.shown;
       if (it.m.fogged) {
         for (const mat of it.m.lit) mat.emissiveIntensity = night * 0.5;
         // (the admiral lit softly from below after dark; the fountain's jets and lights)

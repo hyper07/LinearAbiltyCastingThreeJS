@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SKYLINE, skylineHaze, towerHalf, landmarkLookUp, landmarkParts, LOOK_MAX, courseBend, LOOK_BEND, hanokRoof } from '../../games/g_cv2yrhrpv2/skyline.js';
-import { markAt, MARK_RANGE } from '../../games/g_cv2yrhrpv2/minimap.js';
+import { SKYLINE, skylineHaze, towerHalf, landmarkLookUp, landmarkParts, LOOK_MAX, courseBend, LOOK_BEND, hanokRoof, LANDMARK_BOOST, landmarkScale, boostOf, footPoints, footCap } from '../../games/g_cv2yrhrpv2/skyline.js';
+import { markAt, MARK_RANGE, MARK_SIZE } from '../../games/g_cv2yrhrpv2/minimap.js';
 import { admiral, admiralFar } from '../../games/g_cv2yrhrpv2/admiral.js';
 import { jetHeight, jetColor, FOUNTAIN } from '../../games/g_cv2yrhrpv2/fountain.js';
 import * as THREE from 'three';
@@ -132,4 +132,62 @@ test('through haze a landmark greys to a pale silhouette, never gone; a fog bank
   assert.ok(skylineHaze(20000) <= 0.72, 'from across the city: still there');
   assert.ok(skylineHaze(20000) > skylineHaze(5000));
   assert.equal(skylineHaze(400, { thick: 1, fogNear: 2, fogFar: 24 }), 1, 'in a fog bank, gone past its far');
+});
+
+test('landmarks larger than life: 1.3–1.5× near, growing to 2.2–3× on the horizon, never shrinking as they go', () => {
+  for (const l of SKYLINE) {
+    const b = boostOf(l);
+    const near = landmarkScale(l, 50);
+    const far = landmarkScale(l, 30000);
+    if (l.id === 'yisunsin') {
+      // (already MONUMENT_SCALE: near as its solids are, a little more far off)
+      assert.equal(near.xz, 1, 'the statues near as they are');
+      assert.ok(far.y > 1.2 && far.y <= 1.6, `${l.id} far ${far.y}`);
+      continue;
+    }
+    assert.ok(near.xz >= 1.3 && near.xz <= 1.5 && near.y === near.xz, `${l.id} near ${near.xz}`);
+    assert.ok(far.y >= 2.2 && far.y <= 3, `${l.id} far ${far.y}`);
+    assert.equal(far.y, b.far);
+    let last = 0;
+    for (let d = 0; d <= 20000; d += 250) {
+      const s = landmarkScale(l, d).y;
+      assert.ok(s >= last - 1e-9, `${l.id} at ${d} m`);
+      last = s;
+    }
+  }
+  assert.ok(LANDMARK_BOOST.capFrom < LANDMARK_BOOST.capTo);
+});
+
+test('a landmark whose foot would grow into a street is capped near (a tower may still rise a little), the cap gone by capTo', () => {
+  const tower = SKYLINE.find((l) => l.id === 'namsantower');
+  const near = landmarkScale(tower, 100, 1.1);
+  assert.equal(near.xz, 1.1);
+  assert.ok(near.y > 1.1 && near.y <= 1.1 * boostOf(tower).stretch + 1e-9, 'a tower rises a touch over its capped width');
+  const hall = SKYLINE.find((l) => l.id === 'gyeongbokgung');
+  const h = landmarkScale(hall, 100, 1);
+  assert.ok(h.xz === 1 && h.y === 1, 'a palace hall is never stretched');
+  assert.ok(landmarkScale(tower, LANDMARK_BOOST.capTo + 1, 1.1).xz > 1.5, 'past capTo the cap is gone');
+  // a road east of x = 30.5 m: a 40 m square foot about (0, 0) may grow to 1.5× (its edge at 30 m), not 1.55×
+  const road = (x) => x > 30.5;
+  assert.ok(Math.abs(footCap(0, 0, [20, 20], 0, 2, road) - 1.5) < 1e-9);
+  assert.equal(footCap(0, 0, [20, 20], 0, 1.3, road), 1.3);
+  // one already over the road at true size may stay as it is, not grow further into it
+  assert.equal(footCap(25, 0, [10, 10], 0, 1.5, road), 1);
+  // a foot turned a quarter round lies along z
+  const pts = footPoints(0, 0, [10, 1], 1, Math.PI / 2);
+  assert.ok(Math.max(...pts.map((p) => Math.abs(p[1]))) > 9.9 && Math.max(...pts.map((p) => Math.abs(p[0]))) < 1.01);
+});
+
+test('the race camera looks up to a landmark as it is drawn: larger than life', () => {
+  const tower = SKYLINE.find((l) => l.id === 'namsantower');
+  const ground = () => 30;
+  const cam = { x: tower.x, y: 33, z: tower.z + 1500 };
+  const drawn = landmarkLookUp(cam, 0, { groundAt: ground, landmarks: [tower] });
+  const life = landmarkLookUp(cam, 0, { groundAt: ground, landmarks: [tower], scaleAt: () => 1 });
+  assert.ok(drawn >= life && drawn <= LOOK_MAX);
+});
+
+test('the minimap\'s landmark signs are big enough to read at the map\'s shown size', () => {
+  // (the map is drawn at 440 px and shown at about 200: 44 px is ~20 px on the screen)
+  assert.ok(MARK_SIZE.on >= 40 && MARK_SIZE.rim >= 34 && MARK_SIZE.inset >= MARK_SIZE.rim / 2 + 6);
 });

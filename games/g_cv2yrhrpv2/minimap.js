@@ -19,6 +19,9 @@ const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
 /** How far off a landmark is still marked on the map (m): the tall towers from across the city, the rest from round about. */
 export const MARK_RANGE = { tower: 9000, gold: 9000, palace: 2600, bluehouse: 2600, statue: 1600 };
 
+/** A landmark's sign on the map (canvas pixels: the map is 440 across, shown at about 200): on it, on its rim, and how far in from the rim. */
+export const MARK_SIZE = { on: 44, rim: 38, inset: 27 };
+
 /**
  * Where a landmark goes on the round map (pixels, from the map's middle at `R`, `cy`): at its place if it
  * is on the map, else on the rim the way it lies — { x, y, rim }. `rot` is the map's turn, `S` pixels a metre.
@@ -374,8 +377,9 @@ export class RaceMinimap {
     for (const l of SKYLINE) {
       const kind = l.icon ?? 'tower';
       if (Math.hypot(l.x - me.s.x, l.z - me.s.z) > Math.min(l.range ?? 9000, MARK_RANGE[kind] ?? 9000)) continue;
-      const m = markAt(l, { x: me.s.x, z: me.s.z }, { R, cy, rot: this.rot, S });
-      drawMark(g, kind, m.x, m.y, m.rim ? 20 : 24, m.rim);
+      // (big enough to read at a glance: the map is drawn at 440 px and shown at about 200)
+      const m = markAt(l, { x: me.s.x, z: me.s.z }, { R, cy, rot: this.rot, S, inset: MARK_SIZE.inset });
+      drawMark(g, kind, m.x, m.y, m.rim ? MARK_SIZE.rim : MARK_SIZE.on, m.rim);
       this.marks.push(l.id);
     }
     // you: an arrow the way you go
