@@ -5,6 +5,7 @@ import { sejongStatue, sejongMaterial } from './sejongStatue.js';
 import { Fountain } from './fountain.js';
 import { PlazaView, PLAZA_LIFT } from './plaza.js';
 import { SQUARE } from './square.js';
+import { mergeStatic } from './drawcost.js';
 
 /**
  * Gwanghwamun Square's monuments larger than life for the game, so a rider sees them: 1 = true size — the
@@ -582,6 +583,7 @@ function namsanTower(H) {
   const top = new THREE.Mesh(new THREE.CylinderGeometry(0.25 * s, 0.8 * s, 4.7 * s, 8), tip);
   top.position.y = 234.4 * s;
   g.add(top);
+  mergeStatic(g);
   return { group: g, mats: [white, glass, red, grey], windows: glass, glow: tip, soft: white, base: [new THREE.Color('#eceeee'), new THREE.Color('#5f7890'), new THREE.Color('#d8493c'), new THREE.Color('#9aa3ad')] };
 }
 
@@ -736,6 +738,9 @@ function palace(l, ground) {
   storey(hallG, m, 25, 16, 3.6, 10.6, { bay: 5 });
   roofOn(hallG, m, 36, 26, 7.2, 14.6, { lift: 1.8 });
   hallG.position.set(l.hall.x - l.x, ground(l.hall.x, l.hall.z) - base, l.hall.z - l.z);
+  // (hundreds of columns, posts, arches and roofs: one mesh a material for each — drawcost.js)
+  mergeStatic(gate);
+  mergeStatic(hallG);
   g.add(gate, hallG);
   return { group: g, mats: [], base: [], lit: [m.walls, m.under], fogged: true };
 }
@@ -776,6 +781,7 @@ function blueHouse() {
     link.position.x = sx * 27;
     g.add(link);
   }
+  mergeStatic(g);
   return { group: g, mats: [], base: [], lit: [m.walls], fogged: true };
 }
 

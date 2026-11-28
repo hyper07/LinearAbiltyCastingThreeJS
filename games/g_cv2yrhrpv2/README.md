@@ -92,6 +92,7 @@ module** as one exported constant (`SCOOT`, `CAR`, `BIKE`, `ITEMS`, `OIL`, `SMOK
 | `trees.js` | procedural ginkgos and plane trees |
 | `sky.js` | sky dome, sun, colour grade |
 | `aopass.js` | ambient occlusion that skips see-through quads |
+| `drawcost.js` | fewer draws for the same picture: merge a model's parts by material, small parts cast no shadow, sub-pixel detail culled |
 | `weather.js` | clear/rain/storm/snow/fog, time picks (`WEATHERS`) |
 | `mist.js` | ground mist in fog |
 | `nightlights.js` | street lamps and headlights after dark |
