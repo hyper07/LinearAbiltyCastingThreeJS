@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildingType, typeSpec, floorsOf, shopUnits, tenants, rng, TOWERS } from './buildtypes.js';
 import { SignAtlas } from './signs.js';
 
@@ -34,6 +35,13 @@ const BUILD = 190;
 const DROP = 300;
 const PER_FRAME = 2;
 const BATCH = 10;
+/**
+ * A small batch closed (the queue ran dry: what is built shows at once) is folded into the last one when
+ * that is this near (m) and the two hold no more than BATCH_MAX buildings: the same meshes, a draw a
+ * material for twenty-odd buildings instead of for two or three.
+ */
+const BATCH_NEAR = 120;
+const BATCH_MAX = 30;
 
 const C = (hex) => new THREE.Color(hex);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -509,6 +517,28 @@ export class Facades {
     this.open = null;
     batch.meshes = batch.geo.meshes((key) => this._mat(key));
     batch.geo = null;
+    const prev = this.batches.at(-1);
+    if (prev && prev.list.length + batch.list.length <= BATCH_MAX && Math.hypot(prev.x - batch.x, prev.z - batch.z) < BATCH_NEAR) {
+      for (const m of batch.meshes) {
+        const into = prev.meshes.find((q) => q.name === m.name);
+        const geo = into && mergeGeometries([into.geometry, m.geometry]);
+        if (geo) {
+          geo.computeBoundingSphere();
+          into.geometry.dispose();
+          into.geometry = geo;
+          m.geometry.dispose();
+        } else {
+          prev.meshes.push(m);
+          this.group.add(m);
+        }
+      }
+      for (const b of batch.list) {
+        this.g.hideWalls?.(b, true);
+        this.done.set(b, prev);
+        prev.list.push(b);
+      }
+      return;
+    }
     for (const m of batch.meshes) this.group.add(m);
     for (const b of batch.list) this.g.hideWalls?.(b, true);
     this.batches.push(batch);

@@ -294,6 +294,12 @@ const CLIFF = 1.6;
 const UPHILL = 3;
 /** The asphalt's colour in a junction's middle, whichever road draws it there. */
 const JUNCTION_ASPHALT = new THREE.Color('#96989e');
+/**
+ * Street furniture is drawn only this near (m, to the nearest edge of its tile): past it a lamp post or a
+ * garden wall is a hair's width on the screen. After dark the lamps' heads stay at any distance — the
+ * rows of street lights over the city — only their poles go.
+ */
+const FURNITURE_FAR = { lamps: 450, walls: 600 };
 export { ROAD_CELL };
 
 /**
@@ -880,6 +886,7 @@ export class SeoulGame {
       if (made++ >= 6) break;
       this.lands.set(key, this._land(key));
     }
+    this._furniture();
     for (const [key, t] of this.tiles) {
       if (want.has(key)) continue;
       this._free(t);
@@ -913,6 +920,26 @@ export class SeoulGame {
     const ready = [...this.tiles.values()].filter((t) => t.state === 'fetched').sort((a, b) => (want.get(a.key) ?? 0) - (want.get(b.key) ?? 0))[0];
     if (ready) this._build(ready);
     this.loadingCount = missing.length + (ready ? 1 : 0);
+  }
+
+  /** Lamp posts and garden walls only near (FURNITURE_FAR); lamp heads everywhere after dark. */
+  _furniture() {
+    const cam = this.camera.position;
+    const night = (this.uniforms?.uNight.value ?? 0) > 0.05;
+    for (const [key, l] of this.lands) {
+      if (!l.lamps && !l.walls) continue;
+      const [tx, ty] = key.split('_').map(Number);
+      const x0 = tx * TILE - ORIGIN.x;
+      const z1 = -(ty * TILE - ORIGIN.y);
+      // (to the nearest point of the tile's square)
+      const d = Math.hypot(Math.max(x0 - cam.x, 0, cam.x - (x0 + TILE)), Math.max(z1 - TILE - cam.z, 0, cam.z - z1));
+      if (l.lamps) {
+        const [poles, heads] = l.lamps.children;
+        poles.visible = d < FURNITURE_FAR.lamps;
+        if (heads) heads.visible = poles.visible || night;
+      }
+      if (l.walls) l.walls.visible = d < FURNITURE_FAR.walls;
+    }
   }
 
   /** Take a tile's land down: its ground, roads, pavements, kerbs, trees and lamps (and what they told surfaceAt). */
