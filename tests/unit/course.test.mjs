@@ -353,10 +353,12 @@ test('the landmark runs: each laid out so its landmark stands ahead down its str
   const ground = seoulTerrain();
   // (the course, its landmark, the least share of the lap it is in view — measured Nov 2026: 32 %, 32 %, 13 % — and
   // for the square's runs and the 63's loop, the least of the frame's height it fills at its biggest. Measured
-  // 27 Nov 2026: the Figure Eight 30 / 30 / 12 %, the Fountain Run 21 % (27 % of the frame), the 63 Riverside
+  // 27 Nov 2026: the Figure Eight 30 / 30 / 12 %, the Fountain Run 21 % (27 % of the frame) — and with the statues
+  // larger than life (MONUMENT_SCALE 2.5) and the camera's look up at them: the Figure Eight's admiral 18 % (25 % of
+  // the frame), the Fountain Run's 29 % (37 %); the 63 Riverside
   // Loop only 1 % in clear sight (in frame 23 %, but riding at its foot what the frame holds is its lowest
   // floors, behind the riverside blocks; 33 % of the frame at its biggest) — the 63's loop is held to its size)
-  for (const [id, landmark, least, big = 0] of [['gyeongbok8', 'gyeongbokgung', 0.2], ['gyeongbok8', 'cheongwadae', 0.15], ['gyeongbok8', 'yisunsin', 0.08, 0.15], ['fountainrun', 'yisunsin', 0.16, 0.15], ['noryangjin', 'yeouido63', 0.2], ['sixtythree', 'yeouido63', 0.005, 0.3], ['songpa', 'skytower', 0.08]]) {
+  for (const [id, landmark, least, big = 0] of [['gyeongbok8', 'gyeongbokgung', 0.2], ['gyeongbok8', 'cheongwadae', 0.15], ['gyeongbok8', 'yisunsin', 0.14, 0.2], ['fountainrun', 'yisunsin', 0.22, 0.3], ['noryangjin', 'yeouido63', 0.2], ['sixtythree', 'yeouido63', 0.005, 0.3], ['songpa', 'skytower', 0.08]]) {
     const def = BIKE_COURSES.find((c) => c.id === id);
     const walls = wallsNear(def.x, def.z, def.r * 4, def.plaza);
     const c = finishCourse(planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls }), { walls });
@@ -366,9 +368,11 @@ test('the landmark runs: each laid out so its landmark stands ahead down its str
   }
 });
 
-test('Gwanghwamun Square is part of the race: the Figure Eight and the Fountain Run up its paving, past the fountain and round the admiral, the grid before him; the Figure Eight across Cheong Wa Dae\'s lawn', { skip: !seoul && 'no Seoul map converted here' }, async () => {
+test('Gwanghwamun Square is part of the race: the Figure Eight and the Fountain Run up its paving, past the admiral, up the fountain\'s walkway and round King Sejong, the grid before him; the Figure Eight across Cheong Wa Dae\'s lawn', { skip: !seoul && 'no Seoul map converted here' }, async () => {
   const { plazaAt, PLAZAS } = await import('../../games/g_cv2yrhrpv2/plaza.js');
-  const { SKYLINE } = await import('../../games/g_cv2yrhrpv2/skyline.js');
+  const { SKYLINE, MONUMENT_SCALE } = await import('../../games/g_cv2yrhrpv2/skyline.js');
+  const { SQUARE } = await import('../../games/g_cv2yrhrpv2/square.js');
+  const F = SQUARE.fountain;
   const yi = SKYLINE.find((l) => l.id === 'yisunsin');
   const hall = SKYLINE.find((l) => l.id === 'cheongwadae');
   const fountain = PLAZAS.find((p) => p.id === 'gwanghwamun');
@@ -378,13 +382,15 @@ test('Gwanghwamun Square is part of the race: the Figure Eight and the Fountain 
     const walls = wallsNear(def.x, def.z, def.r * 4, def.plaza);
     const c = finishCourse(planCourse(roadsNear(seoul.all, def, def.r * 4), def, { bike: true, walls }), { walls });
     const on = c.points.filter((p) => plazaAt(p[0], p[1], 'gwanghwamun'));
-    // up the square: 400 m and more of its paving, northward, past the admiral within 20 m and King Sejong within 25 m
+    // up the square: 400 m and more of its paving, northward, round the admiral's (giant) plinth and King Sejong's
+    // pedestal, a few metres off their edges (measured 27 Nov 2026: 25 m and 27 m from their middles)
     assert.ok(on.length * 6 >= 400, `${id}: ${on.length * 6} m on the square`);
     const near = (x, z) => Math.min(...c.points.map((p) => Math.hypot(p[0] - x, p[1] - z)));
-    assert.ok(near(yi.x, yi.z) < 20, `${id}: ${Math.round(near(yi.x, yi.z))} m from the admiral`);
-    assert.ok(near(yi.sejong.x, yi.sejong.z) < 25, `${id}: ${Math.round(near(yi.sejong.x, yi.sejong.z))} m from King Sejong`);
-    // beside the fountain's field (the lane through its west row's spray)
-    assert.ok(c.points.some((p) => p[1] < yi.z + 50 && p[1] > yi.z + 20 && Math.abs(p[0] - (yi.x - 9)) < 5), `${id}: alongside the fountain`);
+    assert.ok(near(yi.x, yi.z) < 6.5 * MONUMENT_SCALE + 14, `${id}: ${Math.round(near(yi.x, yi.z))} m from the admiral`);
+    assert.ok(near(yi.sejong.x, yi.sejong.z) < 5.7 * MONUMENT_SCALE + 16, `${id}: ${Math.round(near(yi.sejong.x, yi.sejong.z))} m from King Sejong`);
+    // up the fountain's walkway between its jets: 60 m and more of it along its middle (measured: 78 m)
+    const walk = c.points.filter((p) => p[1] < F.z0 && p[1] > F.z1 && Math.abs(p[0] - F.x) < 3);
+    assert.ok(walk.length * 6 >= 60, `${id}: ${walk.length * 6} m up the fountain's walkway`);
     // the start line on the square, before the statue and the fountain, the way on north toward them
     const [s0, s1] = [c.points[0], c.points[3]];
     assert.ok(plazaAt(s0[0], s0[1], 'gwanghwamun') && s0[1] > yi.z && s1[1] < s0[1], `${id}: the grid on the square, facing the statue`);

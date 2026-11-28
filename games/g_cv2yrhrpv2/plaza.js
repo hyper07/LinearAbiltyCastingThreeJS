@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { SQUARE } from './square.js';
 
 /**
  * The squares a course rides through that the road map has no road over: Gwanghwamun Square (the riders
- * come up the paving past the fountain, round Admiral Yi's plinth, past King Sejong and out toward the
- * gate) and the drive across Cheong Wa Dae's lawn in front of its main hall. Each is a paved surface at
+ * come up the paving past Admiral Yi's plinth, up the fountain's walkway between its jets, round King
+ * Sejong and out toward the gate — its monuments and fountain sized and placed in square.js) and the drive across Cheong Wa Dae's lawn in front of its main hall. Each is a paved surface at
  * pavement height (the road slab's 0.9 m over its level and a kerb's 0.14 — `PLAZA_LIFT`), a racing lane
  * down it that the course planner may use as a street (`plazaRoads`, joined to the real roads at its ends),
  * what stands on it as walls (the plinths, planters and bollards — `plazaRings`), and people about its
@@ -25,33 +26,72 @@ export const PLAZA_LIFT = 1.04;
 /** A box on the ground, [x, z, width (along x), depth (along z)] — solid. */
 const rect = (x, z, w, d) => ({ x, z, w, d });
 
+// Gwanghwamun Square's monuments and fountain (square.js): the solids are their plinths at SQUARE.scale
+const MS = SQUARE.scale;
+const ADM = SQUARE.admiral;
+const SJ = SQUARE.sejong;
+const FQ = SQUARE.fountain;
+const F_LEN = Math.abs(FQ.z0 - FQ.z1);
+const F_ROWS = Math.floor(F_LEN / FQ.dz) + 1;
+/** A spot among the floor jets (fountain.js's layout): side −1 west, 1 east; between columns c and c + 1 and rows r and r + 1; facing (fx, fz). */
+const amongJets = (side, c, r, fx, fz) => [FQ.x + side * (FQ.walk / 2 + 0.8 + (c + 0.5) * FQ.dx), FQ.z0 - (r + 0.5) * (F_LEN / (F_ROWS - 1)), fx, fz];
+
 export const PLAZAS = [
   {
     id: 'gwanghwamun',
     kind: 'square',
     // the paving: west and east edge at each z, south to north — between Jongno/Saemunan-ro's crossing and
-    // Sajik-ro in front of the gate, from the buildings on the west (the Sejong Center's line) to the
-    // pavement of Sejong-daero's southbound carriageway on the east
+    // Sajik-ro in front of the gate; all of it west of Sejong-daero (the traffic all on its east, as since
+    // 2022): from the buildings on the west (a metre short of their footprints: the blocks south of the Sejong
+    // Center, its front, the forecourt before its main hall, the open ground north of it) to the kerb of
+    // Sejong-daero's southbound carriageway on the east, about 60 m and more across
     // (and out to the end of Sajik-ro 8-gil, which comes into its west side by the Sejong Center's north end)
-    rows: [[-455, -118, -86], [-470, -128, -84], [-490, -132, -82], [-560, -134, -76], [-640, -134, -77], [-720, -134, -79], [-800, -134, -82], [-866, -134, -82], [-874, -143, -82], [-900, -143, -82], [-908, -134, -82], [-930, -134, -83], [-960, -133, -86], [-975, -130, -94]],
-    // the racing lane: up the west side of the fountain (through the spray of its west row), round the
-    // admiral's plinth on its west, past King Sejong, a gentle weave between the planters, out toward the gate
-    lane: [[-100, -458], [-100, -490], [-105, -506], [-107, -520], [-104, -538], [-100, -570], [-104, -620], [-108, -660], [-109, -700], [-114, -745], [-108, -790], [-114, -835], [-108, -880], [-102, -925], [-98, -962]],
+    rows: [
+      [-455, -124, -82.5], [-462, -132, -82], [-470, -134, -81.5], [-500, -134, -79.5], [-540, -135, -76.5], [-560, -135, -75.5],
+      [-604, -136, -75], [-607, -139.5, -75], [-637.6, -139.5, -75.5], [-638, -177, -75.5], [-662.8, -177, -76], [-663.2, -137.5, -76],
+      [-744, -137.5, -78], [-750, -134, -78.5], [-754, -148, -78.5], [-862, -148, -80.5], [-866, -134, -80.5], [-874, -143, -80.5],
+      [-900, -143, -81.5], [-908, -134, -82], [-930, -134, -82.5], [-960, -133, -86], [-975, -130, -94]
+    ],
+    // the racing lane: from the grid at the square's south end, up past the admiral's plinth on its west, into
+    // the fountain's central walkway (the jets' spray either side) straight at King Sejong, round his pedestal on
+    // its west, a gentle weave between the planters, out toward the gate
+    lane: [
+      [-117, -457], [-119.5, -472], [-121.5, -487], [-123, -502], [-123, -515], [-122.5, -530], [-120.5, -542], [-116.5, -553], [-111, -563],
+      [-106, -572], [-103.5, -582], [-103, -595], [-103, -620], [-103, -645], [-105.5, -655], [-110, -665], [-115, -675], [-119, -686],
+      [-120.5, -700], [-120, -722], [-116, -745], [-110, -790], [-114, -835], [-108, -880], [-102, -925], [-98, -962]
+    ],
     width: 14,
     // where the lane meets the roads ([its point, the road's point]): from its south end onto Jongno westbound
     // and from Saemunan-ro eastbound (across the crossing); from its north end onto Sajik-ro eastbound (to
     // Yulgok-ro) and westbound (along the front of the gate's junction); from its bend by the Sejong Center's
     // north end onto Sajik-ro 8-gil, west
-    joins: [[0, [-96, -445]], [0, [-96, -428]], [-1, [-95, -984]], [-1, [-101, -997]], [12, [-145, -887]]],
-    // the admiral's plinth (its broad lowest step), the turtle ship's base, King Sejong's pedestal (the scan's, 11.3 × 10.6 m)
-    solids: [rect(-92, -517, 13, 13), rect(-92, -507.4, 3.2, 6.4), rect(-92, -691, 11.4, 10.6)],
-    // round granite planters at the weave's bends, just off the lane (x, z, radius)
-    planters: [[-109.5, -570, 1.2], [-104.5, -745, 1.3], [-98, -748, 1.3], [-117.5, -790, 1.3], [-104.5, -835, 1.3], [-98, -838, 1.3], [-124, -640, 1.2]],
+    joins: [[0, [-96, -445]], [0, [-96, -428]], [-1, [-95, -984]], [-1, [-101, -997]], [23, [-145, -887]]],
+    // the admiral's plinth (its broad lowest step), the turtle ship's base, King Sejong's pedestal (the scan's,
+    // 11.4 × 10.6 m) — all at SQUARE.scale, as skyline.js draws them
+    solids: [rect(ADM.x, ADM.z, 13 * MS, 13 * MS), rect(ADM.x, ADM.z + 9.6 * MS, 3.2 * MS, 6.4 * MS), rect(SJ.x, SJ.z, 11.4 * MS, 10.6 * MS)],
+    // round granite planters (x, z, radius): a garden row down the west side of the fountain, a few in the
+    // Sejong Center's forecourt, and at the weave's bends north of King Sejong, just off the lane
+    planters: [
+      [-133, -582, 1.5], [-133, -596, 1.5], [-133, -610, 1.5], [-133, -624, 1.5], [-133, -638, 1.5], [-133, -652, 1.5],
+      [-152, -642, 1.6], [-164, -650, 1.6], [-152, -658, 1.6],
+      [-106.5, -745, 1.3], [-100, -748, 1.3], [-119.5, -790, 1.3], [-104.5, -835, 1.3], [-98, -838, 1.3]
+    ],
     // stone bollards along the lane's edges (from, to: indices of the lane's points), every `every` metres — none
-    // where a course turns off it (by the Sejong Center's north end, its north end)
-    bollards: { runs: [[5, 7], [8, 11]], every: 6, off: 8 },
-    // people about: along the west edge, watching the fountain, by King Sejong (x, z, facing x, z)
-    folk: [[-118, -470, 1, 0], [-119, -476, 1, 0.2], [-120, -497, 1, 0], [-121, -503, 1, -0.2], [-124, -540, 1, 0], [-125, -545, 1, 0.3], [-127, -600, 1, 0], [-127, -606, 1, 0], [-128, -700, 1, 0], [-127, -705, 1, -0.3], [-87, -712, -1, 0], [-86, -718, -1, 0.2], [-127, -800, 1, 0], [-126, -806, 1, 0.2], [-128, -900, 1, 0], [-87, -900, -1, 0], [-88, -930, -1, 0.3]]
+    // through the fountain, nor where a course turns off it (by the Sejong Center's north end, its north end)
+    bollards: { runs: [[19, 22]], every: 6, off: 8 },
+    // what lies over the paving and hides it: the fountain's wet floor (fountain.js: its fields, their outer rows and
+    // a margin; a metre inside its edges) — no paving drawn under it
+    under: [rect(FQ.x, (FQ.z0 + FQ.z1) / 2, 2 * (FQ.walk / 2 + 0.8 + (FQ.cols - 1) * FQ.dx + 3) - 2, F_LEN + 8 - 2)],
+    // people about: among the floor jets either side of the walkway (as on a summer night there), by the
+    // admiral, by King Sejong, in the Sejong Center's forecourt, along the west edge further north (x, z, facing x, z)
+    folk: [
+      amongJets(-1, 2, 2, 1, 0), amongJets(-1, 4, 4, 1, 0.3), amongJets(-1, 2, 9, 1, -0.2), amongJets(-1, 6, 12, 0.6, 1), amongJets(-1, 4, 17, 1, 0),
+      amongJets(-1, 2, 22, 1, 0.4), amongJets(-1, 6, 25, 1, 0), amongJets(-1, 4, 29, 0.3, 1), amongJets(-1, 7, 6, 1, 0.2),
+      amongJets(1, 2, 3, -1, 0), amongJets(1, 4, 6, -1, 0.3), amongJets(1, 2, 11, -1, -0.2), amongJets(1, 6, 14, -0.5, 1), amongJets(1, 4, 19, -1, 0),
+      amongJets(1, 2, 24, -1, 0.3), amongJets(1, 6, 27, -1, 0), amongJets(1, 4, 31, -0.2, 1),
+      [-88, -468, -0.3, -1], [-84, -474, -0.2, -1], [-131, -478, 0.4, -1], [-80, -716, -0.3, 1], [-86, -720, 0, 1], [-131, -700, 1, 0.2],
+      [-150, -646, 1, 0], [-156, -654, 1, 0.2], [-127, -800, 1, 0], [-126, -806, 1, 0.2], [-128, -900, 1, 0], [-87, -900, -1, 0], [-88, -930, -1, 0.3]
+    ]
   },
   {
     id: 'cheongwadae',
@@ -316,12 +356,18 @@ export class PlazaView {
         return pos.length / 3 - 1;
       };
       // a strip: rows of `cols + 1` points across, joined
+      const covered = (x, z) => (p.under ?? []).some((h) => Math.abs(x - h.x) <= h.w / 2 && Math.abs(z - h.z) <= h.d / 2);
       const strip = (rowsXZ) => {
         for (let j = 0; j < rowsXZ.length; j++) {
           const row = rowsXZ[j].map(([x, z]) => add(x, z));
           if (j) {
             const prev = rowsXZ[j - 1]._ids;
-            for (let i = 0; i < row.length - 1; i++) idx.push(prev[i], row[i], prev[i + 1], prev[i + 1], row[i], row[i + 1]);
+            for (let i = 0; i < row.length - 1; i++) {
+              // (none where something lies over the paving and hides it — the fountain's wet floor: two layers there
+              // fought for the same pixels)
+              if ([prev[i], row[i], prev[i + 1], row[i + 1]].every((k) => covered(pos[k * 3], pos[k * 3 + 2]))) continue;
+              idx.push(prev[i], row[i], prev[i + 1], prev[i + 1], row[i], row[i + 1]);
+            }
           }
           rowsXZ[j]._ids = row;
         }
@@ -330,10 +376,14 @@ export class PlazaView {
       if (p.rows) {
         const z0 = p.rows[0][0];
         const z1 = p.rows[p.rows.length - 1][0];
-        for (let z = z0; z >= z1 - 0.01; z -= 4) {
-          const [w, e] = rowAt(p, Math.max(z, z1));
-          const n = 10;
-          across.push(Array.from({ length: n + 1 }, (_, i) => [w + ((e - w) * i) / n, Math.max(z, z1)]));
+        // (every 4 m, and at each of its rows: its corners where they are — a forecourt's edge square, not cut across)
+        const zs = new Set(p.rows.map((r) => r[0]));
+        for (let z = z0; z > z1; z -= 4) zs.add(z);
+        // (the same number of points across every row — a column every 6 m or so at its widest: it follows the land)
+        const n = Math.max(10, Math.ceil(Math.max(...p.rows.map((r) => r[2] - r[1])) / 6));
+        for (const z of [...zs].sort((a, b) => b - a)) {
+          const [w, e] = rowAt(p, z);
+          across.push(Array.from({ length: n + 1 }, (_, i) => [w + ((e - w) * i) / n, z]));
         }
       } else {
         const line = dense(pavedLine(p), 4);

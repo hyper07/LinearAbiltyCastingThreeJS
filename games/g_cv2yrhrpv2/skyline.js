@@ -4,6 +4,15 @@ import { yiStatue, goldMaterial } from './yiStatue.js';
 import { sejongStatue, sejongMaterial } from './sejongStatue.js';
 import { Fountain } from './fountain.js';
 import { PlazaView, PLAZA_LIFT } from './plaza.js';
+import { SQUARE } from './square.js';
+
+/**
+ * Gwanghwamun Square's monuments larger than life for the game, so a rider sees them: 1 = true size — the
+ * admiral 17 m (the statue 6.5 m on a 10.5 m plinth), King Sejong 10.4 m with his pedestal. Applied to both
+ * monuments with their plinths, the turtle ship and the inscription (the statue models themselves are left
+ * as they are, the groups scaled); their solids in plaza.js match. Tuned in square.js with the fountain.
+ */
+export const MONUMENT_SCALE = SQUARE.scale;
 
 /**
  * Seoul's skyline landmarks, modelled by hand and always on the skyline: the Jamsil Sky Tower (our name
@@ -41,10 +50,15 @@ export const SKYLINE = [
   },
   // (Cheong Wa Dae's main hall: not in the register; at the foot of Bugaksan, north of the palace)
   { id: 'cheongwadae', name: 'Cheong Wa Dae', ko: '청와대', x: -268, z: -2250, height: 22, model: 'bluehouse', range: 2600, icon: 'bluehouse' },
-  // (on Gwanghwamun Square, west of Sejong-daero's carriageways: the admiral, and King Sejong behind him)
+  // (on Gwanghwamun Square, west of Sejong-daero's carriageways: the admiral near its south end, the fountain
+  // north of him, King Sejong beyond — at MONUMENT_SCALE, where square.js puts them. `look`: the race camera
+  // tilts up to keep a statue's head in the picture as it comes up the square — from `near` metres off, up to
+  // `max` radians)
   {
-    id: 'yisunsin', name: 'Admiral Yi Sun-sin', ko: '이순신 장군 동상', x: -92, z: -517, height: 17, model: 'statues', range: 1600, icon: 'statue',
-    sejong: { x: -92, z: -691 }, sights: [[-92, -517, 17], [-92, -691, 10.5]]
+    id: 'yisunsin', name: 'Admiral Yi Sun-sin', ko: '이순신 장군 동상', x: SQUARE.admiral.x, z: SQUARE.admiral.z, height: SQUARE.admiral.height * SQUARE.scale, model: 'statues', range: 1800, icon: 'statue',
+    sejong: { x: SQUARE.sejong.x, z: SQUARE.sejong.z },
+    sights: [[SQUARE.admiral.x, SQUARE.admiral.z, SQUARE.admiral.height * SQUARE.scale], [SQUARE.sejong.x, SQUARE.sejong.z, SQUARE.sejong.height * SQUARE.scale]],
+    look: { near: 28, max: 0.42 }
   }
 ];
 
@@ -67,6 +81,8 @@ export const LOOK_MAX = 0.2;
  * width of straight ahead, whose top is above the top of the frame at the camera's usual
  * `pitch`. From a street under the Sky Tower or below Namsan the tower is 20–35° up — over the top of
  * the chase view (10–15° above the horizon) — though it stands clear over the rooftops there.
+ * A landmark with a `look` ({ near, max }: Gwanghwamun Square's giant statues) is looked up at from
+ * close by too — each of its `sights`, from `near` metres off, up to its own `max`.
  */
 export function landmarkLookUp(cam, yaw, { pitch = -0.36, vfov = 66, aspect = 16 / 9, groundAt = () => 0, landmarks = SKYLINE } = {}) {
   const half = ((vfov / 2) * Math.PI) / 180;
@@ -76,17 +92,24 @@ export function landmarkLookUp(cam, yaw, { pitch = -0.36, vfov = 66, aspect = 16
   const top = pitch + half - 0.05;
   let want = 0;
   for (const l of landmarks) {
-    if (l.height < 100) continue;
-    const dx = l.x - cam.x;
-    const dz = l.z - cam.z;
-    const d = Math.hypot(dx, dz);
-    if (d < 250 || d > (l.range ?? 12000)) continue;
-    const off = Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / d)));
-    if (off > hHalf * 0.6) continue;
-    const base = groundAt(l.x, l.z) ?? 0;
-    // (its top just inside the top of the frame)
-    const up = Math.atan2(base + l.height - cam.y, d);
-    want = Math.max(want, Math.min(LOOK_MAX, up - top));
+    // (a tower a few hundred metres off and more; a monument with a `look` — the square's giant statues — from
+    // close by, each of its `sights`, easing off over the last few metres before it)
+    const near = l.look?.near;
+    if (l.height < 100 && near == null) continue;
+    for (const [x, z, h] of near == null ? [[l.x, l.z, l.height]] : l.sights ?? [[l.x, l.z, l.height]]) {
+      const dx = x - cam.x;
+      const dz = z - cam.z;
+      const d = Math.hypot(dx, dz);
+      if (d < (near ?? 250) || d > (l.range ?? 12000)) continue;
+      const off = Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / d)));
+      // (a monument close by: anywhere across most of the picture — the grid stands off to one side of it)
+      if (off > hHalf * (near == null ? 0.6 : 0.85)) continue;
+      const base = groundAt(x, z) ?? 0;
+      // (its top just inside the top of the frame)
+      const up = Math.atan2(base + h - cam.y, d);
+      const most = near == null ? LOOK_MAX : (l.look.max ?? LOOK_MAX) * Math.min(1, (d - near) / 15);
+      want = Math.max(want, Math.min(most, up - top));
+    }
   }
   return want;
 }
@@ -788,11 +811,12 @@ function inscription() {
 }
 
 /**
- * Gwanghwamun Square's statues: Admiral Yi Sun-sin, gilded (yiStatue.js: the supplied sculpture) on
- * his tall pale granite plinth (17 m in all) with the inscription down its face, a bronze turtle ship on a
- * low stone base before it; the fountain's long pool down the square in front of him (fountain.js), lit
- * after dark; and behind him King Sejong on his throne and pedestal (sejongStatue.js: a photo scan of the
- * real monument). Both face south, down the square. After dark both are lit softly from below (emissive).
+ * Gwanghwamun Square's statues, larger than life (MONUMENT_SCALE): Admiral Yi Sun-sin, gilded (yiStatue.js:
+ * the supplied sculpture) on his tall pale granite plinth (17 m in all at true size) with the inscription
+ * down its face, a bronze turtle ship on a low stone base before it; north of him the floor fountain down
+ * the square's east part (fountain.js, where square.js puts it), lit after dark; and beyond it King Sejong
+ * on his throne and pedestal (sejongStatue.js: a photo scan of the real monument). Both face south, down
+ * the square. After dark both are lit softly from below (emissive).
  */
 function statues(l, ground) {
   const m = hanokMats();
@@ -800,6 +824,7 @@ function statues(l, ground) {
   const bronze = bronzeMaterial();
   const g = new THREE.Group();
   const base = ground(l.x, l.z);
+  // the admiral's monument, built at true size and scaled as one
   const yi = new THREE.Group();
   // the plinth: three broad steps, the tall shaft, its cornice
   const steps = [[13, 0.6, 13], [11, 0.6, 11], [9, 0.6, 9], [5.6, 7.8, 4.4], [6.4, 0.9, 5.2]];
@@ -827,12 +852,15 @@ function statues(l, ground) {
   ship.scale.setScalar(0.85);
   ship.position.set(0, 0.6, 9.6);
   yi.add(shipBase, ship);
-  // the fountain down the middle of the square before him, on its paving as it slopes (fountain.js)
-  const fountain = new Fountain(yi, { y: (x, z) => ground(l.x + x, l.z + z) - base });
+  yi.scale.setScalar(MONUMENT_SCALE);
   g.add(yi);
-  // King Sejong: the scanned monument, his pedestal and all
+  // the fountain north of him, on its paving as it slopes (fountain.js; its place square.js's)
+  const F = SQUARE.fountain;
+  const fountain = new Fountain(g, { x: F.x - l.x, z: (F.z0 + F.z1) / 2 - l.z, y: (x, z) => ground(l.x + x, l.z + z) - base });
+  // King Sejong: the scanned monument, his pedestal and all, scaled as the admiral is
   const sejongMat = sejongMaterial();
   const sj = sejongStatue(sejongMat);
+  sj.scale.setScalar(MONUMENT_SCALE);
   sj.position.set(l.sejong.x - l.x, ground(l.sejong.x, l.sejong.z) - base, l.sejong.z - l.z);
   g.add(sj);
   // (on the square's paving, a kerb's height over the land: plaza.js)

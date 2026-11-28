@@ -85,6 +85,7 @@ module** as one exported constant (`SCOOT`, `CAR`, `BIKE`, `ITEMS`, `OIL`, `SMOK
 | `admiral.js` | Admiral Yi in bronze (far/near) |
 | `yiStatue.js` | the supplied Admiral Yi sculpture (packed .bin) |
 | `fountain.js` | the Gwanghwamun fountain and its show (day and night) |
+| `square.js` | Gwanghwamun Square's one tuning block (`SQUARE`): the monuments' scale and places, the fountain's size and jets |
 | `plaza.js` | squares the courses ride through (Gwanghwamun Square, Cheong Wa Dae's drive): paving, lane, solids |
 | `fairground.js` | the Jamsil fun fair beside its course |
 | `hillwood.js` | woods beside hill roads |

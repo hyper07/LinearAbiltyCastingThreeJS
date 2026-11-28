@@ -1,33 +1,53 @@
 import * as THREE from 'three';
+import { SQUARE } from './square.js';
 
 /**
- * The fountain in front of Admiral Yi on Gwanghwamun Square — our own take on it, a floor fountain you can
- * ride through: a field of jets down the square's middle in front of his plinth, a row of tall jets along
- * each side (the racing lane runs through the west row's spray), the wet stone between them glistening, a
- * strip of small green, red and white lights set in the paving along both rows.
+ * The floor fountain on Gwanghwamun Square, between Admiral Yi and King Sejong — our own take on it, a
+ * fountain you ride through: two long fields of floor jets either side of a central walkway (the racing
+ * lane runs up it, straight at King Sejong), a row of tall jets along both edges of the walkway (their spray
+ * either side of you) and along both outer edges, a tall burst from the middle of the walkway, the wet
+ * stone under it all shining, strips of coloured lights set in the paving along the rows. Its size and
+ * place are square.js's (SQUARE.fountain).
  *
  * A show, not a loop: the jets run a programme of patterns one after another (`SHOW`) — a wave rolling down
- * the field, a sweep side to side, rings opening from the middle, a chequer chasing, the whole field
- * pulsing with the tall rows, and a tall burst from the centre — each cross-faded into the next, the tall
- * rows answering the field. Every jet throws droplets off its crown and splashes where it falls.
+ * the fields, a sweep side to side, rings opening from the middle, a chequer chasing, everything pulsing
+ * with the tall rows, and a tall burst from the centre — each cross-faded into the next, the tall rows
+ * answering the fields. Every jet throws droplets off its crown and splashes where it falls.
  *   by day:   sunlit water — white, half see-through, glints running up the columns, the floor shining;
- *   at night: lit from below — the field cyan and blue (pink flecks when it chases), the west row teal, the
- *             east row pink, the floor glowing with them, the admiral lit softly from below (skyline.js).
+ *   at night: lit from below — the fields cyan and blue (pink flecks when it chases), the west rows teal,
+ *             the east rows pink, the floor glowing with them, the statues lit softly from below (skyline.js).
  *
  * Cheap: every jet is one instance of a thin open cone (one draw), every droplet a point (one draw), every
- * splash a disc (one draw), all drawn by small shaders; the instances' heights and colours are set each
- * frame only when the camera is near (a few times a second further off), and nothing within 900 m.
+ * splash a disc (one draw), all drawn by small shaders; the jets are listed coarse-first, and past
+ * SQUARE.fountain.near only the coarse ones (every other row and column, and every other tall jet) are
+ * drawn and set; their heights and colours are set every frame only when the camera is near (a few times
+ * a second further off), and nothing past 900 m.
  *
- * Ride (or swing the camera) through a tall jet and the spray beads on the lens: `spray` (0…1), read by the
+ * Ride (or swing the camera) through a jet and the spray beads on the lens: `spray` (0…1), read by the
  * skyline for a light mist over the picture.
  */
 
-/** The fountain's layout (m, in the statue group's frame: x across, z down the square, south) and its show's pace. */
+const SQ = SQUARE.fountain;
+const LENGTH = Math.abs(SQ.z0 - SQ.z1);
+const INNER = SQ.walk / 2 + 0.8;
+const OUTER = INNER + (SQ.cols - 1) * SQ.dx;
+/** How far the wet floor stands over the paving (m). */
+const LIFT = 0.06;
+
+/**
+ * The fountain's layout in its own frame (m: x across from the walkway's middle, east +; z along it, south
+ * +, its middle at 0), its jets' tops, and its show's pace.
+ */
 export const FOUNTAIN = {
-  field: { cols: 7, rows: 16, dx: 1.3, z0: 15, z1: 55 },
-  edge: { x: 10.5, rows: 18, z0: 12, z1: 58 },
-  burst: { z: 35 },
-  floor: { width: 25, z0: 8, z1: 62 },
+  length: LENGTH,
+  // each field's columns from `inner` out to `outer` either side of the walkway, its rows every `dz`
+  field: { cols: SQ.cols, dx: SQ.dx, rows: Math.floor(LENGTH / SQ.dz) + 1, inner: INNER, outer: OUTER },
+  // the tall rows: along the walkway's edges (`inner`) and the fields' outer edges (`outer`)
+  edge: { inner: SQ.walk / 2, outer: OUTER + 1.4, rows: Math.floor(LENGTH / SQ.tallEvery) + 1 },
+  burst: { z: 0 },
+  floor: { width: 2 * (OUTER + 3), length: LENGTH + 8 },
+  heights: { field: SQ.field, tall: SQ.tall, burst: SQ.burst },
+  near: SQ.near,
   // seconds a pattern runs, and the cross-fade into the next
   step: 10,
   blend: 1.6
@@ -50,34 +70,40 @@ export function showAt(t) {
 }
 
 /**
- * One jet's height (m) in one pattern at `t`: `jet` { kind: 'field' | 'edge' | 'burst', u (−0.5 … 0.5 across),
- * v (0 at the statue … 1 down the square), side (−1 west, 1 east, edges), r, c (row, column) }.
+ * One jet's height (m) in one pattern at `t`: `jet` { kind: 'field' | 'edge' | 'burst', u (−0.5 … 0.5 across
+ * the whole fountain, west to east), v (0 at its south end … 1 at its north), side (−1 west, 1 east),
+ * outer (an outer tall row), r, c (row, column out from the walkway) }. The shapes are shares of
+ * FOUNTAIN.heights.
  */
 export function patternHeight(p, jet, t) {
-  const { kind, u = 0, v = 0, side = 0, r = 0, c = 0 } = jet;
-  if (kind === 'burst') return p === 'burst' ? 3 + 9.5 * S(t * 1.7) ** 2 : 0;
+  const { kind, u = 0, v = 0, side = 0, r = 0, c = 0, outer = false } = jet;
+  const H = FOUNTAIN.heights;
+  if (kind === 'burst') return p === 'burst' ? H.burst * (0.22 + 0.78 * S(t * 1.7) ** 2) : 0;
   if (kind === 'edge') {
+    // (the outer rows a little lower than the walkway's)
+    const k = H.tall * (outer ? 0.75 : 1);
     switch (p) {
-      case 'wave': return 2 + 6 * S(t * 1.2 - v * 4) ** 2;
-      case 'sweep': return 2 + 6 * S(t * 1.1 + side * 1.57);
+      case 'wave': return k * (0.15 + 0.85 * S(t * 1.2 - v * 5) ** 2);
+      case 'sweep': return k * (0.15 + 0.85 * S(t * 1.1 + side * 1.57 + (outer ? 0.8 * side : 0)));
       case 'rings': {
         // (a hump of tall jets running down each row and round again: its distance taken round the loop, no jump)
         const dv = v - ((t * 0.32) % 1);
-        return 1.5 + 7 * Math.exp(-(((dv - Math.round(dv)) * 6) ** 2));
+        return k * (0.1 + 0.9 * Math.exp(-(((dv - Math.round(dv)) * 6) ** 2)));
       }
-      case 'chase': return 2 + 3.5 * S(t * 5 + r * Math.PI);
-      case 'pulse': return 2 + 6.5 * S(t * 3) ** 3;
-      default: return 1.6 + 0.8 * S(t * 2 + r);
+      case 'chase': return k * (0.15 + 0.45 * S(t * 5 + r * Math.PI));
+      case 'pulse': return k * (0.15 + 0.85 * S(t * 3) ** 3);
+      default: return k * (0.12 + 0.1 * S(t * 2 + r));
     }
   }
   const d = Math.hypot(u * 1.4, (v - 0.5) * 1.8);
+  const k = H.field;
   switch (p) {
-    case 'wave': return 0.5 + 3.2 * S(t * 2.2 - v * 7) ** 2;
-    case 'sweep': return 0.4 + 3.6 * Math.exp(-(((u - 0.62 * Math.sin(t * 1.1)) * 4) ** 2));
-    case 'rings': return 0.4 + 3.2 * S(t * 3 - d * 12) ** 2;
-    case 'chase': return 0.5 + 2.7 * S(t * 5 + (r + c) * Math.PI);
-    case 'pulse': return 0.4 + 3.4 * S(t * 3) ** 3 * (1 - 0.3 * Math.abs(u));
-    default: return 0.5 + 1.2 * S(t * 4 - d * 10);
+    case 'wave': return k * (0.1 + 0.85 * S(t * 2.2 - v * 9) ** 2);
+    case 'sweep': return k * (0.08 + 0.9 * Math.exp(-(((u - 0.62 * Math.sin(t * 1.1)) * 4) ** 2)));
+    case 'rings': return k * (0.08 + 0.82 * S(t * 3 - d * 14) ** 2);
+    case 'chase': return k * (0.1 + 0.7 * S(t * 5 + (r + c) * Math.PI));
+    case 'pulse': return k * (0.08 + 0.88 * S(t * 3) ** 3 * (1 - 0.3 * Math.abs(u)));
+    default: return k * (0.1 + 0.3 * S(t * 4 - d * 12));
   }
 }
 
@@ -89,8 +115,8 @@ export function jetHeight(jet, t) {
 }
 
 /**
- * A jet's colour after dark (r, g, b 0…1): the field cyan to blue (pink flecks when the chequer chases),
- * the west row teal, the east row pink, the centre burst white-cyan.
+ * A jet's colour after dark (r, g, b 0…1): the fields cyan to blue (pink flecks when the chequer chases),
+ * the west rows teal, the east rows pink, the centre burst white-cyan.
  */
 export function jetColor(jet, t, out = new THREE.Color()) {
   const { kind, v = 0, side = 0, r = 0, c = 0 } = jet;
@@ -101,20 +127,33 @@ export function jetColor(jet, t, out = new THREE.Color()) {
   return out.setHSL(0.5 + 0.08 * S(t * 0.35 + v * 3) + (a === 'rings' ? 0.03 : 0), 0.9, 0.55 + 0.08 * Math.sin(t * 0.7 + c));
 }
 
-/** Every jet of the fountain, with where it stands (x, z in the statue group's frame). */
+/**
+ * Every jet of the fountain, with where it stands (x, z in its own frame) — the coarse ones first (`coarse`:
+ * drawn from afar too: every other row and column of the fields, every other tall jet, the burst).
+ */
 export function fountainJets() {
-  const { field: f, edge: e, burst } = FOUNTAIN;
+  const { field: f, edge: e, length: L } = FOUNTAIN;
   const jets = [];
-  for (let r = 0; r < f.rows; r++) {
-    const v = r / (f.rows - 1);
-    for (let c = 0; c < f.cols; c++) jets.push({ kind: 'field', r, c, u: c / (f.cols - 1) - 0.5, v, x: (c - (f.cols - 1) / 2) * f.dx, z: f.z0 + v * (f.z1 - f.z0) });
+  const fz = L / (f.rows - 1);
+  const ez = L / (e.rows - 1);
+  for (const side of [-1, 1]) {
+    for (let r = 0; r < f.rows; r++) {
+      const v = r / (f.rows - 1);
+      for (let c = 0; c < f.cols; c++) {
+        const x = side * (f.inner + c * f.dx);
+        jets.push({ kind: 'field', side, r, c, u: x / (2 * e.outer), v, x, z: L / 2 - r * fz, coarse: r % 2 === 0 && c % 2 === 0 });
+      }
+    }
+    for (const outer of [false, true]) {
+      for (let r = 0; r < e.rows; r++) {
+        const v = r / (e.rows - 1);
+        jets.push({ kind: 'edge', r, side, outer, v, u: (side * (outer ? e.outer : e.inner)) / (2 * e.outer), x: side * (outer ? e.outer : e.inner), z: L / 2 - r * ez, coarse: r % 2 === 0 });
+      }
+    }
   }
-  for (let r = 0; r < e.rows; r++) {
-    const v = r / (e.rows - 1);
-    for (const side of [-1, 1]) jets.push({ kind: 'edge', r, side, v, x: side * e.x, z: e.z0 + v * (e.z1 - e.z0) });
-  }
-  jets.push({ kind: 'burst', x: 0, z: burst.z, v: 0.5 });
-  return jets;
+  jets.push({ kind: 'burst', x: 0, z: FOUNTAIN.burst.z, v: 0.5, coarse: true });
+  // (coarse first: from afar only the first `coarse` of them are drawn)
+  return jets.filter((j) => j.coarse).concat(jets.filter((j) => !j.coarse));
 }
 
 const jetVert = /* glsl */ `
@@ -252,7 +291,8 @@ function rippleNormals() {
 export class Fountain {
   /**
    * @param {THREE.Group} parent  the statues' group (its origin the admiral's plinth, the square running down +z)
-   * `y(x, z)`: the paving's height at a point of the group's frame over its origin's (the square slopes a little)
+   * `x`, `z`: the fountain's middle in that group's frame; `y(x, z)`: the paving's height at a point of the
+   * group's frame over its origin's (the square slopes a little)
    */
   constructor(parent, { x = 0, z = 0, y = () => 0 } = {}) {
     const F = FOUNTAIN;
@@ -262,20 +302,21 @@ export class Fountain {
     const yAt = (px, pz) => y(px + x, pz + z);
     // the wet floor: dark granite, shining (the sun's glints by day, the jets' colours on it at night), rippling
     const ripples = rippleNormals();
-    this.floor = new THREE.MeshPhongMaterial({ color: '#4a4f55', specular: '#d8ecff', shininess: 140, emissive: '#1a4f7a', emissiveIntensity: 0, normalMap: ripples, normalScale: new THREE.Vector2(0.35, 0.35), polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 });
-    // (laid on the paving as it slopes: a point every couple of metres)
-    const fg = new THREE.PlaneGeometry(F.floor.width, F.floor.z1 - F.floor.z0, 10, 24).rotateX(-Math.PI / 2);
+    ripples?.repeat.set(F.floor.width / 7, F.floor.length / 7);
+    this.floor = new THREE.MeshPhongMaterial({ color: '#33393f', specular: '#b8c8d8', shininess: 160, emissive: '#1a4f7a', emissiveIntensity: 0, normalMap: ripples, normalScale: new THREE.Vector2(0.3, 0.3), polygonOffset: true, polygonOffsetFactor: -10, polygonOffsetUnits: -20 });
+    // (laid on the paving as it slopes, a point every few metres — LIFT over it and pulled forward in the depth
+    // test, so the square's own coarser paving under it never shows through the wet stone)
+    const fg = new THREE.PlaneGeometry(F.floor.width, F.floor.length, Math.ceil(F.floor.width / 4), Math.ceil(F.floor.length / 4)).rotateX(-Math.PI / 2);
     const fp = fg.attributes.position;
-    const fz = (F.floor.z0 + F.floor.z1) / 2;
-    for (let i = 0; i < fp.count; i++) fp.setY(i, yAt(fp.getX(i), fp.getZ(i) + fz) + 0.02);
+    for (let i = 0; i < fp.count; i++) fp.setY(i, yAt(fp.getX(i), fp.getZ(i)) + LIFT);
     fg.computeVertexNormals();
     const floor = new THREE.Mesh(fg, this.floor);
-    floor.position.set(0, 0, fz);
     floor.receiveShadow = true;
     this.group.add(floor);
-    // the jets
+    // the jets (coarse first)
     this.jets = fountainJets();
-    for (const j of this.jets) j.y = yAt(j.x, j.z);
+    this.nCoarse = this.jets.filter((j) => j.coarse).length;
+    for (const j of this.jets) j.y = yAt(j.x, j.z) + LIFT;
     const cone = new THREE.CylinderGeometry(0.5, 1, 1, 7, 1, true);
     cone.translate(0, 0.5, 0);
     const seeds = new Float32Array(this.jets.length).map((_, i) => (Math.sin(i * 12.9898) * 43758.5453) % 1);
@@ -313,16 +354,20 @@ export class Fountain {
     this.splash = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), this.splashMat, this.jets.length);
     this.splash.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.jets.length * 3), 3);
     this.splash.frustumCulled = false;
-    // the floor lights: a strip along the inside of each tall row (bloomed after dark)
+    // the floor lights: a strip along the walkway side of each tall row by it, and outside each outer row
+    // (bloomed after dark): cyan, pink, white, teal, blue in turn
     const leds = [];
-    for (const sx of [-1, 1]) for (let k = 0; k <= Math.floor((F.edge.z1 - F.edge.z0) / 0.9); k++) leds.push([sx * (F.edge.x - 0.9), F.edge.z0 + k * 0.9, k]);
+    const n = Math.floor(F.length / 0.9);
+    for (const sx of [-1, 1]) {
+      for (const lx of [F.edge.inner - 0.6, F.edge.outer + 0.9]) for (let k = 0; k <= n; k++) leds.push([sx * lx, F.length / 2 - k * 0.9, k]);
+    }
     this.ledMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-    this.leds = new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.05, 0.22), this.ledMat, leds.length);
+    this.leds = new THREE.InstancedMesh(new THREE.BoxGeometry(0.26, 0.05, 0.26), this.ledMat, leds.length);
     const m = new THREE.Matrix4();
     const col = new THREE.Color();
-    const LED = ['#3cff6e', '#ff3b4f', '#ffffff', '#3cff6e', '#ff3b4f'];
+    const LED = ['#3cf0ff', '#ff4fa8', '#ffffff', '#3cffb4', '#4f7bff'];
     leds.forEach(([lx, lz, k], i) => {
-      m.makeTranslation(lx, yAt(lx, lz) + 0.04, lz);
+      m.makeTranslation(lx, yAt(lx, lz) + LIFT + 0.02, lz);
       this.leds.setMatrixAt(i, m);
       this.leds.setColorAt(i, col.set(LED[k % LED.length]));
     });
@@ -333,7 +378,10 @@ export class Fountain {
     this._c = new THREE.Color();
     this._day = new THREE.Color('#e6f4ff');
     this._glow = new THREE.Color();
+    this._floorDay = this.floor.color.clone();
+    this._specDay = this.floor.specular.clone();
     this._v = new THREE.Vector3();
+    this._w = new THREE.Vector3();
     this._next = 0;
     this.heights = new Float32Array(this.jets.length);
     /** How much spray is on the camera's lens just now (0…1). */
@@ -342,20 +390,31 @@ export class Fountain {
   }
 
   /**
-   * Each frame: `t` seconds, `night` 0…1, `d` the camera's distance (m), `cam` its position (for the spray on
-   * the lens). Near (within 250 m) every frame; further, a few times a second; past 900 m not drawn.
+   * Each frame: `t` seconds, `night` 0…1, `d` the camera's distance (m) to the statues, `cam` its position
+   * (then the distance is taken to the fountain itself; and the spray on the lens). Near (within 250 m)
+   * every frame; further, a few times a second; past 900 m not drawn. Past FOUNTAIN.near only the coarse jets.
    */
   update(t, night = 0, d = 0, cam = null) {
+    const local = cam ? this.group.worldToLocal(this._v.copy(cam)) : null;
+    if (local) d = Math.hypot(local.x, local.z);
     this.group.visible = d < 900;
     for (const mat of [this.jetMat, this.dropMat, this.splashMat]) {
       mat.uniforms.uTime.value = t;
       mat.uniforms.uNight.value = night;
-      // (by day a little under white; after dark bright, for the bloom)
-      mat.uniforms.uBright.value = 0.85 + 1.6 * night;
+      // (by day a little under white; after dark bright, for the bloom — not so bright that hundreds of jets
+      // seen through one another wash the picture out)
+      mat.uniforms.uBright.value = 0.85 + 0.75 * night;
     }
     if (!this.group.visible) {
       this.spray = 0;
       return;
+    }
+    // (near: every jet; further: the coarse ones)
+    const count = d > FOUNTAIN.near ? this.nCoarse : this.jets.length;
+    if (count !== this.jetMesh.count) {
+      this.jetMesh.count = count;
+      this.splash.count = count;
+      this.drops.geometry.setDrawRange(0, count * this.PER);
     }
     if (d > 250 && t < this._next) return;
     this._next = t + 1 / 8;
@@ -364,10 +423,12 @@ export class Fountain {
     const PER = this.PER;
     let tall = 0;
     this._glow.setRGB(0, 0, 0);
-    this.jets.forEach((j, i) => {
+    for (let i = 0; i < count; i++) {
+      const j = this.jets[i];
       const h = jetHeight(j, t);
       this.heights[i] = h;
-      const w = j.kind === 'burst' ? 0.42 : j.kind === 'edge' ? 0.17 : 0.13;
+      // (a jet's column thickens a little as it rises)
+      const w = (j.kind === 'burst' ? 0.35 : j.kind === 'edge' ? 0.09 : 0.06) + h * (j.kind === 'burst' ? 0.01 : 0.006);
       m.makeScale(w, Math.max(0.01, h), w).setPosition(j.x, j.y + 0.03, j.z);
       this.jetMesh.setMatrixAt(i, m);
       // by day plain water, after dark coloured light
@@ -378,13 +439,13 @@ export class Fountain {
         this.dropH.array[i * PER + k] = h;
         this.dropC.array.set([c.r, c.g, c.b], (i * PER + k) * 3);
       }
-      const s = (j.kind === 'burst' ? 3 : 1) * (0.5 + Math.min(1.6, h * 0.22));
+      const s = (j.kind === 'burst' ? 3 : 1) * (0.5 + Math.min(2, h * 0.18));
       m.makeScale(s, 1, s).setPosition(j.x, j.y + 0.05, j.z);
       this.splash.setMatrixAt(i, m);
       this.splash.setColorAt(i, c);
       if (night > 0.02) this._glow.add(c);
-      if (h > 4) tall++;
-    });
+      if (h > 8) tall++;
+    }
     this.jetMesh.instanceMatrix.needsUpdate = true;
     this.jetMesh.instanceColor.needsUpdate = true;
     this.splash.instanceMatrix.needsUpdate = true;
@@ -393,20 +454,25 @@ export class Fountain {
     this.dropC.needsUpdate = true;
     this.ledMat.color.setScalar(0.25 + 1.4 * night);
     // the wet floor: the jets' colours glowing in it after dark, the ripples drifting
-    this.floor.emissive.copy(this._glow.multiplyScalar(1 / this.jets.length));
-    // (a glow in the wet stone, not a lit slab: at 0.55 the whole floor bloomed to a pale cyan sheet)
-    this.floor.emissiveIntensity = 0.1 * night;
+    this.floor.emissive.copy(this._glow.multiplyScalar(1 / count));
+    // (a glow in the wet stone, not a lit slab: at 0.55 the whole floor bloomed to a pale cyan sheet; this big a
+    // floor read as one teal slab even at 0.06)
+    this.floor.emissiveIntensity = 0.015 * night;
+    // (and darker after dark: the night's cool light on that broad a slab lit it up as one pale teal sheet)
+    this.floor.color.copy(this._floorDay).multiplyScalar(1 - 0.7 * night);
+    this.floor.specular.copy(this._specDay).multiplyScalar(1 - 0.4 * night);
     if (this.floor.normalMap) this.floor.normalMap.offset.set(Math.sin(t * 0.13) * 0.05, t * 0.02);
     // spray on the lens: the camera in (or just by) a jet's column, below its top
     let wet = 0;
-    if (cam && d < 120) {
-      const v = this.group.worldToLocal(this._v.copy(cam));
-      this.jets.forEach((j, i) => {
+    if (local && d < FOUNTAIN.length) {
+      for (let i = 0; i < count; i++) {
+        const j = this.jets[i];
         const h = this.heights[i];
-        if (h < 1.2 || v.y > j.y + h + 0.5) return;
-        const r = Math.hypot(v.x - j.x, v.z - j.z);
-        if (r < 2.2) wet = Math.max(wet, (1 - r / 2.2) * Math.min(1, h / 5));
-      });
+        if (h < 1.2 || local.y > j.y + h + 0.5) continue;
+        const r = Math.hypot(local.x - j.x, local.z - j.z);
+        const reach = j.kind === 'field' ? 2 : 2.6;
+        if (r < reach) wet = Math.max(wet, (1 - r / reach) * Math.min(1, h / 5));
+      }
     }
     // (on at once; running off over a second or so)
     this.spray = wet > this.spray ? wet : Math.max(0, this.spray - 0.015);

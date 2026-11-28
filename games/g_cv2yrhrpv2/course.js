@@ -116,26 +116,27 @@ export const BIKE_COURSES = [
     // junction to Samcheong-ro ridden twice, the same way: first turning up round the palace, then on along Yulgok-ro
     // — `eight` lets the plan use it twice; a rider's place is looked for just round where it was, race.js, so it stays on the pass it is on)
     // (`plaza`: the squares it rides through that the road map has no road over — plaza.js: up Gwanghwamun Square
-    // itself, past the fountain and round Admiral Yi's plinth, and across Cheong Wa Dae's lawn in front of its hall;
+    // itself, past Admiral Yi's plinth, up the fountain's walkway and round King Sejong, and across Cheong Wa Dae's
+    // lawn in front of its hall;
     // `sweep`: the landmark the camera sweeps round during the countdown, the grid on the square before it)
     id: 'gyeongbok8', level: 'medium', name: 'Gyeongbokgung Figure Eight', ko: '경복궁 8자 코스', x: 0, z: -1150, r: 590, kind: 'Palace', ring: true, eight: true,
-    text: 'A figure eight crossed in front of the Gwanghwamun gate: from the grid before Admiral Yi up Gwanghwamun Square itself — through the fountain\'s spray, round the admiral\'s plinth, past King Sejong — straight at the gate, round Gyeongbokgung\'s walls, up across Cheong Wa Dae\'s lawn in front of its blue-roofed hall and down Hyoja-ro, back across the gate\'s junction, then east along Yulgok-ro, down Ujeongguk-ro past Jogyesa and back along Jongno to the square.',
-    roads: 'avenues', beside: 0.2, max: 5700, startAt: [-100, -460], plaza: ['gwanghwamun', 'cheongwadae'], sweep: 'yisunsin',
+    text: 'A figure eight crossed in front of the Gwanghwamun gate: from the grid before the giant Admiral Yi up Gwanghwamun Square itself — past his plinth, up the walkway between the fountain\'s jets, round King Sejong — straight at the gate, round Gyeongbokgung\'s walls, up across Cheong Wa Dae\'s lawn in front of its blue-roofed hall and down Hyoja-ro, back across the gate\'s junction, then east along Yulgok-ro, down Ujeongguk-ro past Jogyesa and back along Jongno to the square.',
+    roads: 'avenues', beside: 0.2, max: 5700, startAt: [-117, -460], plaza: ['gwanghwamun', 'cheongwadae'], sweep: 'yisunsin',
     // (Hyoja-ro's foot to Sajik-ro's eastbound carriageway: the left turn the map leaves out)
     links: [[[-322.5, -1058.1], [-321, -1043.2]]],
-    via: [[-100, -500], [-109, -700], [-100, -940], [20, -1035], [160, -1200], [200, -1600], [140, -1900], [-165, -2040], [-268, -2200], [-345, -2040], [-372, -1700], [-345, -1250], [-250, -1030], [20, -1035], [250, -1058], [441, -950], [445, -600], [200, -445], [-62, -445]]
+    via: [[-123, -505], [-103, -610], [-120, -712], [-100, -940], [20, -1035], [160, -1200], [200, -1600], [140, -1900], [-165, -2040], [-268, -2200], [-345, -2040], [-372, -1700], [-345, -1250], [-250, -1030], [20, -1035], [250, -1058], [441, -950], [445, -600], [200, -445], [-62, -445]]
   },
   {
-    // (a short loop on and round the square: up its paving past the fountain, the admiral and King Sejong toward the
+    // (a short loop on and round the square: up its paving past the admiral, the fountain and King Sejong toward the
     // gate, off its west side by the Sejong Center's north end along Sajik-ro 8-gil, down the winding lane through
     // Doryeom-dong to Saemunan-ro, and back onto the square from its south end — the start and the finish on the
     // square before the statue; the statue ahead up the square and again coming back along Saemunan-ro)
     id: 'fountainrun', level: 'medium', name: 'Gwanghwamun Fountain Run', ko: '광화문 분수 런', x: -200, z: -660, r: 350, kind: 'Square', ring: true,
-    text: 'Start and finish on Gwanghwamun Square before Admiral Yi: up the square through the fountain\'s spray, round his plinth and past King Sejong toward the gate, off by the Sejong Center along Sajik-ro 8-gil, down the winding lane through Doryeom-dong, and back along Saemunan-ro to the fountain.',
-    beside: 0.12, min: 1000, max: 2400, startAt: [-100, -460], plaza: ['gwanghwamun'], sweep: 'yisunsin',
+    text: 'Start and finish on Gwanghwamun Square before the giant Admiral Yi: up the square past his plinth, up the walkway between the fountain\'s jets, round King Sejong toward the gate, off by the Sejong Center along Sajik-ro 8-gil, down the winding lane through Doryeom-dong, and back along Saemunan-ro to the admiral.',
+    beside: 0.12, min: 1000, max: 2400, startAt: [-117, -460], plaza: ['gwanghwamun'], sweep: 'yisunsin',
     // (the lane down from Doryeom-dong comes out on Saemunan-ro's westbound carriageway: across to the eastbound one)
     links: [[[-259, -439], [-243, -425]]],
-    via: [[-100, -500], [-109, -700], [-225, -879], [-305, -868], [-283, -651], [-264, -510], [-213, -426]]
+    via: [[-123, -505], [-103, -610], [-120, -712], [-225, -879], [-305, -868], [-283, -651], [-264, -510], [-213, -426]]
   },
   {
     // (round the 63 Building on its own: past its south side, up 63-ro under its east face, along the river under its

@@ -79,13 +79,16 @@ export const CHASE = { zoom: 4.4, pitch: -0.36, ahead: 1.1, height: 0.72, side: 
  */
 export const CAM_NEAR = { clear: 0.55, room: 1.9, min: 0.12, far: 1 };
 /**
- * The countdown's sweep round a landmark the grid stands before (a course's `sweep`: Admiral Yi and the fountain
- * on Gwanghwamun Square): `dur` seconds round it (held before the lights in a race of your own; in a room inside
- * the countdown, `room` seconds, so everyone's lights still go out together), from `from` to `to` radians round
- * (0: due south of it, looking north), `r` metres out, `high` to `low` metres up, then `settle` seconds easing
- * down behind your rider. Any key or a drag skips it. No words on the screen.
+ * The countdown's sweep round a landmark the grid stands before (a course's `sweep`: the giant Admiral Yi and the
+ * fountain beyond him on Gwanghwamun Square): `dur` seconds round it (held before the lights in a race of your
+ * own; in a room inside the countdown, `room` seconds, so everyone's lights still go out together), from `from`
+ * to `to` radians round a point `ahead` metres along the square from it (negative: north of it, over the
+ * fountain; 0: due south, looking north), `r` metres out, `high` to `low` (shares of the landmark's height) up —
+ * high and wide enough that the whole statue and the fountain behind it are in the picture — looking at
+ * `look` (heights, shares) `lookAt` metres along the square from it; then `settle` seconds easing down behind
+ * your rider. Any key or a drag skips it. No words on the screen.
  */
-export const SWEEP = { dur: 5.5, room: 2.6, settle: 1.1, from: 1.4, to: -0.3, r: [30, 46], high: 15, low: 6, fov: 50, ahead: 18 };
+export const SWEEP = { dur: 6.5, room: 2.6, settle: 1.6, from: 0.55, to: -0.1, r: [120, 85], high: 1.3, low: 0.55, fov: 55, ahead: -30, look: [0.6, 0.47], lookAt: [-50, -10] };
 
 /** How far a point is from a vehicle's box on the ground (0 inside it). */
 function boxDist(v, x, z) {
@@ -4298,16 +4301,19 @@ export class Race {
     const sw = this.sweep;
     if (!sw) return null;
     const l = sw.l;
-    // (round a point a little in front of the statue, over the fountain: on the square's paving)
+    // (round a point north of the statue, over the fountain: on the square's paving; from high over the crossing
+    // in front of it, down and round to behind the grid)
     const base = (this.g.groundAt?.(l.x, l.z) ?? 0) + PLAZA_LIFT;
+    const H = l.height;
     const u = Math.min(1, sw.t / sw.dur);
     const e = u * u * (3 - 2 * u);
-    const a = SWEEP.from + (SWEEP.to - SWEEP.from) * e;
-    const rr = SWEEP.r[0] + (SWEEP.r[1] - SWEEP.r[0]) * e;
+    const mix = ([p, q]) => p + (q - p) * e;
+    const a = mix([SWEEP.from, SWEEP.to]);
+    const rr = mix(SWEEP.r);
     const cz = l.z + SWEEP.ahead;
-    const pos = new THREE.Vector3(l.x + Math.sin(a) * rr, base + SWEEP.high + (SWEEP.low - SWEEP.high) * e, cz + Math.cos(a) * rr);
-    // (from the admiral's upper body down to the fountain before him)
-    const look = new THREE.Vector3(l.x, base + 12 - 6 * e, l.z + 12 * e);
+    const pos = new THREE.Vector3(l.x + Math.sin(a) * rr, base + H * mix([SWEEP.high, SWEEP.low]), cz + Math.cos(a) * rr);
+    // (from the fountain behind him, over his shoulder, to the whole of him from his feet to his head)
+    const look = new THREE.Vector3(l.x, base + H * mix(SWEEP.look), l.z + mix(SWEEP.lookAt));
     const s = Math.max(0, Math.min(1, (sw.t - sw.dur) / SWEEP.settle));
     return { pos, look, k: 1 - s * s * (3 - 2 * s) };
   }

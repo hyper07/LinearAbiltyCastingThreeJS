@@ -113,21 +113,27 @@ including commercially, **with attribution** — the game credits it in its Cred
     panels in fish-scale lamellar (a texture and its bump) with banded edges; dark greenish-brown bronze
     (physical material, metalness 0.6, roughness 0.45, a soft sheen), lit softly from below after dark;
     6.5 m on his pale granite plinth (17 m in all) with the inscription down its face (忠武公李舜臣將軍像)
-    and a bronze turtle ship on a low base before it; King Sejong seated, gilded, behind him. In front,
-    down the square's middle, **the fountain** (`games/g_cv2yrhrpv2/fountain.js`, our own take): a floor
-    fountain you ride through — a field of 7 × 16 jets before the plinth and a row of tall jets (to 9 m)
-    along each side, 21 m apart, the racing lane running through the west row's spray. It runs a **show**
+    and a bronze turtle ship on a low base before it; King Sejong seated behind him. Both are **larger
+    than life** for the game (`MONUMENT_SCALE`, 2.5: the admiral 42.5 m with his plinth, King Sejong 26 m)
+    so a rider sees them from down the square — one tuning block, `games/g_cv2yrhrpv2/square.js`
+    (`SQUARE`: the scale, where they stand, the fountain's size and jets). As on the 2022 square (all of
+    it west of Sejong-daero, about 60 m across), the admiral stands near its south end on its east side
+    and between him and King Sejong lies **the fountain** (`games/g_cv2yrhrpv2/fountain.js`, our own
+    take): a floor fountain you ride through, 80 m long and 52 m across — two fields of 9 × 34 floor
+    jets (to 6 m) either side of a 16 m walkway, a row of tall jets (to 16 m) along both edges of the
+    walkway and both outer edges, a burst (to 20 m) from the middle of the walkway; the racing lane runs
+    up the walkway, the spray either side, people standing among the jets. It runs a **show**
     (`SHOW`): a wave rolling down the field, a sweep side to side, rings opening from the middle, a
-    chequer chasing, the field pulsing with the tall rows, and a burst from the centre to 12 m — ten
+    chequer chasing, the field pulsing with the tall rows, and a burst from the centre — ten
     seconds each, cross-faded, the tall rows answering the field; every jet throws droplets off its crown
     and splashes where it falls, the dark wet granite between them shining and rippling. By day sunlit
     water, half see-through, glints running up the columns; after dark lit from below — the field cyan
     and blue (pink flecks when the chequer chases), the west row teal, the east row pink, the wet floor
-    glowing with them, a strip of small green, red and white lights along both rows (bloomed). Ride (or
+    glowing softly with them, strips of small cyan, pink, white, teal and blue lights along the tall rows (bloomed). Ride (or
     swing the camera) through a tall jet and the spray beads on the lens for a second (a light mist over
     the picture, no words). Cheap: one draw each for the jets (thin open cones), the droplets (points) and
     the splashes (discs), all small shaders; heights and colours set every frame within 250 m, a few times
-    a second further, nothing past 900 m. **The square itself** (`games/g_cv2yrhrpv2/plaza.js`) is paving at
+    a second further, past 260 m only every other row and column drawn, nothing past 900 m. **The square itself** (`games/g_cv2yrhrpv2/plaza.js`) is paving at
     pavement height between Sejong-daero's southbound carriageway and the buildings on its west, from the
     Jongno crossing to Sajik-ro before the gate, a kerb round it; the statues stand on it. (An image-to-3D generation of the
     statue with TRELLIS.2 was tried on the Mac Studio: its decoder gave an empty mesh there twice, so the
@@ -426,8 +432,8 @@ Seoul's real streets — and the streets stay open.
       Gwanghwamun Avenues' streets, its upper one the palace walls, as one lap. A left turn the map leaves
       out (Hyoja-ro's foot onto Sajik-ro eastbound) is a `link`.
     - **Gwanghwamun Square** is part of the race (`plaza` on a course, `games/g_cv2yrhrpv2/plaza.js`):
-      its lane (14 m) comes onto the square from the Jongno crossing, up its west side through the
-      fountain's west row, round the admiral's plinth on its west, past King Sejong, then a gentle weave
+      its lane (14 m) comes onto the square from the Jongno crossing, past the admiral's plinth on its
+      west, up the fountain's walkway between its jets, round King Sejong on his west, then a gentle weave
       between granite planters and lines of stone bollards to Sajik-ro before the gate (or off its west
       side by the Sejong Center's north end, onto Sajik-ro 8-gil). The planner takes the lane as a street
       (class 4, two-way) joined to the real roads' own points at its ends (`plazaRoads`); the plinths,
@@ -436,8 +442,10 @@ Seoul's real streets — and the streets stay open.
       the surface is the paving (SeoulGame `surfaceAt`), the wheels say paving, no road plates on it, no
       car spawns or strays into the lane and nobody wanders into it (race.js `keepClear`), people stand
       about its edges watching. **The grid** is on the square at its south end, facing up it toward the
-      fountain and the statue; during the countdown the camera **sweeps** round the admiral and the
-      fountain (`SWEEP`, race.js: five and a half seconds from over Sejong-daero round to the grid, the
+      fountain and the statue; during the countdown the camera **sweeps** round the giant admiral and the
+      fountain beyond him (`SWEEP`, race.js: six and a half seconds from high over the crossing round to
+      behind the grid, high and wide enough for the whole statue; on the square the race camera tilts up
+      to keep his head in the picture — skyline.js `look`; the
       lights waiting in a race of your own; in a room inside the countdown so the lights still go out
       together) and eases down behind your rider — any key or a drag skips it, no words. A loop's finish
       is its start line, so the podium is on the square too.
